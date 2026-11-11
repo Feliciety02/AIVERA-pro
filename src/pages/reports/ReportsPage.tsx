@@ -78,7 +78,7 @@ export default function ReportsPage() {
       <SectionCard title="Report templates" icon={LayoutTemplate} description="Start a report from a template">
         <div className="grid gap-3 md:grid-cols-3">
           {REPORT_TEMPLATES.map((t) => (
-            <div key={t.id} className="flex flex-col rounded-lg border border-border p-4">
+            <div key={t.id} className="flex flex-col rounded-xl border border-border p-4">
               <FileText className="size-5 text-primary" />
               <p className="mt-2 text-sm font-semibold">{t.name}</p>
               <p className="mt-1 flex-1 text-xs text-muted-foreground">{t.description}</p>

@@ -175,7 +175,7 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
                 {confirmed.length === 0 ? (
                   <EmptyState compact title="No confirmed findings in this scope/period" description="You can still generate a report; it will state that no vulnerabilities were verified." />
                 ) : (
-                  <ul className="divide-y divide-border rounded-md border border-border">
+                  <ul className="divide-y divide-border rounded-lg border border-border">
                     {confirmed.map((f) => (
                       <li key={f.id} className="flex items-center gap-3 px-3 py-2.5">
                         <Checkbox id={`rf-${f.id}`} checked={selected.includes(f.id)} onCheckedChange={(v) => setFindingIds(v ? [...selected, f.id] : selected.filter((x) => x !== f.id))} />
@@ -189,7 +189,7 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
                     ))}
                   </ul>
                 )}
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
                   <span>
                     <span className="block text-sm font-medium">Include unverified observations appendix</span>
                     <span className="block text-[11px] text-muted-foreground">{unverifiedCount} observation(s). Clearly separated and labelled as NOT verified.</span>

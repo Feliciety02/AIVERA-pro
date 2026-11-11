@@ -226,7 +226,7 @@ export default function FindingDetailPage() {
             ) : (
               <ol className="space-y-3">
                 {history.map((v) => (
-                  <li key={v.id} className="rounded-lg border border-border p-3.5">
+                  <li key={v.id} className="rounded-xl border border-border p-3.5">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <StatusBadge status={v.fromStatus} map={VERIFICATION_STATUS} />
                       <span className="text-muted-foreground">→</span>

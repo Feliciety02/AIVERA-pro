@@ -140,7 +140,7 @@ export default function AIAnalystPage() {
               role="radio"
               aria-checked={active}
               onClick={() => { setMode(m.id); setCurrentId(null); }}
-              className={cn("rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", active ? "border-primary bg-primary/8 ring-1 ring-primary" : "border-border bg-card hover:bg-accent/50")}
+              className={cn("rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", active ? "border-primary bg-primary/8 ring-1 ring-primary" : "border-border bg-card hover:bg-accent/50")}
             >
               <Icon className={cn("size-4", active ? "text-primary" : "text-muted-foreground")} />
               <p className="mt-2 text-xs font-semibold">{m.label}</p>
@@ -160,7 +160,7 @@ export default function AIAnalystPage() {
             <PickerRow label="Scan" value={scanId} disabled={!projectId} onChange={(v) => { setScanId(v); setFindingId(""); setCurrentId(null); }} placeholder="All scans" options={scans.map((s) => ({ value: s.id, label: `${s.code} · ${s.dataOrigin === "simulated" ? "SIMULATED" : "imported"} · ${s.name}` }))} />
             <PickerRow label="Finding" value={findingId} disabled={!projectId} onChange={(v) => { setFindingId(v); setCurrentId(null); }} placeholder="Select finding" options={findings.map((f) => ({ value: f.id, label: `${f.code} · ${f.title}` }))} />
             {finding && (
-              <div className="rounded-md border border-border bg-muted/30 p-3">
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
                 <p className="text-xs font-medium">{finding.title}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <SeverityBadge severity={finding.severity} />
@@ -186,7 +186,7 @@ export default function AIAnalystPage() {
               <ul className="space-y-2">
                 {evidence.map((e) => (
                   <li key={e.id}>
-                    <details className="rounded-md border border-border">
+                    <details className="rounded-lg border border-border">
                       <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs">
                         <span className="min-w-0 flex-1 truncate font-medium">{e.title}</span>
                         <span className="font-mono text-[10px] text-muted-foreground">{e.id}</span>
@@ -206,7 +206,7 @@ export default function AIAnalystPage() {
             ) : (
               <div className="space-y-2">
                 {scanResults.map((r) => (
-                  <details key={r.id} className="rounded-md border border-border">
+                  <details key={r.id} className="rounded-lg border border-border">
                     <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs">
                       <ToolBadge tool={r.tool} />
                       <span className="min-w-0 flex-1 truncate">{r.summary}</span>

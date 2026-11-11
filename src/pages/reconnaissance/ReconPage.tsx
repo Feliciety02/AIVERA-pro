@@ -222,7 +222,7 @@ export default function ReconPage() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {services.length === 0 && <EmptyState title="No services identified" className="md:col-span-2 xl:col-span-3" />}
             {services.map((s) => (
-              <details key={s.name} className="group rounded-lg border border-border bg-card p-4 open:border-cyan/30">
+              <details key={s.name} className="group rounded-xl border border-border bg-card p-4 open:border-cyan/30">
                 <summary className="flex cursor-pointer list-none items-center justify-between">
                   <span className="font-mono text-sm font-semibold text-cyan">{s.name}</span>
                   <span className="text-xs text-muted-foreground">{s.value} open port(s) · expand</span>
@@ -263,7 +263,7 @@ export default function ReconPage() {
                 </dl>
                 <div>
                   <p className="mb-2 text-xs font-semibold">Ports</p>
-                  <ul className="divide-y divide-border rounded-md border border-border">
+                  <ul className="divide-y divide-border rounded-lg border border-border">
                     {data.ports.filter((p) => p.hostId === selectedHost.id).map((p) => (
                       <li key={p.id} className="flex items-center gap-3 px-3 py-2 text-xs">
                         <span className="w-16 font-mono font-semibold">{p.port}/{p.protocol}</span>

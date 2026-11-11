@@ -38,7 +38,7 @@ function ChecklistRow({ item, assessmentId, readOnly, onRecord }: { item: Checkl
   }, [item.observation, item.evidenceNote]);
   const dirty = obs !== item.observation || ev !== item.evidenceNote;
   return (
-    <li className="rounded-lg border border-border p-3.5">
+    <li className="rounded-xl border border-border p-3.5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-medium">{item.title}</p>

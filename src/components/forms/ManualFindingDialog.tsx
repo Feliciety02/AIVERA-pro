@@ -149,7 +149,7 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
               <Textarea id="mf-rem" rows={2} {...register("remediation")} />
             </Field>
           </div>
-          <div className="rounded-lg border border-border p-3">
+          <div className="rounded-xl border border-border p-3">
             <p className="mb-2 text-xs font-semibold">Evidence (required)</p>
             <div className="grid gap-3">
               <Field id="mf-ev-title" label="Evidence title" required error={errors.evidenceTitle?.message}>

@@ -40,7 +40,7 @@ function RiskEditor({ risk, onClose, readOnly }: { risk: Risk; onClose: () => vo
     <>
       <SheetBody className="space-y-4">
         {!readOnly && <DialogGuide guideKey="riskEditor" steps={DIALOG_GUIDES.riskEditor} inSheet />}
-        <div className="rounded-lg border p-3 text-center" style={{ borderColor: RISK_LEVEL_META[lvl].color }}>
+        <div className="rounded-xl border p-3 text-center" style={{ borderColor: RISK_LEVEL_META[lvl].color }}>
           <p className="text-[11px] text-muted-foreground">Demo risk score (not CVSS)</p>
           <p className="text-3xl font-semibold tabular-nums" style={{ color: RISK_LEVEL_META[lvl].color }}>{score}</p>
           <p className="text-xs font-semibold" style={{ color: RISK_LEVEL_META[lvl].color }}>{RISK_LEVEL_META[lvl].label}</p>

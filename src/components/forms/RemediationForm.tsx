@@ -98,7 +98,7 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
             </Field>
           </div>
           <Controller control={control} name="retestRequired" render={({ field }) => (
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
               <span>
                 <span className="block text-sm font-medium">Require retest before resolution</span>
                 <span className="block text-[11px] text-muted-foreground">Recommended. The task cannot be resolved until a manual retest passes.</span>

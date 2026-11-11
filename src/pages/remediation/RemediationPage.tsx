@@ -94,7 +94,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
       <p className="text-sm text-foreground/85">{task.description}</p>
 
       {canEdit && (
-        <div className="space-y-2 rounded-lg border border-border p-3" data-guide="rem-actions">
+        <div className="space-y-2 rounded-xl border border-border p-3" data-guide="rem-actions">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold">Workflow actions</p>
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditOpen(true)}><Pencil /> Edit details</Button>
@@ -125,7 +125,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
 
       <section data-guide="rem-recommendation">
         <p className="mb-1.5 text-xs font-semibold">Remediation recommendation</p>
-        <p className="rounded-md border border-border bg-muted/30 p-3 text-xs leading-relaxed">{task.recommendation}</p>
+        <p className="rounded-lg border border-border bg-muted/30 p-3 text-xs leading-relaxed">{task.recommendation}</p>
       </section>
 
       <section data-guide="rem-before-after">
@@ -253,7 +253,7 @@ export default function RemediationPage() {
         <MiniStat label="Open / in progress" value={tasks.filter((t) => t.status === "open" || t.status === "in_progress").length} tone="text-sev-medium" />
         <MiniStat label="Awaiting retest" value={tasks.filter((t) => t.status === "awaiting_retest").length} tone="text-sev-low" />
         <MiniStat label="Overdue" value={overdue} tone={overdue ? "text-sev-critical" : undefined} />
-        <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5">
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
           <p className="text-[11px] font-medium text-muted-foreground">Progress</p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-primary">{percent(closed, tasks.length)}%</p>
           <Progress value={percent(closed, tasks.length)} className="mt-1" />
@@ -293,7 +293,7 @@ export default function RemediationPage() {
                   <div className="flex-1 space-y-2 p-2">
                     {col.length === 0 && <p className="py-6 text-center text-[11px] text-muted-foreground">No tasks</p>}
                     {col.map((t) => (
-                      <button key={t.id} type="button" onClick={() => openTask(t.id)} className="w-full rounded-md border border-border bg-card p-2.5 text-left transition-colors hover:border-primary/35 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+                      <button key={t.id} type="button" onClick={() => openTask(t.id)} className="w-full rounded-lg border border-border bg-card p-2.5 text-left transition-colors hover:border-primary/35 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-mono text-[10.5px] text-muted-foreground">{t.code}</span>
                           <SeverityBadge severity={t.priority} />
@@ -366,7 +366,7 @@ export default function RemediationPage() {
           {eligible.length === 0 ? (
             <EmptyState compact title="No eligible findings" description="Confirm a finding first, or close its existing task." />
           ) : (
-            <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-md border border-border">
+            <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border">
               {eligible.map((f) => (
                 <li key={f.id}>
                   <button type="button" onClick={() => { setPickOpen(false); setFormFinding(f); }} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/50">

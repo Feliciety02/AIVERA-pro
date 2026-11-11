@@ -140,7 +140,7 @@ export function ChoiceCard({ checked, onToggle, title, description, icon, disabl
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
         checked ? "border-primary/50 bg-primary/6" : "border-border hover:border-ring/40 hover:bg-accent/30",
       )}
     >

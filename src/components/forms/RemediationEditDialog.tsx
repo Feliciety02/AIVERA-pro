@@ -69,7 +69,7 @@ export function RemediationEditDialog({ task, open, onOpenChange }: { task: Reme
             </Field>
             <Field id="re-due" label="Due date" required><Input id="re-due" type="date" className="[color-scheme:light] dark:[color-scheme:dark]" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></Field>
           </div>
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
             <span>
               <span className="block text-sm font-medium">Require retest before resolution</span>
               <span className="block text-[11px] text-muted-foreground">{closedTask ? "Locked: task is already closed." : "Turning this off removes the retest gate; manual approval is still required."}</span>

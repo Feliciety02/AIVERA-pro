@@ -37,7 +37,7 @@ export function EvidenceViewer({ evidence, canReview }: { evidence: Evidence[]; 
         const meta = TYPE_META[e.type];
         const content = maskOn ? mask(e.content) : e.content;
         return (
-          <li key={e.id} id={e.id} className={cn("rounded-lg border p-3.5 scroll-mt-20", e.reviewed ? "border-primary/25" : "border-border")}>
+          <li key={e.id} id={e.id} className={cn("rounded-xl border p-3.5 scroll-mt-20", e.reviewed ? "border-primary/25" : "border-border")}>
             <div className="mb-2.5 flex flex-wrap items-center gap-2">
               <meta.icon className="size-4 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium">{e.title}</p>
