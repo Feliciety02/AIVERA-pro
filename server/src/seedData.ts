@@ -1,6 +1,6 @@
 /**
- * Loads the frontend's synthetic demo dataset (src/data/seed.ts) into the
- * database. Used by `npm run db:seed` and by the admin "reset demo data" route.
+ * Loads AIVERA's UMERCH3.0 starting data (src/data/seed.ts) into the
+ * database. Used by `npm run db:seed` and by the admin reset route.
  */
 import * as seed from "@/data/seed";
 import { prisma } from "./db.ts";
