@@ -3,13 +3,13 @@ import { z } from "zod";
 import type { ApplicationSettings, AssessmentCategoryId } from "@/types";
 import { CATEGORIES } from "@/lib/constants";
 import { newId, nextCode, prisma } from "../db.ts";
-import { can, createSession, destroySession, loginThrottle, requireAuth, requirePermission, verifyPassword } from "../auth.ts";
+import { can, createSession, destroySession, hashPassword, loginThrottle, requireAuth, requirePermission, verifyPassword } from "../auth.ts";
 import { log, notify } from "../audit.ts";
 import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { seedDatabase } from "../seedData.ts";
 import { detectScope } from "../scopeDiscovery.ts";
-import { aiConfigured, GEMINI_MODEL } from "../ai/gemini.ts";
+import { aiConfigured, aiProviderChain } from "../ai/gemini.ts";
 
 export const router = Router();
 
@@ -24,12 +24,42 @@ router.post("/auth/login", async (req, res) => {
     throttle.fail();
     fail(401, "Incorrect email or password.");
   }
+  if (user!.status === "invited") fail(403, "Your account is waiting for an administrator to approve it.");
   if (user!.status !== "active") fail(403, "This account is not active.");
   throttle.reset();
   await createSession(res, user!.id, req.get("user-agent"));
   await prisma.user.update({ where: { id: user!.id }, data: { lastActiveAt: new Date() } });
   await log(user!.id, "user_login", "user", user!.id, user!.name, "Signed in");
   res.json({ user: M.toUser(user!) });
+});
+
+/**
+ * Self-service sign-up. New accounts are read-only viewers and stay pending ("invited")
+ * until an administrator activates them on the Users page — nobody can sign up and
+ * start testing websites on their own.
+ */
+const signupBody = z.object({
+  name: z.string().trim().min(2, "Enter your name").max(80),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address").max(200),
+  password: z
+    .string()
+    .min(10, "Use at least 10 characters")
+    .max(200)
+    .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), "Use a mix of letters and numbers"),
+});
+router.post("/auth/register", async (req, res) => {
+  const throttle = loginThrottle(`register|${req.ip}`);
+  if (throttle.blocked) fail(429, "Too many sign-up attempts. Try again in 15 minutes.");
+  throttle.fail(); // every attempt counts, successful or not
+  const b = parse(signupBody, req.body);
+  if (await prisma.user.findUnique({ where: { email: b.email } })) fail(409, "An account with this email already exists. Try signing in.");
+  const now = new Date();
+  const user = await prisma.user.create({
+    data: { id: newId("usr"), name: b.name, email: b.email, passwordHash: await hashPassword(b.password), role: "viewer", title: "New member", status: "invited", assignedProjectIds: [], createdAt: now, lastActiveAt: now },
+  });
+  await log(user.id, "user_signup", "user", user.id, user.name, "Created an account (pending administrator approval)");
+  await notify({ title: "New account waiting for approval", message: `${user.name} (${user.email}) signed up. Activate it on the Users page.`, tone: "info", link: "/users" });
+  res.status(201).json({ ok: true, status: "pending" });
 });
 
 router.post("/auth/logout", async (req, res) => {
@@ -83,7 +113,7 @@ router.get("/bootstrap", async (req, res) => {
     integrations: integrations.map(M.toIntegration).map((i) =>
       i.id === "ai_service"
         ? aiConfigured()
-          ? { ...i, name: "AI Analysis Service (Google Gemini)", status: "connected" as const, integrationType: `Server-side Gemini API · ${GEMINI_MODEL}`, futureEndpoint: "POST /api/ai/analyses (live)" }
+          ? { ...i, name: "AI Analysis Service", status: "connected" as const, integrationType: `Server-side AI, tried in order: ${aiProviderChain().join(" → ")}`, futureEndpoint: "POST /api/ai/analyses (live)" }
           : { ...i, status: "demo_adapter" as const, integrationType: "Demo adapter — set GEMINI_API_KEY in server/.env to enable Gemini" }
         : i,
     ),
@@ -180,7 +210,7 @@ const targetBody = z.object({
   environment: z.enum(["development", "staging", "qa", "lab"]),
   owner: z.string().trim().min(2).max(200),
   authorizationStatus: z.enum(["authorized", "pending", "expired", "revoked"]),
-  // Optional: when empty, AEGIS assigns the next AUTH-YYYY-NNNN record number.
+  // Optional: when empty, AIVERA assigns the next AUTH-YYYY-NNNN record number.
   authorizationReference: z.string().trim().max(200).optional(),
   authorizationConfirmed: z.boolean(),
   testingNotes: z.string().max(2000),
