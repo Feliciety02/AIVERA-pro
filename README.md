@@ -1,9 +1,9 @@
-# AEGIS AI — Intelligent Web Security Assessment & Vulnerability Management Platform
+# AIVERA — Intelligent Web Security Assessment & Vulnerability Management Platform
 
 > **Intelligent Security. Verified Decisions.**
-> Frontend phase of a university final project. **Demo mode only** — no backend, no real scanning, no real AI.
+> University final project with a browser demo mode and a database-backed API mode. API mode can run bounded passive assessments when explicitly enabled on a dedicated lab machine.
 
-AEGIS AI helps authorized security assessors plan assessments, register authorized targets and scope,
+AIVERA helps authorized security assessors plan assessments, register authorized targets and scope,
 review tool output, use AI assistance for interpretation, **verify findings by hand**, prioritise risk,
 track remediation and generate reports. The core principle: *AI assists the assessor but never confirms a vulnerability.*
 
@@ -31,18 +31,18 @@ The backend is Node.js + Express 5 + Prisma. Local development uses SQLite (no i
 ```bash
 npm install                                # also generates the Prisma client
 copy server\.env.example server\.env       # Windows (use cp on macOS/Linux)
-npm run db:setup                           # create tables + load the demo dataset
+npm run db:setup                           # create tables + load the UMERCH3.0 starting data
 npm run dev:full                           # API on :4000 + web app (API mode) on :5173
 ```
 
-Sign in with a seeded account (e.g. `jordan.kim@aegis-demo.example`) using the password set as
+Sign in with a seeded account (`admin@aivera.local`, `assessor@aivera.local` or `viewer@aivera.local`) using the password set as
 `SEED_DEMO_PASSWORD` in `server/.env`. Change it before any shared deployment.
 
 | Script | What it does |
 |---|---|
 | `npm run server:dev` | API with auto-reload (`http://localhost:4000/api`) |
 | `npm run dev:api` | Web app in API mode (proxies `/api` to the server) |
-| `npm run db:push` / `db:seed` | Sync schema / reload demo data |
+| `npm run db:push` / `db:seed` | Sync schema / reload the UMERCH3.0 starting data |
 | `npm run build:api` then `NODE_ENV=production npm run server:start` | Single-origin production deployment (Express serves `dist/`) |
 
 **Real AI (Google Gemini):** create a key at https://aistudio.google.com/apikey, then in `server/.env` set
@@ -59,7 +59,13 @@ Free-tier note: Google states free-tier content may be used to improve its produ
 **What the backend enforces (not just the UI):** bcrypt-hashed passwords, hashed session tokens in httpOnly
 cookies, login throttling, role permissions on every write, target authorization + scope re-checked on every
 import/simulation, verification rules (notes, reason, evidence attestation), remediation rules (passed retest +
-approval before *Resolved*), and an append-only activity log. The server never contacts assessment targets.
+approval before *Resolved*), and an append-only activity log. Live target contact occurs only through the explicitly enabled automated assessment or scope detection routes.
+
+### Automated assessment in API mode
+
+Install Nmap and Docker on the dedicated assessment machine, pull `ghcr.io/zaproxy/zaproxy:stable`, and set `AIVERA_LIVE_SCANS_ENABLED=true` plus `AIVERA_ALLOWED_SCAN_HOSTS=<exact lab host>` in `server/.env`. Register only an approved lab target with explicit hosts, paths, exclusions, and an authorization reference. In **Scan Center → New assessment**, choose Nmap and/or OWASP ZAP with the Passive or Baseline profile, then select **Start Automated Assessment**. The API queues a background run, Nmap performs bounded TCP discovery, ZAP spiders inside a generated context with passive checks, and the server normalizes results into pending findings and evidence. Configured Gemini analysis automatically interprets the scan and drafts remediation for up to three findings. An assessor must still verify every finding.
+
+This first automated adapter supports authorized web targets reachable by both Nmap and the ZAP container. It does not run active ZAP attacks, authenticated scans, or tools for non-web systems. The Docker and Nmap executables are not bundled. See [the authorized target lab plan](docs/Authorized-Target-Lab.md) before a live demonstration.
 
 > Keep `node_modules` out of OneDrive sync (or move the project outside OneDrive). OneDrive file locks can
 > corrupt installs (`ENOTEMPTY` errors).
@@ -76,7 +82,7 @@ TanStack Table 8 · date-fns 4 · Sonner · jsPDF + jspdf-autotable (client-side
 
 ## End-to-end demo script (all steps share one state store)
 
-1. Open AEGIS AI → `/login`, choose **Jordan Kim (Security Assessor)**.
+1. Open AIVERA → `/login`, choose **Jordan Kim (Security Assessor)**.
 2. **Dashboard** — metrics computed from state (only *Confirmed* findings count as vulnerabilities).
 3. **Projects → New project** — validated multi-section form → project detail page.
 4. **Register target** (from the project) — URL is syntax-validated only and **never contacted**; the
@@ -84,7 +90,7 @@ TanStack Table 8 · date-fns 4 · Sonner · jsPDF + jspdf-autotable (client-side
    categories, allowed/restricted activities) is defined in the same form. Use **Add &lt;host&gt; to scope**.
 5. On the target page: **Edit scope** to add an exclusion; review the scope visualization.
 6. **Configure demo scan** → 6-step wizard (project → authorized target → confirm scope → tools → configuration → review).
-   **Start Assessment** is disabled with an explanation; click **Run Demo Simulation**.
+   **Start Automated Assessment** is available in API mode when the live scan gate and tool prerequisites are configured. Otherwise click **Run Demo Simulation**.
 7. Watch the progress (labelled **SIMULATED**). Findings appear when it completes (toast → *View findings*).
 8. Open a finding → **AI Analysis** tab → *Generate sample analysis* ("Sample AI Analysis — Demo Mode").
 9. **Technical Evidence** tab → review / mark evidence reviewed.
@@ -169,7 +175,7 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
   **OWASP ZAP JSON** reports in the browser for one authorized target. Out-of-scope hosts, URLs, excluded paths and
   non-permitted categories are skipped and listed in a preview before import. Creates an *Imported* scan with raw output,
   hosts/ports/endpoints, and findings (ZAP alerts; exposed DB/admin services from Nmap) as **Pending Verification**.
-  A *Load synthetic sample* button provides fictional reports for demos. AEGIS never runs the tools.
+  A *Load synthetic sample* button provides fictional reports for demos. In API mode, the separate automated assessment path can launch Nmap and a containerized ZAP passive run.
 - **Manual findings**: *Record manual finding* (Findings page) and *Record finding* on checklist items
   (Vulnerability Assessment). Requires evidence; links the finding code back to the checklist item and marks it failed.
 - **Manual evidence notes** on any finding (Evidence tab → *Add evidence note*).
@@ -188,44 +194,40 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
 | Dashboard, Security Analytics | Complete — all numbers derived from state |
 | Projects, Targets & Scope | Complete |
 | Reconnaissance | Complete — sample bundles + Nmap XML import |
-| Scan Center | Complete for simulation and file import; **real scanning requires backend** (button disabled) |
+| Scan Center | Simulation and file import; API mode has an opt-in bounded Nmap and ZAP passive runner |
 | Vulnerability Assessment | Complete — guided checklists, manual findings |
 | Findings & Evidence, Verification | Complete — incl. manual evidence |
-| AI Security Analyst | Complete UI; **demo adapter only** (no LLM) |
+| AI Security Analyst | Demo samples in browser mode; server-side Gemini when configured |
 | Risk, Remediation | Complete |
-| Reports (preview, print, PDF) | Complete — demonstration data only |
+| Reports (preview, print, PDF) | Complete; provenance notice and watermark depend on selected data |
 | Activity, Users, Integrations, Settings | Complete (integrations honestly show Not Connected) |
-| Backend, real auth, scan workers, LLM gateway, tamper-proof audit | **Not started** (out of scope for this phase) |
+| Backend, real auth, LLM gateway | Implemented in API mode; automated tool runner is opt-in; tamper-evident audit remains future work |
 
 ## Demo-only (clearly labelled in the UI)
 
 - **Login & roles** — personas, client-side guards and permissions are UI demonstrations, not security.
-- **Scans** — "Run Demo Simulation" fabricates clearly labelled SIMULATED records; **Start Assessment is disabled**.
-- **Reconnaissance** — sample bundles only; no DNS lookups, no port scans, no HTTP requests.
-- **AI** — deterministic demo adapter returning predefined samples per finding template; no LLM is called.
-- **Integrations** — all show *Not Connected* (AI shows *Demo Adapter*); *Connect* is disabled.
-- **Activity log** — stored in localStorage; explicitly not a tamper-proof audit trail.
-- **Reports** — always generated from demonstration data and watermarked.
+- **Scans in demo mode** — "Run Demo Simulation" fabricates clearly labelled SIMULATED records. API mode has a separate opt-in passive assessment path.
+- **Reconnaissance in demo mode** — sample bundles only. API mode has scope detection and an opt-in Nmap adapter.
+- **AI in demo mode** — deterministic samples. API mode calls Gemini when configured.
+- **Integrations** — the integration cards do not certify installed external tools; check the assessment prerequisites separately.
+- **Activity log in demo mode** — stored in localStorage. API mode uses database records, but these are not tamper-evident.
+- **Reports** — simulated and synthetic data are explicitly marked. Imported output retains a provenance warning.
 
-**Safety guarantees in this phase:** the frontend never visits, requests, crawls, scans or authenticates against a
-target URL, never executes Nmap/ZAP, never calls an AI model, and stores no secrets.
+The browser never launches tools or stores model secrets. API mode can contact an authorized target only through scope detection or an explicitly enabled automated assessment.
 
 ---
 
-## Backend integration points (Node.js + Express + MySQL + isolated workers)
+## Backend integration points
 
 - `src/services/api/contracts.ts` — documented REST routes (`API_ROUTES`) and `DATA_MODE` switch (`VITE_DATA_MODE`).
 - `src/services/index.ts` — typed services (`projectService`, `targetService`, `scanService`, `reconService`,
   `findingService`, `verificationService`, `analysisService`, `riskService`, `remediationService`, `reportService`,
   `userService`, `settingsService`). Swap each demo implementation for an API call with the same signature.
-- `src/services/ai/aiService.ts` — `AIAdapter` interface; `demoAIAdapter` now, `apiAIAdapter` placeholder for the backend AI gateway.
-- `scanService.startRealAssessment()` — reserved; must be implemented server-side with **independent scope & authorization enforcement**.
+- `src/services/ai/aiService.ts` — `AIAdapter` interface for demo samples; API mode uses the server-side Gemini route.
+- `scanService.startRealAssessment()` — queues the opt-in passive assessment through the API.
 
-The backend must independently authenticate users, authorize every action, re-validate target scope for every job,
-run tools only on isolated workers, keep secrets server-side, and write an append-only audit log.
+The backend authenticates users, authorizes actions, and checks target scope before each tool. ZAP runs in a separate container; Nmap runs as a bounded subprocess on the assessment host. For shared deployment, move both adapters to dedicated isolated workers, add durable queue recovery and strict network egress controls, and make the activity log tamper-evident.
 
 ## Remaining work (next phases)
 
-Backend API + MySQL schema · real authentication/authorization · scan worker orchestration for Nmap & OWASP ZAP with
-scope enforcement (server-side re-validation of imports too) · backend AI gateway with evidence redaction ·
-server-side PDF/report storage · tamper-evident audit log · automated tests (unit + E2E).
+Dedicated isolated workers, durable queue recovery, worker-level network egress restrictions, authenticated and active scan profiles, scheduling, non-web adapters, server-side PDF storage, tamper-evident audit records, and end-to-end tests against an approved lab target. The final submission also needs real assessment evidence, a completed report, a deployed demonstration, and member-specific oral preparation.

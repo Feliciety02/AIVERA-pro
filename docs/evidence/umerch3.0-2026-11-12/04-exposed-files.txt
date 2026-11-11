@@ -1,0 +1,8 @@
+/.env                        404 6659B text/html; charset=utf-8
+/.git/HEAD                   404 6659B text/html; charset=utf-8
+/storage/logs/laravel.log    403 6659B text/html; charset=utf-8
+/composer.json               404 6659B text/html; charset=utf-8
+/phpinfo.php                 404 6659B text/html; charset=utf-8
+/robots.txt                  200 24B text/plain; charset=UTF-8
+/sitemap.xml                 404 6659B text/html; charset=utf-8
+/vendor/autoload.php         404 6659B text/html; charset=utf-8

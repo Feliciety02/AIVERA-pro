@@ -1,0 +1,83 @@
+# Source excerpts from UMERCH3.0 (white-box review). Secret values redacted.
+
+## routes/web.php — /debug-env (no authentication)
+9:Route::get('/debug-env', function () {
+10-    return response()->json([
+11-        'db_connection' => env('DB_CONNECTION'),
+12-        'db_host' => env('DB_HOST'),
+13-        'db_database' => env('DB_DATABASE'),
+14-        'app_key_set' => !empty(env('APP_KEY')),
+15-        'app_env' => env('APP_ENV'),
+16-        'app_debug' => env('APP_DEBUG'),
+17-    ]);
+18-});
+19-
+
+## LoginCont.php — login(): rate limit, optional reCAPTCHA, hard-coded admin
+        // Check brute force rate limiter
+        $rateLimitDecay = 60; // seconds (tracking window)
+        $rateLimitLockout = 10; // seconds (lockout duration)
+        $rateLimitKey = 'login-attempts:'.Str::lower($credentials['login']);
+        $rateLimitDir = storage_path('framework/cache/rate-limit');
+        $rateLimitFile = $rateLimitDir . '/' . md5($rateLimitKey) . '.json';
+        // Verify reCAPTCHA token if provided
+        if ($credentials['recaptcha_token']) {
+            $recaptchaVerified = $this->verifyRecaptcha($credentials['recaptcha_token']);
+            if (!$recaptchaVerified) {
+                $this->recordFailedAttempt($rateLimitKey, $rateLimitDecay);
+                $message = 'reCAPTCHA verification failed. Please try again.';
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $message, 'errors' => ['recaptcha' => $message]], 422);
+                }
+                return back()->withErrors(['recaptcha' => $message]);
+            }
+        }
+
+        // user:admin
+        // password:[REDACTED]
+        if ($credentials['login'] === 'admin' && $credentials['password'] === '[REDACTED]') {
+            $adminUser = User::where('email', 'admin@umerch.com')->first();
+            
+            if (!$adminUser) {
+               
+                $adminUser = User::create([
+                    'user_fullname' => 'Admin',
+                    'email' => 'admin@umerch.com',
+                    'um_id' => 1,  
+                    'user_password' => '[REDACTED]',
+                    'role' => 'Admin',
+                    'status' => 'active'
+                ]);
+            } else {
+
+            $dbPassword = $user->user_password;
+            $inputPassword = $credentials['password'];
+
+            $isHashed = str_starts_with($dbPassword, '$2y$');
+            $valid = $isHashed
+                ? Hash::check($inputPassword, $dbPassword)
+                : $inputPassword === $dbPassword;
+
+## app/Http/Controllers/InventoryApiController.php — unauthenticated inventory API
+    public function index(): JsonResponse
+    {
+        $inventory = Inventory::all();
+        return response()->json($inventory);
+    }
+
+    /**
+     * Get inventory for a specific product
+     */
+    public function getByProduct($productId): JsonResponse
+    {
+        $inventory = Inventory::where('product_id', $productId)->get();
+        return response()->json($inventory);
+    }
+
+## config/session.php
+172:    'secure' => env('SESSION_SECURE_COOKIE'),
+185:    'http_only' => env('SESSION_HTTP_ONLY', true),
+202:    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+
+## LoginCont.php — lockout trigger
+109:        if ($attempts->count() >= 5) {
