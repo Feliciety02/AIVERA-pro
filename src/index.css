@@ -1,0 +1,201 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * AEGIS AI design tokens — modeled on Google Cloud Console conventions:
+ * neutral grays, one blue accent, flat bordered surfaces, no gradients.
+ * Light is the default; .dark uses Google's dark-theme palette.
+ * Components consume semantic tokens only (bg-background, text-muted-foreground, …).
+ */
+:root {
+  --background: #f8f9fa;
+  --foreground: #202124;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3c4043;
+  --surface: #ffffff;
+  --elevated: #f1f3f4;
+  --card: #ffffff;
+  --card-foreground: #202124;
+  --popover: #ffffff;
+  --popover-foreground: #202124;
+  --primary: #1a73e8;
+  --primary-hover: #1765cc;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f3f4;
+  --secondary-foreground: #3c4043;
+  --muted: #f1f3f4;
+  --muted-foreground: #5f6368;
+  --accent: #f1f3f4;
+  --accent-foreground: #202124;
+  --cyan: #12858a;
+  --success: #188038;
+  --destructive: #d93025;
+  --destructive-foreground: #ffffff;
+  --border: #dadce0;
+  --input: #dadce0;
+  --ring: #1a73e8;
+  --warning: #b06000;
+
+  --sev-critical: #d93025;
+  --sev-high: #e8710a;
+  --sev-medium: #c58f00;
+  --sev-low: #4285f4;
+  --sev-info: #80868b;
+
+  --chart-grid: #e8eaed;
+  --chart-axis: #5f6368;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #202124;
+  --foreground: #e8eaed;
+  --sidebar: #202124;
+  --sidebar-foreground: #bdc1c6;
+  --surface: #292a2d;
+  --elevated: #35363a;
+  --card: #292a2d;
+  --card-foreground: #e8eaed;
+  --popover: #2d2e31;
+  --popover-foreground: #e8eaed;
+  --primary: #8ab4f8;
+  --primary-hover: #aecbfa;
+  --primary-foreground: #202124;
+  --secondary: #35363a;
+  --secondary-foreground: #e8eaed;
+  --muted: #303134;
+  --muted-foreground: #9aa0a6;
+  --accent: #35363a;
+  --accent-foreground: #e8eaed;
+  --cyan: #78d9ec;
+  --success: #81c995;
+  --destructive: #f28b82;
+  --destructive-foreground: #202124;
+  --border: #3c4043;
+  --input: #5f6368;
+  --ring: #8ab4f8;
+  --warning: #fdd663;
+
+  --sev-critical: #f28b82;
+  --sev-high: #fcad70;
+  --sev-medium: #fdd663;
+  --sev-low: #8ab4f8;
+  --sev-info: #9aa0a6;
+
+  --chart-grid: #3c4043;
+  --chart-axis: #9aa0a6;
+}
+
+@theme inline {
+  --font-sans: "Roboto", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Consolas, Menlo, monospace;
+  --color-success: var(--success);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-cyan: var(--cyan);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-warning: var(--warning);
+
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-high: var(--sev-high);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-low: var(--sev-low);
+  --color-sev-info: var(--sev-info);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-sm;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+  /* Subtle, thin scrollbars that match the surfaces. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  code,
+  pre,
+  kbd {
+    @apply font-mono;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.motion-reduce *,
+.motion-reduce *::before,
+.motion-reduce *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles: used by the report preview's "Print" action. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  body {
+    background: #fff !important;
+    color: #0f172a !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-root {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .print-break {
+    break-before: page;
+  }
+}
