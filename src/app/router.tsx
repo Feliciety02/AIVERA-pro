@@ -1,10 +1,11 @@
 import * as React from "react";
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter } from "react-router";
 import { AppShell, ContentContainer } from "@/components/layout/AppShell";
 import { CardsSkeleton, TableSkeleton } from "@/components/shared/states";
-import { useSessionStore } from "@/stores/sessionStore";
 
 /* Route-level code splitting keeps the initial bundle small. */
+const Signup = React.lazy(() => import("@/pages/auth/SignupPage"));
+const Landing = React.lazy(() => import("@/pages/LandingPage"));
 const Login = React.lazy(() => import("@/pages/auth/LoginPage"));
 const Dashboard = React.lazy(() => import("@/pages/dashboard/DashboardPage"));
 const Analytics = React.lazy(() => import("@/pages/analytics/AnalyticsPage"));
@@ -46,14 +47,11 @@ function PageFallback() {
 
 const s = (el: React.ReactNode) => <React.Suspense fallback={<PageFallback />}>{el}</React.Suspense>;
 
-function RootRedirect() {
-  const userId = useSessionStore((st) => st.userId);
-  return <Navigate to={userId ? "/dashboard" : "/login"} replace />;
-}
 
 export const router = createBrowserRouter([
-  { path: "/", element: <RootRedirect /> },
+  { path: "/", element: s(<Landing />) },
   { path: "/login", element: s(<Login />) },
+  { path: "/signup", element: s(<Signup />) },
   {
     element: <AppShell />,
     children: [

@@ -1,5 +1,5 @@
 /**
- * Converts parsed tool output into AEGIS records for ONE authorized target,
+ * Converts parsed tool output into AIVERA records for ONE authorized target,
  * enforcing the target's approved scope. The same function powers the import
  * preview and the actual import, so what the user previews is what is saved.
  *

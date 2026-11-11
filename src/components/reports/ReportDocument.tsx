@@ -45,7 +45,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
       )}
       {has("cover") && (
         <header className="bg-[#0B111B] px-10 pt-10 pb-8 text-slate-100">
-          <p className="text-xs font-bold tracking-[0.2em] text-blue-300">AEGIS AI</p>
+          <p className="text-xs font-bold tracking-[0.2em] text-blue-300">AIVERA</p>
           <p className="text-[10px] text-slate-400">Intelligent Security. Verified Decisions.</p>
           <h1 className="mt-10 text-[26px] font-semibold leading-tight">{m.report.title}</h1>
           <p className="mt-2 text-sm text-slate-300">{m.project.code} · {m.project.name}</p>
@@ -185,7 +185,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
             <T head={["Name", "Role", "Contact"]} rows={m.assessors.map((u) => [u.name, u.title, u.email])} />
           </>
         )}
-        <p className="mt-10 border-t border-slate-200 pt-3 text-center text-[10px] text-slate-400">{m.report.code} · AEGIS AI security assessment report{m.hasSimulated ? " · includes demonstration data" : ""}</p>
+        <p className="mt-10 border-t border-slate-200 pt-3 text-center text-[10px] text-slate-400">{m.report.code} · AIVERA security assessment report{m.hasSimulated ? " · includes demonstration data" : ""}</p>
       </div>
     </article>
   );

@@ -83,7 +83,7 @@ export default function TargetsPage() {
         }
       />
       <Callout tone="warning" icon={ShieldAlert} title="Authorized targets only">
-        Only websites with written permission from their owner may be registered and tested. Registering saves the details. The only contact with the website is the optional “Detect scope” check (DNS, robots.txt and sitemap.xml), done by the AEGIS server after you confirm permission — no crawling or scanning.
+        Only websites with written permission from their owner may be registered and tested. Registering saves the details. The only contact with the website is the optional “Detect scope” check (DNS, robots.txt and sitemap.xml), done by the AIVERA server after you confirm permission — no crawling or scanning.
       </Callout>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat label="Registered" value={targets.length} />

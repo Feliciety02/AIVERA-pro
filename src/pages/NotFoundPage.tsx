@@ -12,7 +12,7 @@ export default function NotFoundPage() {
       <EmptyState
         icon={Compass}
         title="Page not found"
-        description="This route does not exist in AEGIS AI. Use the navigation or global search (Ctrl K) to find what you need."
+        description="This route does not exist in AIVERA. Use the navigation or global search (Ctrl K) to find what you need."
         action={
           <Button asChild size="sm">
             <Link to="/dashboard">Back to dashboard</Link>

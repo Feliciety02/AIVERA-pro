@@ -1,8 +1,8 @@
 {
-  "name": "aegis-ai",
+  "name": "aivera",
   "private": true,
   "version": "0.1.0",
-  "description": "AEGIS AI — Intelligent Web Security Assessment & Vulnerability Management Platform",
+  "description": "AIVERA — Intelligent Web Security Assessment & Vulnerability Management Platform",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "build:api": "tsc -b && vite build --mode api",
     "typecheck": "tsc -b --noEmit && tsc -p server/tsconfig.json",
+    "test:scan-scope": "node --import tsx --test server/src/automatedAssessment.test.ts",
     "preview": "vite preview",
     "server:dev": "tsx watch --tsconfig server/tsconfig.json server/src/index.ts",
     "server:start": "tsx --tsconfig server/tsconfig.json server/src/index.ts",

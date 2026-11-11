@@ -63,7 +63,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   /* Cover */
   doc.setFillColor(11, 17, 27).rect(0, 0, W, 250, "F");
   doc.setFillColor(...emerald).rect(0, 250, W, 4, "F");
-  doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(16, 185, 129).text("AEGIS AI", M, 70);
+  doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(16, 185, 129).text("AIVERA", M, 70);
   doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(148, 163, 184).text("Intelligent Security. Verified Decisions.", M, 86);
   doc.setFont("helvetica", "bold").setFontSize(22).setTextColor(241, 245, 249);
   (doc.splitTextToSize(m.report.title, W - M * 2) as string[]).forEach((l, i) => doc.text(l, M, 140 + i * 26));
@@ -196,7 +196,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
       doc.restoreGraphicsState();
     }
     doc.setFont("helvetica", "normal").setFontSize(7.5).setTextColor(...muted);
-    doc.text(`${m.report.code} · AEGIS AI security assessment${m.hasSimulated ? " · includes demo data" : ""}`, M, H - 22);
+    doc.text(`${m.report.code} · AIVERA security assessment${m.hasSimulated ? " · includes demo data" : ""}`, M, H - 22);
     doc.text(`Page ${i} of ${pages}`, W - M, H - 22, { align: "right" });
   }
   return doc.output("blob");

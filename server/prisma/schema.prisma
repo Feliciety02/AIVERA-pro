@@ -1,4 +1,4 @@
-// AEGIS AI database schema.
+// AIVERA database schema.
 //
 // Local development uses SQLite (no install needed). For a MySQL deployment,
 // change `provider` to "mysql", set DATABASE_URL to a MySQL connection string,

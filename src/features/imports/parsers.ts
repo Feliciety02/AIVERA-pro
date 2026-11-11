@@ -1,8 +1,8 @@
 /**
  * Offline parsers for security tool output that an assessor produced
- * themselves (inside an authorized engagement) and wants to bring into AEGIS.
+ * themselves (inside an authorized engagement) and wants to bring into AIVERA.
  *
- * Everything here is pure string/DOM parsing in the browser. AEGIS does not run
+ * Everything here is pure string/DOM parsing in the browser. AIVERA does not run
  * the tools and does not contact any host mentioned in the file.
  *
  * Supported formats:
@@ -107,7 +107,7 @@ export function parseNmapXml(text: string): ParseResult {
 /* ----------------------------------- ZAP --------------------------------- */
 const RISK: Record<string, Severity> = { "3": "high", "2": "medium", "1": "low", "0": "info" };
 
-/** Maps a CWE / alert name onto an AEGIS assessment category. */
+/** Maps a CWE / alert name onto an AIVERA assessment category. */
 export function categorize(cwe: string | undefined, name: string): AssessmentCategoryId {
   const c = Number(cwe);
   const n = name.toLowerCase();

@@ -97,7 +97,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return { error };
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("AEGIS UI error", error, info.componentStack);
+    console.error("AIVERA UI error", error, info.componentStack);
   }
   render() {
     if (this.state.error)

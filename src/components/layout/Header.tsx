@@ -11,7 +11,7 @@ import { useCurrentUser } from "@/hooks";
 import { cn, initials } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
 import { ROLE_META } from "@/lib/constants";
-import { authService, notificationService, settingsService } from "@/services";
+import { authService, IS_API, notificationService, settingsService } from "@/services";
 import { ROUTE_LABELS } from "./nav";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -53,7 +53,7 @@ export function Breadcrumbs() {
       <ol className="flex min-w-0 items-center gap-1.5 text-xs">
         <li>
           <Link to="/dashboard" className="text-muted-foreground hover:text-foreground">
-            AEGIS
+            AIVERA
           </Link>
         </li>
         {segments.map((seg, i) => (
@@ -95,7 +95,7 @@ export function NotificationPanel() {
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
             <p className="text-sm font-semibold">Notifications</p>
-            <p className="text-[11px] text-muted-foreground">Demo notifications generated from in-app activity</p>
+            <p className="text-[11px] text-muted-foreground">{IS_API ? "Updates from AIVERA activity" : "Demo notifications generated from in-app activity"}</p>
           </div>
           <div className="flex gap-1">
             <Hint label="Mark all as read">
@@ -157,7 +157,7 @@ function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <p className="text-sm font-medium text-foreground">{user.name}</p>
           <p className="text-[11px] text-muted-foreground">{user.email}</p>
-          <p className="mt-1 text-[10px] text-sev-medium">Demo account — not real authentication</p>
+          {!IS_API && <p className="mt-1 text-[10px] text-sev-medium">Demo account, not real authentication</p>}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate("/settings?tab=account")}>
@@ -166,9 +166,11 @@ function UserMenu() {
         <DropdownMenuItem onSelect={() => navigate("/settings")}>
           <Settings /> Settings
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => navigate("/login")}>
-          <Users /> Switch demo account
-        </DropdownMenuItem>
+        {!IS_API && (
+          <DropdownMenuItem onSelect={() => navigate("/login")}>
+            <Users /> Switch demo account
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
@@ -177,7 +179,7 @@ function UserMenu() {
             navigate("/login");
           }}
         >
-          <LogOut /> Sign out of demo
+          <LogOut /> {IS_API ? "Sign out" : "Sign out of demo"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -188,7 +190,7 @@ export function Header() {
   const setMobileNav = useUIStore((s) => s.setMobileNav);
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
 
-  const showDemoNotices = useUIStore((s) => s.showDemoNotices);
+  const showDemoNotices = useUIStore((s) => s.showDemoNotices) && !IS_API;
   const startTour = useUIStore((s) => s.startTour);
   const location = useLocation();
 
@@ -204,7 +206,7 @@ export function Header() {
   }, [setCommandOpen]);
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-surface px-4 print:hidden lg:px-6">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 bg-background/85 px-4 backdrop-blur-md print:hidden lg:px-6">
       <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Open navigation" onClick={() => setMobileNav(true)}>
         <Menu />
       </Button>
@@ -212,7 +214,7 @@ export function Header() {
       <button
         type="button"
         onClick={() => setCommandOpen(true)}
-        className="mx-auto flex h-10 w-full max-w-xl items-center gap-3 rounded-lg bg-muted px-4 text-sm text-muted-foreground transition-colors hover:bg-accent focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="mx-auto flex h-11 w-full max-w-xl items-center gap-3 rounded-full bg-secondary px-5 text-sm text-muted-foreground transition-colors hover:bg-accent focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         aria-label="Search (Ctrl+K)"
       >
         <Search className="size-4" />

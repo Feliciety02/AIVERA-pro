@@ -1,6 +1,6 @@
 /**
  * Automatic scope detection helpers shared by the browser (address-only) and the
- * AEGIS server (address + DNS + robots.txt + sitemap.xml).
+ * AIVERA server (address + DNS + robots.txt + sitemap.xml).
  *
  * Nothing here invents values: every suggestion is copied from the address the
  * user typed or from the site's own public files, and is labelled with its source.
@@ -19,7 +19,7 @@ export function guessEnvironment(host: string): TargetEnvironment | undefined {
   return ENV_WORDS.find(([re]) => re.test(host))?.[1];
 }
 
-/** Readable name from a host, e.g. "shop.staging.example.test" → "Shop (staging)". */
+/** Readable name from a host, e.g. "umerch.staging.example" → "Umerch (staging)". */
 export function nameFromHost(host: string): string {
   const parts = host.replace(/^www\./, "").split(".");
   const first = parts[0] ?? host;
@@ -54,7 +54,7 @@ export function detectFromAddress(rawUrl: string): ScopeDetection {
 /**
  * Converts robots.txt Disallow rules into excluded paths. Rules for all crawlers
  * ("User-agent: *") are used; mid-path wildcards and "$" anchors can't be represented
- * by AEGIS scope patterns, so they are returned separately for the user to review.
+ * by AIVERA scope patterns, so they are returned separately for the user to review.
  */
 export function parseRobots(text: string): { excluded: string[]; unsupported: string[]; sitemaps: string[] } {
   const groups: { agents: string[]; disallow: string[] }[] = [];

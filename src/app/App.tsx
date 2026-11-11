@@ -46,7 +46,9 @@ export function App() {
     restoreSession().finally(() => setReady(true));
     const onUnauthorized = () => {
       useSessionStore.getState().signOut();
-      if (!window.location.pathname.startsWith("/login")) void router.navigate("/login");
+      // Public pages (landing, sign-in, sign-up) stay put; everything else needs a session.
+      const path = window.location.pathname;
+      if (path !== "/" && !path.startsWith("/login") && !path.startsWith("/signup")) void router.navigate("/login");
     };
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
@@ -68,7 +70,7 @@ export function App() {
     <TooltipProvider delayDuration={250}>
       {!ready ? (
         <div className="flex min-h-dvh items-center justify-center gap-3 text-sm text-muted-foreground" role="status">
-          <Loader2 className="size-4 animate-spin" /> Connecting to AEGIS server…
+          <Loader2 className="size-4 animate-spin" /> Connecting to AIVERA server…
         </div>
       ) : (
         /* Re-mount on display-preference change so every formatted date re-renders. */

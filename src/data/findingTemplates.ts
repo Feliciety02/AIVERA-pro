@@ -50,8 +50,8 @@ export const FINDING_TEMPLATES: FindingTemplate[] = [
     impact: "An attacker could craft a link that executes script in a victim's browser in the context of the application, enabling session riding or phishing overlays.",
     remediation: "Apply context-aware output encoding for all reflected values, validate input against an allow-list, and deploy a restrictive Content-Security-Policy.",
     evidence: [
-      { type: "http_request", title: "Request (sample)", content: "GET /search?q=%3Cmark%3Eaegis-probe-7f3a%3C%2Fmark%3E HTTP/1.1\nHost: {host}\nUser-Agent: AEGIS-Demo-Sample\nAccept: text/html" },
-      { type: "http_response", title: "Response excerpt (sample)", content: "HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n<div class=\"results-header\">\n  Results for <mark>aegis-probe-7f3a</mark>\n</div>" },
+      { type: "http_request", title: "Request (sample)", content: "GET /search?q=%3Cmark%3Eaivera-probe-7f3a%3C%2Fmark%3E HTTP/1.1\nHost: {host}\nUser-Agent: AIVERA-Demo-Sample\nAccept: text/html" },
+      { type: "http_response", title: "Response excerpt (sample)", content: "HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n<div class=\"results-header\">\n  Results for <mark>aivera-probe-7f3a</mark>\n</div>" },
       { type: "tool_output", title: "ZAP alert (sample)", content: "Alert: Cross Site Scripting (Reflected)\nRisk: High | Confidence: Medium\nParameter: q\nPlugin ID: 40012 (sample)" },
     ],
     sample: {
@@ -94,7 +94,7 @@ export const FINDING_TEMPLATES: FindingTemplate[] = [
     impact: "If exploitable, an attacker could read or modify database contents, including customer and order records.",
     remediation: "Use parameterized queries / prepared statements for all database access, apply least-privilege DB accounts, and suppress detailed error messages.",
     evidence: [
-      { type: "http_request", title: "Request (sample)", content: "GET /products?category=books' HTTP/1.1\nHost: {host}\nUser-Agent: AEGIS-Demo-Sample" },
+      { type: "http_request", title: "Request (sample)", content: "GET /products?category=books' HTTP/1.1\nHost: {host}\nUser-Agent: AIVERA-Demo-Sample" },
       { type: "http_response", title: "Response excerpt (sample)", content: "HTTP/1.1 500 Internal Server Error\n\nError: ER_PARSE_ERROR: You have an error in your SQL syntax near ''books''' at line 1" },
       { type: "tool_output", title: "ZAP alert (sample)", content: "Alert: SQL Injection (error based) — indicator\nRisk: High | Confidence: Low\nParameter: category" },
     ],

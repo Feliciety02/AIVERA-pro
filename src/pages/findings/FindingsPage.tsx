@@ -152,7 +152,7 @@ export default function FindingsPage() {
         description="Central register of potential vulnerabilities. Every finding requires a human verification decision; only Confirmed findings count as vulnerabilities."
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => exportRows(rows, "aegis-findings-demo.csv")} disabled={!rows.length}>
+            <Button variant="outline" size="sm" onClick={() => exportRows(rows, "aivera-findings.csv")} disabled={!rows.length}>
               <Download /> Export CSV
             </Button>
             {canVerify && (
@@ -219,7 +219,7 @@ export default function FindingsPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button size="sm" variant="outline" className="h-7" onClick={() => exportRows(selected, "aegis-findings-selected-demo.csv")}>
+              <Button size="sm" variant="outline" className="h-7" onClick={() => exportRows(selected, "aivera-findings-selected.csv")}>
                 <Download /> Export selected
               </Button>
               <span className="text-[11px] text-muted-foreground">Bulk confirmation is intentionally unavailable — each finding needs an individual human decision.</span>

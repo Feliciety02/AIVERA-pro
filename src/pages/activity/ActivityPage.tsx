@@ -86,7 +86,7 @@ export default function ActivityPage() {
         title="Activity Logs"
         description="Chronological record of actions taken in this demo workspace."
         actions={
-          <Button variant="outline" size="sm" disabled={!rows.length} onClick={() => { downloadCSV("aegis-activity-demo.csv", rows, [{ header: "Timestamp", value: (a) => a.timestamp }, { header: "Event", value: (a) => ACTIVITY_LABELS[a.type] }, { header: "User", value: (a) => lookups.users[a.userId]?.name ?? a.userId }, { header: "Entity type", value: (a) => a.entityType }, { header: "Entity", value: (a) => a.entityLabel }, { header: "Description", value: (a) => a.description }]); toast.success(`Exported ${rows.length} log entries`); }}>
+          <Button variant="outline" size="sm" disabled={!rows.length} onClick={() => { downloadCSV("aivera-activity.csv", rows, [{ header: "Timestamp", value: (a) => a.timestamp }, { header: "Event", value: (a) => ACTIVITY_LABELS[a.type] }, { header: "User", value: (a) => lookups.users[a.userId]?.name ?? a.userId }, { header: "Entity type", value: (a) => a.entityType }, { header: "Entity", value: (a) => a.entityLabel }, { header: "Description", value: (a) => a.description }]); toast.success(`Exported ${rows.length} log entries`); }}>
             <Download /> Export CSV
           </Button>
         }

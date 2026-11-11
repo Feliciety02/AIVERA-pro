@@ -72,7 +72,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
         <CardContent className="pt-6">
           <FormSection title="Project details" description="A clear name and description help reviewers understand the engagement at a glance.">
             <Field id="name" label="Project name" required error={err("name")}>
-              <Input id="name" placeholder="e.g. Northwind Checkout Assessment" {...register("name")} {...aria("name")} />
+              <Input id="name" placeholder="e.g. UMERCH3.0 Checkout Retest" {...register("name")} {...aria("name")} />
             </Field>
             <Field id="description" label="Description" required error={err("description")}>
               <Textarea id="description" rows={3} placeholder="Scope summary, environment, and purpose of the assessment" {...register("description")} {...aria("description")} />

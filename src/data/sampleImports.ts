@@ -6,7 +6,7 @@
  * of scope to demonstrate scope filtering.
  */
 export const SAMPLE_NMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<!-- SYNTHETIC SAMPLE for AEGIS AI demo — not output from a real scan -->
+<!-- SYNTHETIC SAMPLE for AIVERA demo — not output from a real scan -->
 <nmaprun scanner="nmap" args="nmap -sV -oX sample.xml {host}" version="7.95" xmloutputversion="1.05">
   <host>
     <status state="up" reason="syn-ack"/>
@@ -35,7 +35,7 @@ export const SAMPLE_ZAP_JSON = JSON.stringify(
   {
     "@programName": "ZAP",
     "@version": "2.15.0",
-    _note: "SYNTHETIC SAMPLE for AEGIS AI demo — not output from a real scan",
+    _note: "SYNTHETIC SAMPLE for AIVERA demo — not output from a real scan",
     site: [
       {
         "@name": "{origin}",
@@ -74,7 +74,7 @@ export const SAMPLE_ZAP_JSON = JSON.stringify(
             solution: "<p>Use a vetted library or framework that does not allow this weakness to occur.</p>",
             reference: "",
             cweid: "79",
-            instances: [{ uri: "{origin}/search?q=aegis-probe", method: "GET", param: "q", evidence: "<mark>aegis-probe</mark>" }],
+            instances: [{ uri: "{origin}/search?q=aivera-probe", method: "GET", param: "q", evidence: "<mark>aivera-probe</mark>" }],
           },
           {
             pluginid: "10096",

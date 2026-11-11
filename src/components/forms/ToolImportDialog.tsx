@@ -123,7 +123,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
           <DialogDescription>Bring in an Nmap XML or OWASP ZAP JSON report produced during an authorized engagement. Parsed entirely in your browser.</DialogDescription>
         </DialogHeader>
         <DialogGuide guideKey="toolImport" steps={DIALOG_GUIDES.toolImport} />
-        <Callout tone="warning" title="AEGIS does not run these tools">
+        <Callout tone="warning" title="AIVERA does not run these tools">
           Only import output from tools you ran against this target within its written authorization. The file is read locally — nothing is uploaded and no host in it is contacted. Entries outside the target's approved scope are skipped. Imported findings start as <strong>Pending Verification</strong>.
         </Callout>
 
@@ -156,7 +156,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
 
         {b && preview && (
-          <div className="space-y-3 rounded-lg border border-border p-3 animate-in fade-in-0">
+          <div className="space-y-3 rounded-xl border border-border p-3 animate-in fade-in-0">
             <p className="flex items-center gap-2 text-xs font-semibold"><FileCode2 className="size-4 text-muted-foreground" /> Preview — {target?.name}</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <MiniStat label="Hosts in scope" value={b.hosts.length} />
