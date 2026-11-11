@@ -9,6 +9,7 @@ import type { ScanConfig, Target } from "@/types";
 import type { ParseResult } from "@/features/imports/parsers";
 import { parseZapJson, MAX_IMPORT_BYTES } from "@/features/imports/parsers";
 import { parseNmapXmlServer } from "./nmap.ts";
+import { nmapPortsInScope } from "@/features/scanPermissions";
 
 export type AutomatedTool = "nmap" | "owasp_zap";
 export interface ToolOutput { tool: AutomatedTool; raw: string; parsed: ParseResult; }
@@ -63,9 +64,10 @@ export async function runNmap(target: Target, config: ScanConfig): Promise<ToolO
   const u = new URL(target.url);
   const host = u.hostname.replace(/^\[|\]$/g, "");
   // Fixed, bounded TCP connect and service discovery. No shell or user supplied flags.
-  const ports = [...new Set([80, 443, u.port ? Number(u.port) : (u.protocol === "https:" ? 443 : 80)])].join(",");
+  const ports = nmapPortsInScope(target.url, target.scope.inScopeHosts);
+  if (!ports.length) throw new Error("No approved ports for Nmap on this target.");
   // AIVERA_NMAP_PATH lets Windows installs work without Nmap on PATH.
-  const raw = await run(process.env.AIVERA_NMAP_PATH || "nmap", ["-sT", "-sV", "--version-light", "-Pn", "--max-retries", "1", "--host-timeout", `${config.timeLimitMinutes}m`, "-p", ports, "-oX", "-", "--", host], config.timeLimitMinutes * 60_000 + 10_000);
+  const raw = await run(process.env.AIVERA_NMAP_PATH || "nmap", ["-sT", "-sV", "--version-light", "-Pn", "--max-retries", "1", "--host-timeout", `${config.timeLimitMinutes}m`, "-p", ports.join(","), "-oX", "-", "--", host], config.timeLimitMinutes * 60_000 + 10_000);
   return { tool: "nmap", raw, parsed: parseNmapXmlServer(raw) };
 }
 

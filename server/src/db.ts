@@ -1,8 +1,14 @@
 import "./env.ts";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../prisma/generated/prisma/client.ts";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { randomBytes } from "node:crypto";
+import { resolve } from "node:path";
 
-export const prisma = new PrismaClient();
+const dbUrl = process.env.DATABASE_URL!;
+if (!dbUrl.startsWith("file:")) throw new Error("This deployment requires a SQLite DATABASE_URL.");
+const dbFile = dbUrl.slice("file:".length);
+const adapter = new PrismaBetterSqlite3({ url: `file:${resolve(process.cwd(), "server/prisma", dbFile)}` });
+export const prisma = new PrismaClient({ adapter });
 
 /** Same ID style as the frontend (`prefix-<time><random>`), but with a CSPRNG. */
 export function newId(prefix: string): string {

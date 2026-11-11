@@ -11,6 +11,8 @@
  */
 import { lookup } from "node:dns/promises";
 import net from "node:net";
+import http from "node:http";
+import https from "node:https";
 import type { ScopeDetection, ScopeSuggestion } from "@/types";
 import { detectFromAddress, mergeSuggestions, parseRobots, parseSitemap } from "@/features/scopeDetection";
 
@@ -25,33 +27,51 @@ function isBlockedAddress(ip: string): boolean {
     return a === 0 || (a === 169 && b === 254) || a >= 224;
   }
   const v = ip.toLowerCase();
-  return v === "::" || v.startsWith("fe80:") || v.startsWith("ff") || v.startsWith("::ffff:169.254.");
-}
-
-async function fetchText(url: string): Promise<{ status: number; text: string; location?: string }> {
-  const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "User-Agent": USER_AGENT, Accept: "text/plain, application/xml, text/xml;q=0.9, */*;q=0.1" } });
-  const location = res.headers.get("location") ?? undefined;
-  if (!res.body) return { status: res.status, text: "", location };
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (size < MAX_BYTES) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    size += value.length;
+  if (v.startsWith("::ffff:")) {
+    const mapped = v.slice(7);
+    if (net.isIPv4(mapped)) return isBlockedAddress(mapped);
+    const pair = /^([\da-f]{1,4}):([\da-f]{1,4})$/.exec(mapped);
+    if (pair) {
+      const high = Number.parseInt(pair[1]!, 16);
+      const low = Number.parseInt(pair[2]!, 16);
+      return isBlockedAddress(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+    }
   }
-  await reader.cancel().catch(() => undefined);
-  return { status: res.status, text: Buffer.concat(chunks).toString("utf8").slice(0, MAX_BYTES), location };
+  return v === "::" || /^fe[89ab][\da-f]*:/.test(v) || v.startsWith("ff");
 }
 
-/** Follows at most one redirect, and only when it stays on the same host. */
-async function getSameHost(url: string, host: string) {
-  let r = await fetchText(url);
+async function fetchText(url: string, pinnedAddress: string): Promise<{ status: number; text: string; location?: string }> {
+  const u = new URL(url);
+  const transport = u.protocol === "https:" ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = transport.get(u, {
+      headers: { "User-Agent": USER_AGENT, Accept: "text/plain, application/xml, text/xml;q=0.9, */*;q=0.1" },
+      lookup: (_hostname, _options, callback) => callback(null, pinnedAddress, net.isIP(pinnedAddress)),
+    }, (res) => {
+      const chunks: Buffer[] = [];
+      let size = 0;
+      res.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > MAX_BYTES) { req.destroy(new Error("Scope file exceeds size limit.")); return; }
+        chunks.push(chunk);
+      });
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8"), location: res.headers.location }));
+      res.on("error", reject);
+    });
+    const deadline = setTimeout(() => req.destroy(new Error(`No response within ${TIMEOUT_MS / 1000}s`)), TIMEOUT_MS);
+    req.on("close", () => clearTimeout(deadline));
+    req.setTimeout(TIMEOUT_MS, () => req.destroy(new Error(`No response within ${TIMEOUT_MS / 1000}s`)));
+    req.on("error", reject);
+  });
+}
+
+/** Follows at most one redirect on the same origin and pinned DNS address. */
+async function getSameHost(url: string, pinnedAddress: string) {
+  let r = await fetchText(url, pinnedAddress);
   if (r.status >= 300 && r.status < 400 && r.location) {
     const next = new URL(r.location, url);
-    if (next.hostname !== host) return { status: r.status, text: "", message: `Redirected to another host (${next.hostname}), not followed.` };
-    r = await fetchText(next.href);
+    if (next.origin !== new URL(url).origin || next.username || next.password) return { status: r.status, text: "", message: `Redirected outside the approved origin (${next.origin}), not followed.` };
+    r = await fetchText(next.href, pinnedAddress);
   }
   return { status: r.status, text: r.status === 200 ? r.text : "", message: r.status === 200 ? undefined : `HTTP ${r.status}` };
 }
@@ -61,6 +81,7 @@ const errMessage = (e: unknown) => ((e as Error).name === "TimeoutError" ? `No r
 export async function detectScope(rawUrl: string): Promise<ScopeDetection> {
   const base = detectFromAddress(rawUrl);
   const u = new URL(base.url);
+  if (u.username || u.password) throw new Error("Scope discovery URLs cannot contain credentials.");
   const host = u.hostname.replace(/^\[|\]$/g, "");
   const origin = u.origin;
   const result: ScopeDetection = { ...base, mode: "server" };
@@ -81,6 +102,7 @@ export async function detectScope(rawUrl: string): Promise<ScopeDetection> {
     result.dns = { ...result.dns, status: "blocked", message: "This host points to a reserved address (e.g. cloud metadata). AIVERA will not contact it." };
   }
   const canFetch = result.dns.status === "resolved" || result.dns.status === "skipped";
+  const pinnedAddress = addresses[0];
 
   const robotsUrl = `${origin}/robots.txt`;
   let sitemapUrl = `${origin}/sitemap.xml`;
@@ -91,13 +113,13 @@ export async function detectScope(rawUrl: string): Promise<ScopeDetection> {
     result.robots = { status: "skipped", url: robotsUrl, message: "Skipped because the host could not be reached safely.", unsupportedRules: [] };
   } else {
     try {
-      const r = await getSameHost(robotsUrl, u.hostname);
+      const r = await getSameHost(robotsUrl, pinnedAddress!);
       if (r.text) {
         const parsed = parseRobots(r.text);
         for (const p of parsed.excluded) excluded.push({ value: p, source: "robots.txt", note: "The site owner asks crawlers to stay out of this path." });
         const sameHostSitemap = parsed.sitemaps.find((s) => {
           try {
-            return new URL(s).hostname === u.hostname;
+            return new URL(s).origin === origin;
           } catch {
             return false;
           }
@@ -117,7 +139,7 @@ export async function detectScope(rawUrl: string): Promise<ScopeDetection> {
     result.sitemap = { status: "skipped", url: sitemapUrl, urlCount: 0, sections: [], message: "Skipped because the host could not be reached safely." };
   } else {
     try {
-      const r = await getSameHost(sitemapUrl, u.hostname);
+      const r = await getSameHost(sitemapUrl, pinnedAddress!);
       if (r.text && /<(urlset|sitemapindex)/i.test(r.text)) {
         const parsed = parseSitemap(r.text, u.hostname);
         result.sitemap = {

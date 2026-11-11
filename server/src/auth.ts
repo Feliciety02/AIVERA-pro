@@ -10,7 +10,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
-import type { User } from "@prisma/client";
+import type { User } from "../prisma/generated/prisma/client.ts";
 import type { UserRole } from "@/types";
 import { prisma } from "./db.ts";
 import { env } from "./env.ts";

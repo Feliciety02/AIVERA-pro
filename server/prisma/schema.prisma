@@ -6,12 +6,12 @@
 // Json so the same schema works on both engines.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "./generated/prisma"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -245,6 +245,11 @@ model Finding {
 
   @@index([projectId])
   @@index([targetId])
+}
+
+model FindingAlias {
+  oldId       String @id
+  canonicalId String
 }
 
 model Evidence {

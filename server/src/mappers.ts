@@ -2,7 +2,7 @@
  * Row ⇄ DTO mapping. DTOs are exactly the frontend domain types in src/types,
  * so the browser and the API share one model.
  */
-import type * as P from "@prisma/client";
+import type * as P from "../prisma/generated/prisma/client.ts";
 import type * as T from "@/types";
 import { iso } from "./db.ts";
 

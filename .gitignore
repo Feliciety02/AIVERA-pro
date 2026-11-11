@@ -14,3 +14,5 @@ npm-debug.log*
 server/.env
 server/prisma/*.db
 server/prisma/*.db-journal
+server/prisma/generated/
+server/prisma/backups/
