@@ -1,5 +1,7 @@
 /**
- * Real AI analysis via the Google Gemini API (official @google/genai SDK).
+ * Real AI analysis via the Google Gemini API (official @google/genai SDK), with automatic
+ * fallback: if the main model is overloaded, rate limited or slow, backup Gemini models are
+ * tried, then an optional OpenAI-compatible provider (Groq, OpenRouter, or a local Ollama).
  *
  * Safeguards:
  *  - The API key lives only in server/.env; the browser never sees it.
@@ -21,8 +23,41 @@ import { excerpt, redact } from "./redact.ts";
 
 // gemini-3.6-flash: free tier and responsive. (gemini-3.8-flash is listed but did not respond on free-tier keys when tested.)
 export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
-const TIMEOUT_MS = 60_000;
-export const aiConfigured = () => !!process.env.GEMINI_API_KEY?.trim();
+/** Tried in order when the main model is overloaded, rate limited or slow. Same API key. */
+export const GEMINI_FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-2.5-flash")
+  .split(",")
+  .map((m) => m.trim())
+  .filter((m) => m && m !== GEMINI_MODEL);
+const TIMEOUT_MS = 45_000;
+
+/**
+ * Optional backup providers using the widely supported OpenAI-compatible chat API:
+ * Groq, OpenRouter, Mistral, or a local Ollama / LM Studio (nothing leaves the computer).
+ * Configured as AI_FALLBACK_* (tried first), then AI_FALLBACK_2_*, then AI_FALLBACK_3_*.
+ */
+interface FallbackProvider {
+  name: string;
+  baseUrl: string;
+  apiKey?: string;
+  model: string;
+  timeoutMs?: number;
+}
+const FALLBACKS: FallbackProvider[] = ["AI_FALLBACK_", "AI_FALLBACK_2_", "AI_FALLBACK_3_"]
+  .map((p, i) => ({
+    name: process.env[`${p}NAME`]?.trim() || `Backup AI ${i + 1}`,
+    baseUrl: process.env[`${p}BASE_URL`]?.trim().replace(/\/+$/, "") ?? "",
+    apiKey: process.env[`${p}API_KEY`]?.trim() || undefined,
+    model: process.env[`${p}MODEL`]?.trim() ?? "",
+    timeoutMs: Number(process.env[`${p}TIMEOUT_MS`]) || undefined,
+  }))
+  .filter((f) => f.baseUrl && f.model);
+const geminiConfigured = () => !!process.env.GEMINI_API_KEY?.trim();
+export const aiConfigured = () => geminiConfigured() || FALLBACKS.length > 0;
+
+/** Human-readable order in which AI providers are tried, for the Integrations page. */
+export function aiProviderChain(): string[] {
+  return [...(geminiConfigured() ? [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS].map((m) => `Gemini ${m}`) : []), ...FALLBACKS.map((f) => `${f.name} ${f.model}`)];
+}
 
 let client: GoogleGenAI | null = null;
 const gemini = () => (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }));
@@ -73,17 +108,119 @@ const outputSchema = {
   required: ["interpretation", "explanation", "suggestedSeverity", "potentialImpact", "recommendations", "verificationSteps", "reasoning", "confidence", "evidenceGaps"],
 };
 
+// Tolerant of small format differences between providers (e.g. "High" instead of "high",
+// or a single string where a list was asked for). Gemini already follows the schema exactly.
+const lower = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() : v);
+const list = z.preprocess((v) => (typeof v === "string" ? [v] : v), z.array(z.string()).min(1));
 const Output = z.object({
   interpretation: z.string().min(1),
-  explanation: z.string(),
-  suggestedSeverity: z.enum(["critical", "high", "medium", "low", "info", "none"]),
-  potentialImpact: z.string(),
-  recommendations: z.array(z.string()).min(1),
-  verificationSteps: z.array(z.string()).min(1),
-  reasoning: z.array(z.string()).min(1),
-  confidence: z.enum(["low", "medium", "high"]),
-  evidenceGaps: z.string(),
+  explanation: z.string().default(""),
+  suggestedSeverity: z.preprocess(lower, z.enum(["critical", "high", "medium", "low", "info", "none"])).catch("none"),
+  potentialImpact: z.string().default(""),
+  recommendations: list,
+  verificationSteps: list,
+  reasoning: list,
+  confidence: z.preprocess(lower, z.enum(["low", "medium", "high"])).catch("low"),
+  evidenceGaps: z.string().default(""),
 });
+
+/** Asked of providers that can't enforce a JSON schema themselves. */
+const JSON_INSTRUCTIONS = `Reply with ONE JSON object only, no markdown, with exactly these keys:
+interpretation (string, 2-5 sentences), explanation (string), suggestedSeverity ("critical"|"high"|"medium"|"low"|"info"|"none"),
+potentialImpact (string), recommendations (array of strings), verificationSteps (array of strings), reasoning (array of strings),
+confidence ("low"|"medium"|"high"), evidenceGaps (string, empty if none).`;
+
+class AttemptError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
+
+// A local model (Ollama) may need a minute or two to load into memory on its first request.
+const FALLBACK_TIMEOUT_MS = Number(process.env.AI_FALLBACK_TIMEOUT_MS) || 150_000;
+
+const withTimeout = <T,>(p: Promise<T>, label: string, ms = TIMEOUT_MS): Promise<T> =>
+  Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new AttemptError(`${label} did not respond within ${ms / 1000}s`, 504)), ms))]);
+
+function describe(e: unknown, label: string): AttemptError {
+  if (e instanceof AttemptError) return e;
+  const status = (e as { status?: number }).status;
+  const msg = (e as Error).message ?? String(e);
+  if (status === 429) return new AttemptError(`${label}: rate limit reached`, 429);
+  // Google reports a bad key as 400 API_KEY_INVALID, not 401/403.
+  if (status === 401 || status === 403 || /API_KEY_INVALID|API key not valid/i.test(msg)) return new AttemptError(`${label}: API key rejected`, 401);
+  if (status === 503 || /high demand|overloaded|unavailable/i.test(msg)) return new AttemptError(`${label}: overloaded (503)`, 503);
+  return new AttemptError(`${label}: ${msg.slice(0, 200)}`, status);
+}
+
+async function callGemini(model: string, sent: string): Promise<string | undefined> {
+  try {
+    const interaction = await withTimeout(
+      gemini().interactions.create({
+        model,
+        system_instruction: SYSTEM_INSTRUCTION,
+        input: sent,
+        store: false,
+        response_format: { type: "text", mime_type: "application/json", schema: outputSchema },
+        generation_config: { max_output_tokens: 4096 },
+      }),
+      `Gemini ${model}`,
+    );
+    return interaction.output_text;
+  } catch (e) {
+    const err = describe(e, `Gemini ${model}`);
+    // Older models may not support the Interactions API: use the classic generateContent call instead.
+    if (err.status !== 400 && err.status !== 404) throw err;
+    const res = await withTimeout(
+      gemini().models.generateContent({
+        model,
+        contents: sent,
+        config: { systemInstruction: SYSTEM_INSTRUCTION, responseMimeType: "application/json", responseJsonSchema: outputSchema, maxOutputTokens: 4096 },
+      }),
+      `Gemini ${model}`,
+    );
+    return res.text;
+  }
+}
+
+async function callFallback(provider: FallbackProvider, sent: string): Promise<string | undefined> {
+  const label = `${provider.name} ${provider.model}`;
+  const res = await withTimeout(
+    fetch(`${provider.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(provider.apiKey ? { Authorization: `Bearer ${provider.apiKey}` } : {}) },
+      body: JSON.stringify({
+        model: provider.model,
+        temperature: 0.2,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: `${SYSTEM_INSTRUCTION}\n\n${JSON_INSTRUCTIONS}` },
+          { role: "user", content: sent },
+        ],
+      }),
+    }),
+    label,
+    provider.timeoutMs ?? FALLBACK_TIMEOUT_MS,
+  );
+  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 160)}`), { status: res.status });
+  const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return body.choices?.[0]?.message?.content;
+}
+
+/** Parses a provider's reply, removing a ```json fence if one was added. */
+function parseOutput(text: string | undefined, label: string): z.infer<typeof Output> {
+  if (!text) throw new AttemptError(`${label}: returned no text`);
+  const json = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  try {
+    return Output.parse(JSON.parse(json));
+  } catch {
+    throw new AttemptError(`${label}: reply was not in the expected format`);
+  }
+}
 
 function buildContext(c: AIContext): { text: string; evidenceIds: string[] } {
   const lines: string[] = [`TASK: ${TASK[c.mode]}`, "", `PROJECT: ${c.project.name} (${c.project.code}) — ${c.project.assessmentType}`];
@@ -135,38 +272,43 @@ export async function analyzeWithGemini(c: AIContext): Promise<AIAnalysis> {
   const built = buildContext(c);
   const { text: sent, count } = redact(built.text);
 
-  let outputText: string | undefined;
-  try {
-    const request = gemini().interactions.create({
-      model: GEMINI_MODEL,
-      system_instruction: SYSTEM_INSTRUCTION,
-      input: sent,
-      store: false,
-      response_format: { type: "text", mime_type: "application/json", schema: outputSchema },
-      generation_config: { max_output_tokens: 4096 },
-    });
-    // Never leave the user waiting on an unresponsive model.
-    const interaction = await Promise.race([
-      request,
-      new Promise<never>((_, reject) => setTimeout(() => reject(Object.assign(new Error("timeout"), { timeout: true })), TIMEOUT_MS)),
-    ]);
-    outputText = interaction.output_text;
-  } catch (e) {
-    if ((e as { timeout?: boolean }).timeout) throw new HttpError(504, `${GEMINI_MODEL} did not respond within ${TIMEOUT_MS / 1000}s. Try again, or set a different GEMINI_MODEL in server/.env.`);
-    const status = (e as { status?: number }).status;
-    if (status === 429) throw new HttpError(429, "Gemini rate limit reached (free tier). Wait a minute and try again.");
-    if (status === 400) throw new HttpError(502, `Gemini rejected the request: ${(e as Error).message.slice(0, 300)}`);
-    if (status === 401 || status === 403) throw new HttpError(502, "Gemini rejected the API key. Check GEMINI_API_KEY in server/.env.");
-    throw new HttpError(502, `Gemini request failed: ${(e as Error).message.slice(0, 300)}`);
+  // Try each provider in turn; the same redacted text is sent to whichever one answers.
+  const attempts: { label: string; model: string; run: () => Promise<string | undefined> }[] = [];
+  if (geminiConfigured()) {
+    let keyRejected = false;
+    for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS])
+      attempts.push({
+        label: `Gemini ${model}`,
+        model,
+        run: () => {
+          if (keyRejected) throw new AttemptError(`Gemini ${model}: skipped (API key rejected)`);
+          return callGemini(model, sent).catch((e) => {
+            const err = describe(e, `Gemini ${model}`);
+            if (err.status === 401 || err.status === 403) keyRejected = true;
+            throw err;
+          });
+        },
+      });
   }
-  if (!outputText) throw new HttpError(502, "Gemini returned no text (the response may have been blocked or cut off).");
+  for (const f of FALLBACKS) attempts.push({ label: `${f.name} ${f.model}`, model: `${f.name.toLowerCase()}:${f.model}`, run: () => callFallback(f, sent) });
 
-  let parsed: z.infer<typeof Output>;
-  try {
-    parsed = Output.parse(JSON.parse(outputText));
-  } catch {
-    throw new HttpError(502, "Gemini returned output that did not match the expected format. Try again.");
+  let parsed: z.infer<typeof Output> | undefined;
+  let usedModel = "";
+  const failures: string[] = [];
+  for (const a of attempts) {
+    try {
+      parsed = parseOutput(await a.run(), a.label);
+      usedModel = a.model;
+      break;
+    } catch (e) {
+      failures.push(describe(e, a.label).message);
+    }
   }
+  if (!parsed) {
+    const allBusy = failures.every((f) => /rate limit|overloaded|did not respond/.test(f));
+    throw new HttpError(allBusy ? 503 : 502, `No AI provider could answer. ${failures.join(" · ")}${allBusy ? ". All are busy right now; try again in a minute." : ""}`);
+  }
+  const usedFallback = usedModel !== GEMINI_MODEL;
 
   const label = AI_MODES.find((m) => m.id === c.mode)?.label ?? c.mode;
   return {
@@ -185,12 +327,12 @@ export async function analyzeWithGemini(c: AIContext): Promise<AIAnalysis> {
     verificationSteps: parsed.verificationSteps,
     reasoning: parsed.reasoning,
     evidenceRefs: built.evidenceIds,
-    confidenceCaveat: `AI-generated by ${GEMINI_MODEL} (model-stated confidence: ${parsed.confidence}). Advisory only — it can be wrong and does not confirm anything; an assessor must verify against the evidence.${parsed.evidenceGaps ? ` Evidence gaps noted: ${parsed.evidenceGaps}` : ""}`,
+    confidenceCaveat: `AI-generated by ${usedModel}${usedFallback ? ` (backup: ${failures.length} earlier provider(s) were busy or failed)` : ""} (model-stated confidence: ${parsed.confidence}). Advisory only — it can be wrong and does not confirm anything; an assessor must verify against the evidence.${parsed.evidenceGaps ? ` Evidence gaps noted: ${parsed.evidenceGaps}` : ""}`,
     status: "generated",
     generatedAt: new Date().toISOString(),
     generatedBy: c.requestedBy,
     adapter: "api",
-    model: GEMINI_MODEL,
+    model: usedModel,
     sentContext: sent,
     redactionCount: count,
   };

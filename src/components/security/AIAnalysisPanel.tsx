@@ -67,7 +67,7 @@ export function AIAnalysisPanel({ analysis, finding, compact, canSend = true }: 
             </span>
           )}
           <span>Generated {formatDateTime(analysis.generatedAt)}</span>
-          <span>{analysis.adapter === "api" ? `Model: ${analysis.model ?? "unknown"} (via AEGIS server)` : "Adapter: demo (predefined samples)"}</span>
+          <span>{analysis.adapter === "api" ? `Model: ${analysis.model ?? "unknown"} (via AIVERA server)` : "Adapter: demo (predefined samples)"}</span>
         </div>
 
         <section>
@@ -80,7 +80,7 @@ export function AIAnalysisPanel({ analysis, finding, compact, canSend = true }: 
         </section>
         <div className="grid gap-3 sm:grid-cols-2">
           {analysis.suggestedSeverity && (
-            <section className="rounded-md border border-border p-3">
+            <section className="rounded-lg border border-border p-3">
               <h4 className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Suggested severity</h4>
               <div className="flex items-center gap-2">
                 <SeverityBadge severity={analysis.suggestedSeverity} />
@@ -89,7 +89,7 @@ export function AIAnalysisPanel({ analysis, finding, compact, canSend = true }: 
               {disagrees && <p className="mt-1.5 text-[11px] text-sev-medium">Differs from reported severity ({SEVERITY_META[finding!.severity].label}). The assessor decides.</p>}
             </section>
           )}
-          <section className="rounded-md border border-border p-3">
+          <section className="rounded-lg border border-border p-3">
             <h4 className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Potential impact</h4>
             <p className="text-xs leading-relaxed">{analysis.potentialImpact}</p>
           </section>
@@ -141,7 +141,7 @@ export function AIAnalysisPanel({ analysis, finding, compact, canSend = true }: 
         </div>
 
         {analysis.sentContext && (
-          <details className="rounded-md border border-border">
+          <details className="rounded-lg border border-border">
             <summary className="cursor-pointer px-3 py-2 text-xs font-medium">
               Data sent to the AI model ({analysis.redactionCount ?? 0} value{analysis.redactionCount === 1 ? "" : "s"} redacted before sending)
             </summary>
