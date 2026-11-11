@@ -1,10 +1,10 @@
 /**
- * Real, client-side PDF generation for demo reports (jsPDF + autotable).
+ * Client-side PDF generation for assessment reports (jsPDF + autotable).
  * jsPDF is loaded on demand so it does not weigh down the initial bundle.
- * The PDF is built purely from in-memory demo data — no network request.
+ * The PDF is built from the current report model — no network request.
  */
 import type { ReportModel } from "@/features/reports/reportModel";
-import { DEMO_DISCLAIMER, riskSummary } from "@/features/reports/reportModel";
+import { riskSummary } from "@/features/reports/reportModel";
 import { CATEGORY_BY_ID, REMEDIATION_STATUS, SEVERITY_HEX, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS, ENVIRONMENTS } from "./constants";
 import { format } from "date-fns";
 
@@ -71,7 +71,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   y = 290;
   doc.setFillColor(254, 243, 199).setDrawColor(234, 179, 8).roundedRect(M, y, W - M * 2, 46, 4, 4, "FD");
   doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(120, 53, 15);
-  (doc.splitTextToSize(DEMO_DISCLAIMER, W - M * 2 - 20) as string[]).forEach((l, i) => doc.text(l, M + 10, y + 18 + i * 12));
+  (doc.splitTextToSize(m.sourceNotice, W - M * 2 - 20) as string[]).forEach((l, i) => doc.text(l, M + 10, y + 18 + i * 12));
   y += 70;
   table(["Field", "Value"], [
     ["Report ID", m.report.code],
@@ -79,7 +79,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
     ["Assessment period", `${fmt(m.report.periodStart)} – ${fmt(m.report.periodEnd)}`],
     ["Prepared by", m.preparedBy],
     ["Generated", format(new Date(), "MMM d, yyyy HH:mm")],
-    ["Data source", "Demonstration data (synthetic / imported sample / simulated)"],
+    ["Data source", `${m.scanOrigins.real} live, ${m.scanOrigins.imported} imported, ${m.scanOrigins.simulated} simulated scan(s)`],
   ], { colWidths: [140] });
 
   /* Body */
@@ -111,7 +111,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   if (has("tools")) {
     heading("Security Tools Used");
     table(["Tool", "Purpose"], m.tools.length ? m.tools.map((t) => [TOOL_META[t].label, TOOL_META[t].description]) : [["—", "No tool runs recorded in this period"]], { colWidths: [120] });
-    para(`Scan records in period: ${m.scanOrigins.imported} imported sample, ${m.scanOrigins.simulated} simulated. No live scans were performed by this frontend.`, 9, muted);
+    para(`Scan records in period: ${m.scanOrigins.real} live, ${m.scanOrigins.imported} imported, ${m.scanOrigins.simulated} simulated.`, 9, muted);
   }
   if (has("findings_summary") || has("severity_distribution")) {
     heading("Findings Summary & Severity Distribution");
@@ -162,7 +162,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   }
   if (has("risk_assessment")) {
     heading("Risk Assessment");
-    para("Demo qualitative risk model (likelihood × impact, 1–25). Not CVSS.", 9, muted);
+    para("Qualitative risk model (likelihood × impact, 1–25). Not CVSS.", 9, muted);
     table(["Finding", "Risk score", "Mitigation"], m.verified.map((f) => [f.code, riskSummary(m.risks[f.id]), m.risks[f.id]?.mitigationStatus.replace("_", " ") ?? "—"]));
   }
   if (has("remediation")) {
@@ -196,7 +196,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
       doc.restoreGraphicsState();
     }
     doc.setFont("helvetica", "normal").setFontSize(7.5).setTextColor(...muted);
-    doc.text(`${m.report.code} · AEGIS AI demonstration report · not a real assessment`, M, H - 22);
+    doc.text(`${m.report.code} · AEGIS AI security assessment${m.hasSimulated ? " · includes demo data" : ""}`, M, H - 22);
     doc.text(`Page ${i} of ${pages}`, W - M, H - 22, { align: "right" });
   }
   return doc.output("blob");

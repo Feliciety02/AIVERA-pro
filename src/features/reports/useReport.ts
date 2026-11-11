@@ -18,7 +18,7 @@ export function useReportModel(report: Report | undefined) {
   return React.useMemo(() => (report ? buildReportModel(report, src) : null), [report, src]);
 }
 
-/** Generates and downloads a real PDF built from the current demo state. */
+/** Generates and downloads a PDF from the current report state. */
 export function usePdfExport() {
   const [busy, setBusy] = React.useState(false);
   const src = useReportSource();
@@ -30,9 +30,9 @@ export function usePdfExport() {
       try {
         const { generateReportPdf } = await import("@/lib/pdf");
         const blob = await generateReportPdf(model);
-        downloadBlob(blob, `${report.code}-${report.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-DEMO.pdf`, "application/pdf");
+        downloadBlob(blob, `${report.code}-${report.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}${model.hasSimulated ? "-DEMO" : ""}.pdf`, "application/pdf");
         reportService.logExport(report.id, "PDF");
-        toast.success("PDF downloaded", { description: "Generated in your browser from demonstration data." });
+        toast.success("PDF downloaded", { description: model.sourceNotice });
       } catch (e) {
         console.error(e);
         toast.error("PDF generation failed", { description: (e as Error).message });

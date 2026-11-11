@@ -22,7 +22,7 @@ export interface ReportModel {
   risks: Record<string, Risk | undefined>;
   remediation: Record<string, RemediationTask[]>;
   tools: ScanTool[];
-  scanOrigins: { simulated: number; imported: number };
+  scanOrigins: { simulated: number; imported: number; real: number };
   severityCounts: { severity: Severity; label: string; count: number }[];
   methodology: string[];
   conclusion: string;
@@ -30,6 +30,7 @@ export interface ReportModel {
   preparedBy: string;
   watermark: boolean;
   hasSimulated: boolean;
+  sourceNotice: string;
 }
 
 export type ReportSource = Pick<DataState, "projects" | "targets" | "users" | "findings" | "evidence" | "risks" | "remediation" | "scans" | "settings">;
@@ -55,13 +56,19 @@ export function buildReportModel(report: Report, s: ReportSource): ReportModel |
   const severityCounts = SEVERITIES.map((sev) => ({ severity: sev, label: SEVERITY_META[sev].label, count: verified.filter((f) => f.severity === sev).length }));
   const crit = severityCounts.find((x) => x.severity === "critical")!.count;
   const high = severityCounts.find((x) => x.severity === "high")!.count;
-  const hasSimulated = [...verified, ...unverified].some((f) => f.dataOrigin === "simulated") || scans.some((sc) => sc.dataOrigin === "simulated");
+  const hasSimulated = [...verified, ...unverified].some((f) => f.dataOrigin === "simulated" || f.dataOrigin === "synthetic") || scans.some((sc) => sc.dataOrigin === "simulated");
+  const hasImported = scans.some((sc) => sc.dataOrigin === "imported");
+  const sourceNotice = hasSimulated
+    ? DEMO_DISCLAIMER
+    : hasImported
+      ? "This report includes imported tool output. Its provenance and the assessor's verification record should be reviewed before external use."
+      : "This report is based on the recorded assessment evidence and human verification decisions.";
 
   const methodology = [
     "Scope and authorization were confirmed for each target before testing; exclusions took precedence over allowed paths.",
     `Assessment categories: ${[...new Set(targets.flatMap((t) => t.scope.allowedCategories))].map((c) => CATEGORY_BY_ID[c].name).join("; ")}.`,
-    `Tool-assisted checks (${tools.map((t) => TOOL_META[t].label).join(", ") || "none recorded"}) were combined with manual testing using provided test accounts.`,
-    "AI-assisted analysis (demo adapter in this build) was used only to support interpretation; every finding in the verified section was confirmed by a human assessor after evidence review.",
+    `Recorded tool sources: ${tools.map((t) => TOOL_META[t].label).join(", ") || "none"}. See each scan's origin and output for its method and provenance.`,
+    "AI analysis, when present, is advisory. Every finding in the verified section was confirmed through the assessor verification workflow.",
     "Risk ratings use a qualitative likelihood × impact model (1–25). These are not CVSS scores.",
   ];
   const conclusion = verified.length
@@ -81,14 +88,15 @@ export function buildReportModel(report: Report, s: ReportSource): ReportModel |
     risks,
     remediation,
     tools,
-    scanOrigins: { simulated: scans.filter((x) => x.dataOrigin === "simulated").length, imported: scans.filter((x) => x.dataOrigin === "imported").length },
+    scanOrigins: { simulated: scans.filter((x) => x.dataOrigin === "simulated").length, imported: scans.filter((x) => x.dataOrigin === "imported").length, real: scans.filter((x) => x.dataOrigin === "real").length },
     severityCounts,
     methodology,
     conclusion,
     organization: s.settings.general.organizationName,
     preparedBy: s.settings.reports.preparedBy,
-    watermark: s.settings.reports.showDemoWatermark,
+    watermark: hasSimulated && s.settings.reports.showDemoWatermark,
     hasSimulated,
+    sourceNotice,
   };
 }
 

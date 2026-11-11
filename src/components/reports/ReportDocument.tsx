@@ -1,6 +1,6 @@
 import { FlaskConical } from "lucide-react";
 import type { ReportModel } from "@/features/reports/reportModel";
-import { DEMO_DISCLAIMER, riskSummary } from "@/features/reports/reportModel";
+import { riskSummary } from "@/features/reports/reportModel";
 import { CATEGORY_BY_ID, ENVIRONMENTS, REMEDIATION_STATUS, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ function T({ head, rows }: { head: string[]; rows: (React.ReactNode)[][] }) {
   );
 }
 
-/** Print-friendly, always-light rendering of a demo report. */
+/** Print-friendly report that preserves the provenance of each source. */
 export function ReportDocument({ model: m }: { model: ReportModel }) {
   const has = (k: ReportSectionKey) => m.report.sections.includes(k);
   let n = 0;
@@ -60,7 +60,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
       <div className="relative px-10 pb-12">
         <div className="mt-6 flex gap-2.5 rounded-md border border-amber-300 bg-amber-50 p-3 text-[11.5px] font-medium text-amber-900">
           <FlaskConical className="mt-0.5 size-4 shrink-0" />
-          <p>{DEMO_DISCLAIMER}{m.hasSimulated && " Some content originates from SIMULATED scans."}</p>
+          <p>{m.sourceNotice}</p>
         </div>
 
         {has("assessment_info") && (
@@ -99,7 +99,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
           <>
             <H n={next()}>Security Tools Used</H>
             <T head={["Tool", "Purpose"]} rows={m.tools.length ? m.tools.map((t) => [TOOL_META[t].label, TOOL_META[t].description]) : [["—", "No tool runs recorded"]]} />
-            <p className="mt-2 text-[11px] text-slate-500">Scan records in period: {m.scanOrigins.imported} imported sample, {m.scanOrigins.simulated} simulated. No live scans were performed by this frontend.</p>
+            <p className="mt-2 text-[11px] text-slate-500">Scan records in period: {m.scanOrigins.real} live, {m.scanOrigins.imported} imported, {m.scanOrigins.simulated} simulated.</p>
           </>
         )}
         {(has("findings_summary") || has("severity_distribution")) && (
@@ -185,7 +185,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
             <T head={["Name", "Role", "Contact"]} rows={m.assessors.map((u) => [u.name, u.title, u.email])} />
           </>
         )}
-        <p className="mt-10 border-t border-slate-200 pt-3 text-center text-[10px] text-slate-400">{m.report.code} · AEGIS AI demonstration report · generated from demonstration data · not a real security assessment</p>
+        <p className="mt-10 border-t border-slate-200 pt-3 text-center text-[10px] text-slate-400">{m.report.code} · AEGIS AI security assessment report{m.hasSimulated ? " · includes demonstration data" : ""}</p>
       </div>
     </article>
   );
