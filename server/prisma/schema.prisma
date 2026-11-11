@@ -1,0 +1,409 @@
+// AEGIS AI database schema.
+//
+// Local development uses SQLite (no install needed). For a MySQL deployment,
+// change `provider` to "mysql", set DATABASE_URL to a MySQL connection string,
+// and run `npm run db:push`. Enum-like columns are Strings and list columns are
+// Json so the same schema works on both engines.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String          @id
+  name               String
+  email              String          @unique
+  passwordHash       String
+  role               String // administrator | assessor | viewer
+  title              String
+  status             String // active | suspended | invited
+  assignedProjectIds Json
+  createdAt          DateTime        @default(now())
+  lastActiveAt       DateTime        @default(now())
+  sessions           Session[]
+  memberships        ProjectMember[]
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token; the raw token is never stored
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  userAgent String?
+
+  @@index([userId])
+}
+
+model Project {
+  id                  String          @id
+  code                String          @unique
+  name                String
+  description         String
+  assessmentType      String
+  ownerId             String
+  status              String
+  statusBeforeArchive String?
+  startDate           DateTime
+  dueDate             DateTime
+  objectives          String
+  notes               String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  dataOrigin          String
+  members             ProjectMember[]
+  targets             Target[]
+  assessments         Assessment[]
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+model Target {
+  id                       String    @id
+  projectId                String
+  project                  Project   @relation(fields: [projectId], references: [id])
+  name                     String
+  url                      String
+  description              String
+  assetType                String
+  environment              String
+  owner                    String
+  authorizationStatus      String
+  authorizationReference   String
+  authorizationConfirmed   Boolean
+  authorizationConfirmedBy String?
+  authorizationConfirmedAt DateTime?
+  inScopeHosts             Json
+  allowedPaths             Json
+  excludedPaths            Json
+  allowedCategories        Json
+  allowedActivities        Json
+  restrictedActivities     Json
+  testingNotes             String
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  dataOrigin               String
+}
+
+model Assessment {
+  id         String          @id
+  projectId  String
+  project    Project         @relation(fields: [projectId], references: [id])
+  category   String
+  status     String
+  assessorId String
+  updatedAt  DateTime        @updatedAt
+  checklist  ChecklistItem[]
+
+  @@unique([projectId, category])
+}
+
+model ChecklistItem {
+  id           String     @id
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  position     Int
+  title        String
+  kind         String
+  tool         String?
+  result       String
+  observation  String
+  evidenceNote String
+  updatedAt    DateTime?
+  updatedBy    String?
+}
+
+model Scan {
+  id           String    @id
+  code         String    @unique
+  name         String
+  projectId    String
+  targetId     String
+  status       String
+  progress     Int
+  stage        String?
+  config       Json
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  errorMessage String?
+  dataOrigin   String
+}
+
+model ScanResult {
+  id         String   @id
+  scanId     String
+  tool       String
+  summary    String
+  itemsFound Int
+  rawOutput  String
+  recordedAt DateTime
+  dataOrigin String
+
+  @@index([scanId])
+}
+
+model Host {
+  id         String   @id
+  targetId   String
+  scanId     String?
+  hostname   String
+  ipAddress  String
+  state      String
+  osGuess    String?
+  source     String
+  observedAt DateTime
+  dataOrigin String
+}
+
+model Port {
+  id         String   @id
+  hostId     String
+  port       Int
+  protocol   String
+  state      String
+  service    String
+  version    String
+  source     String
+  observedAt DateTime
+  dataOrigin String
+
+  @@index([hostId])
+}
+
+model DnsRecord {
+  id         String   @id
+  targetId   String
+  name       String
+  type       String
+  value      String
+  ttl        Int
+  source     String
+  observedAt DateTime
+  dataOrigin String
+}
+
+model Endpoint {
+  id           String   @id
+  targetId     String
+  method       String
+  path         String
+  statusCode   Int
+  contentType  String
+  authRequired Boolean
+  source       String
+  observedAt   DateTime
+  dataOrigin   String
+}
+
+model ReconRun {
+  id           String   @id
+  targetId     String
+  tool         String
+  label        String
+  recordsAdded Int
+  ranAt        DateTime
+  dataOrigin   String
+}
+
+model Finding {
+  id                 String   @id
+  code               String   @unique
+  title              String
+  description        String
+  projectId          String
+  targetId           String
+  scanId             String?
+  category           String
+  severity           String
+  affectedAsset      String
+  parameter          String?
+  sourceTool         String
+  verificationStatus String
+  assignedAssessorId String
+  discoveredAt       DateTime
+  updatedAt          DateTime
+  impact             String
+  remediation        String
+  cwe                String?
+  owasp              String?
+  templateKey        String
+  dataOrigin         String
+
+  @@index([projectId])
+  @@index([targetId])
+}
+
+model Evidence {
+  id         String   @id
+  findingId  String
+  type       String
+  title      String
+  content    String
+  source     String
+  capturedAt DateTime
+  reviewed   Boolean
+  reviewedBy String?
+  dataOrigin String
+
+  @@index([findingId])
+}
+
+model Verification {
+  id               String   @id
+  findingId        String
+  fromStatus       String
+  toStatus         String
+  assessorId       String
+  notes            String
+  decisionReason   String
+  evidenceReviewed Boolean
+  decidedAt        DateTime
+
+  @@index([findingId])
+}
+
+model AIAnalysis {
+  id                String   @id
+  mode              String
+  projectId         String
+  targetId          String?
+  scanId            String?
+  findingId         String?
+  title             String
+  interpretation    String
+  explanation       String
+  suggestedSeverity String?
+  potentialImpact   String
+  recommendations   Json
+  verificationSteps Json
+  reasoning         Json
+  evidenceRefs      Json
+  confidenceCaveat  String
+  status            String
+  generatedAt       DateTime
+  generatedBy       String
+  adapter           String
+  model             String?
+  sentContext       String?
+  redactionCount    Int?
+}
+
+model Risk {
+  id               String   @id
+  findingId        String   @unique
+  title            String
+  likelihood       Int
+  impact           Int
+  ownerId          String
+  mitigationStatus String
+  reviewDate       DateTime
+  notes            String
+  createdAt        DateTime
+  updatedAt        DateTime
+}
+
+model RemediationTask {
+  id              String               @id
+  code            String               @unique
+  findingId       String
+  title           String
+  description     String
+  recommendation  String
+  ownerId         String
+  priority        String
+  status          String
+  dueDate         DateTime
+  retestRequired  Boolean
+  retestResult    String
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime
+  updatedAt       DateTime
+  history         RemediationHistory[]
+}
+
+model RemediationHistory {
+  id     Int             @id @default(autoincrement())
+  taskId String
+  task   RemediationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  at     DateTime
+  by     String
+  from   String?
+  to     String
+  note   String
+}
+
+model Report {
+  id                String   @id
+  code              String   @unique
+  title             String
+  projectId         String
+  targetIds         Json
+  templateId        String
+  periodStart       DateTime
+  periodEnd         DateTime
+  findingIds        Json
+  includeUnverified Boolean
+  sections          Json
+  executiveSummary  String
+  status            String
+  createdBy         String
+  createdAt         DateTime
+  updatedAt         DateTime
+}
+
+/// Append-only: the API exposes no update or delete for this table.
+model ActivityLog {
+  id          String   @id
+  type        String
+  userId      String
+  timestamp   DateTime
+  entityType  String
+  entityId    String?
+  entityLabel String
+  description String
+
+  @@index([timestamp])
+}
+
+model Notification {
+  id        String   @id
+  title     String
+  message   String
+  tone      String
+  createdAt DateTime
+  read      Boolean
+  link      String?
+}
+
+model Integration {
+  id             String    @id
+  name           String
+  purpose        String
+  integrationType String
+  status         String
+  lastUsedAt     DateTime?
+  features       Json
+  setupSteps     Json
+  futureEndpoint String
+}
+
+/// Single-row application settings document (sections as JSON).
+model AppSetting {
+  id    String @id
+  value Json
+}
