@@ -18,6 +18,7 @@ import { can, permissionsFor, PERMISSION_LABELS } from "@/lib/permissions";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { authService, IS_API, notificationService, settingsService } from "@/services";
+import { useUIStore } from "@/stores/sessionStore";
 import { DATA_MODE } from "@/services/api/contracts";
 import type { ApplicationSettings, ScanProfile, ThemePreference } from "@/types";
 
@@ -63,6 +64,7 @@ export default function SettingsPage() {
   const [preparedBy, setPreparedBy] = React.useState(reports.preparedBy);
   const [baseUrl, setBaseUrl] = React.useState(integ.backendBaseUrl);
   const [resetOpen, setResetOpen] = React.useState(false);
+  const ui = useUIStore();
   const adminOnly = !isAdmin;
 
   const themes: { id: ThemePreference; label: string; icon: typeof Sun }[] = [
@@ -155,6 +157,19 @@ export default function SettingsPage() {
                 <Switch checked={appearance.reduceMotion} onCheckedChange={(v) => setAppearance({ reduceMotion: v })} aria-label="Reduce motion" />
               </Row>
             </div>
+          </SectionCard>
+          <SectionCard title="Tutorials & help" className="mt-4" description="Saved in this browser only.">
+            <Row title="Show page tutorials" description="Step-by-step tips the first time you open each page.">
+              <Switch checked={ui.tutorialsEnabled} onCheckedChange={(v) => { ui.setTutorialsEnabled(v); toast.success(v ? "Tutorials on" : "Tutorials off"); }} aria-label="Show page tutorials" />
+            </Row>
+            <Row title="Replay all tutorials" description={`You've finished ${ui.seenTours.length} tutorial${ui.seenTours.length === 1 ? "" : "s"}. Reset to see them again.`}>
+              <Button variant="outline" size="sm" onClick={() => { ui.resetTours(); toast.success("Tutorials reset — they'll show again on each page"); }}>
+                <RotateCcw /> Reset tutorials
+              </Button>
+            </Row>
+            <Row title="Show demo mode reminders" description="The Demo chip, sidebar note and demo banners. Labels on simulated or imported records always stay.">
+              <Switch checked={ui.showDemoNotices} onCheckedChange={(v) => { ui.setShowDemoNotices(v); toast.success(v ? "Demo reminders shown" : "Demo reminders hidden"); }} aria-label="Show demo mode reminders" />
+            </Row>
           </SectionCard>
         </TabsContent>
 

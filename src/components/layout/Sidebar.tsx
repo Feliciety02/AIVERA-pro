@@ -68,6 +68,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
 }
 
 function DemoFooter({ collapsed }: { collapsed: boolean }) {
+  const show = useUIStore((s) => s.showDemoNotices);
+  if (!show) return null;
   if (collapsed)
     return (
       <Hint label="Demo mode — all data is synthetic; no real scans or AI" side="right">

@@ -3,6 +3,7 @@ import { Info, FlaskConical, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/misc";
 import { cn, initials } from "@/lib/utils";
+import { useUIStore } from "@/stores/sessionStore";
 import type { User } from "@/types";
 
 /** Card with a header row (title, description, actions). */
@@ -65,6 +66,10 @@ export function UserChip({ user, className, showTitle }: { user?: User; classNam
 }
 
 export function Callout({ tone = "info", title, children, icon, className }: { tone?: "info" | "warning" | "danger" | "demo"; title?: string; children: React.ReactNode; icon?: LucideIcon; className?: string }) {
+  // General demo reminders can be hidden in Settings → Appearance. Per-record labels
+  // (Simulated / Imported badges) are separate and always shown.
+  const showDemo = useUIStore((s) => s.showDemoNotices);
+  if (tone === "demo" && !showDemo) return null;
   const Icon = icon ?? (tone === "demo" ? FlaskConical : Info);
   // Google-style inline banners: soft tinted background, coloured icon, regular text.
   const toneClass = {

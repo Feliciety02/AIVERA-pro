@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useSearchParams } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
@@ -82,6 +84,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
 
   return (
     <SheetBody className="space-y-5">
+      <DialogGuide guideKey="remediationTask" steps={DIALOG_GUIDES.remediationTask} inSheet />
       <div className="flex flex-wrap gap-1.5">
         <StatusBadge status={task.status} map={REMEDIATION_STATUS} />
         <SeverityBadge severity={task.priority} />
@@ -91,7 +94,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
       <p className="text-sm text-foreground/85">{task.description}</p>
 
       {canEdit && (
-        <div className="space-y-2 rounded-lg border border-border p-3">
+        <div className="space-y-2 rounded-lg border border-border p-3" data-guide="rem-actions">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold">Workflow actions</p>
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditOpen(true)}><Pencil /> Edit details</Button>
@@ -120,12 +123,12 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
         </div>
       )}
 
-      <section>
+      <section data-guide="rem-recommendation">
         <p className="mb-1.5 text-xs font-semibold">Remediation recommendation</p>
         <p className="rounded-md border border-border bg-muted/30 p-3 text-xs leading-relaxed">{task.recommendation}</p>
       </section>
 
-      <section>
+      <section data-guide="rem-before-after">
         <p className="mb-2 text-xs font-semibold">Before / after assessment</p>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-md border border-sev-critical/25 bg-sev-critical/[0.04] p-3">
@@ -148,7 +151,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
         <KeyValue label="Due">{formatDate(task.dueDate)}</KeyValue>
       </dl>
 
-      <section>
+      <section data-guide="rem-timeline">
         <p className="mb-2 text-xs font-semibold">Timeline</p>
         <ol className="relative space-y-3 border-l border-border pl-4">
           {[...task.history].reverse().map((h, i) => (
@@ -168,6 +171,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
             <DialogTitle>{action?.kind === "status" ? action.title : `Record manual retest: ${action?.kind === "retest" ? action.result : ""}`}</DialogTitle>
             <DialogDescription>{action?.kind === "status" ? action.description : "Describe how you retested within the authorized scope. In this demo, no traffic is sent — this records your manual result."}</DialogDescription>
           </DialogHeader>
+          <DialogGuide guideKey="remediationAction" steps={DIALOG_GUIDES.remediationAction} />
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes / justification" aria-label="Notes" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAction(null)} disabled={busy}>Cancel</Button>

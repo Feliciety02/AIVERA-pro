@@ -199,3 +199,11 @@
     break-before: page;
   }
 }
+
+/* Field highlighted by an in-popup guide step. */
+[data-guide-active] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+  transition: outline-color 0.2s;
+}

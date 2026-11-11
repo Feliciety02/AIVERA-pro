@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
 import { Check, Minus, ShieldAlert, UserCog } from "lucide-react";
@@ -35,6 +37,7 @@ function UserEditor({ user, onClose, isSelf }: { user: User; onClose: () => void
   return (
     <>
       <SheetBody className="space-y-5">
+        {!isSelf && <DialogGuide guideKey="userEditor" steps={DIALOG_GUIDES.userEditor} inSheet />}
         <dl className="grid grid-cols-2 gap-4">
           <KeyValue label="Email">{user.email}</KeyValue>
           <KeyValue label="Title">{user.title}</KeyValue>
@@ -58,7 +61,7 @@ function UserEditor({ user, onClose, isSelf }: { user: User; onClose: () => void
           </div>
         </div>
         {isSelf && <p className="text-[11px] text-muted-foreground">You cannot change your own role or status in the demo.</p>}
-        <div className="space-y-2">
+        <div className="space-y-2" data-guide="user-projects">
           <p className="text-xs font-medium">Assigned projects</p>
           <div className="space-y-1.5">
             {projects.map((p) => (

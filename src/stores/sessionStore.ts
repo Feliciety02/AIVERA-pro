@@ -28,9 +28,20 @@ interface UIState {
   sidebarCollapsed: boolean;
   mobileNavOpen: boolean;
   commandOpen: boolean;
+  /** First-run page tutorials (per browser). */
+  tutorialsEnabled: boolean;
+  seenTours: string[];
+  activeTour: string | null;
+  /** General "Demo mode" reminders (header chip, sidebar box, demo banners). Record labels stay. */
+  showDemoNotices: boolean;
   toggleSidebar: () => void;
   setMobileNav: (open: boolean) => void;
   setCommandOpen: (open: boolean) => void;
+  startTour: (key: string) => void;
+  finishTour: (key: string) => void;
+  setTutorialsEnabled: (on: boolean) => void;
+  resetTours: () => void;
+  setShowDemoNotices: (on: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -39,10 +50,24 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       mobileNavOpen: false,
       commandOpen: false,
+      tutorialsEnabled: true,
+      seenTours: [],
+      activeTour: null,
+      showDemoNotices: true,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setMobileNav: (open) => set({ mobileNavOpen: open }),
       setCommandOpen: (open) => set({ commandOpen: open }),
+      startTour: (key) => set({ activeTour: key }),
+      finishTour: (key) => set((s) => ({ activeTour: null, seenTours: s.seenTours.includes(key) ? s.seenTours : [...s.seenTours, key] })),
+      setTutorialsEnabled: (on) => set({ tutorialsEnabled: on, activeTour: null }),
+      resetTours: () => set({ seenTours: [], tutorialsEnabled: true }),
+      setShowDemoNotices: (on) => set({ showDemoNotices: on }),
     }),
-    { name: "aegis-ui", version: 1, partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed }) },
+    {
+      name: "aegis-ui",
+      version: 2,
+      migrate: (s) => ({ ...(s as object), tutorialsEnabled: true, seenTours: [], showDemoNotices: true }) as unknown as UIState,
+      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, tutorialsEnabled: s.tutorialsEnabled, seenTours: s.seenTours, showDemoNotices: s.showDemoNotices }),
+    },
   ),
 );

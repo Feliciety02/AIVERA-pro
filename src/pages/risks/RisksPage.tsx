@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
@@ -37,6 +39,7 @@ function RiskEditor({ risk, onClose, readOnly }: { risk: Risk; onClose: () => vo
   return (
     <>
       <SheetBody className="space-y-4">
+        {!readOnly && <DialogGuide guideKey="riskEditor" steps={DIALOG_GUIDES.riskEditor} inSheet />}
         <div className="rounded-lg border p-3 text-center" style={{ borderColor: RISK_LEVEL_META[lvl].color }}>
           <p className="text-[11px] text-muted-foreground">Demo risk score (not CVSS)</p>
           <p className="text-3xl font-semibold tabular-nums" style={{ color: RISK_LEVEL_META[lvl].color }}>{score}</p>

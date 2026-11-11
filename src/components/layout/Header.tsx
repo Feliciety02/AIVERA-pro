@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { Bell, CheckCheck, ChevronRight, FlaskConical, LogOut, Menu, Moon, Search, Settings, Sun, Trash2, UserRoundCog, Users } from "lucide-react";
+import { Bell, CheckCheck, ChevronRight, CircleHelp, FlaskConical, LogOut, Menu, Moon, Search, Settings, Sun, Trash2, UserRoundCog, Users } from "lucide-react";
+import { tourForPath } from "@/features/tours";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger, Hint, Avatar } from "@/components/ui/misc";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -187,6 +188,10 @@ export function Header() {
   const setMobileNav = useUIStore((s) => s.setMobileNav);
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
 
+  const showDemoNotices = useUIStore((s) => s.showDemoNotices);
+  const startTour = useUIStore((s) => s.startTour);
+  const location = useLocation();
+
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -215,10 +220,17 @@ export function Header() {
         <kbd className="ml-auto hidden rounded border border-border px-1.5 py-px font-sans text-[11px] sm:inline">Ctrl K</kbd>
       </button>
       <div className="flex items-center gap-1">
-        <Hint label="Demo mode: synthetic data, simulated scans, sample AI analyses. Nothing here touches a real system.">
-          <span tabIndex={0} className="mr-1 hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground lg:inline-flex">
-            <FlaskConical className="size-3.5" /> Demo
-          </span>
+        {showDemoNotices && (
+          <Hint label="Demo mode: synthetic data, simulated scans, sample AI analyses. Hide this in Settings → Appearance.">
+            <span tabIndex={0} className="mr-1 hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground lg:inline-flex">
+              <FlaskConical className="size-3.5" /> Demo
+            </span>
+          </Hint>
+        )}
+        <Hint label="Replay this page's tutorial">
+          <Button variant="ghost" size="icon-sm" aria-label="Replay page tutorial" onClick={() => startTour(tourForPath(location.pathname)?.key ?? "welcome")}>
+            <CircleHelp />
+          </Button>
         </Hint>
         <ThemeToggle />
         <NotificationPanel />

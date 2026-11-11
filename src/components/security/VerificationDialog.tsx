@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { CircleCheck, CircleX, Loader2, ShieldQuestion, Timer, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -76,6 +78,7 @@ export function VerificationDialog({ finding, status, open, onOpenChange }: { fi
             <span className="font-mono">{finding.code}</span> · {finding.title}
           </DialogDescription>
         </DialogHeader>
+        {stage === "form" && <DialogGuide guideKey="verification" steps={DIALOG_GUIDES.verification} />}
         <div className="flex flex-wrap gap-2">
           <SeverityBadge severity={finding.severity} />
           <OriginBadge origin={finding.dataOrigin} />
@@ -117,6 +120,7 @@ export function VerificationDialog({ finding, status, open, onOpenChange }: { fi
             {stage === "confirm" ? "Back" : "Cancel"}
           </Button>
           <Button
+            data-guide="v-submit"
             variant={status === "rejected" ? "secondary" : isConfirm ? "destructive" : "default"}
             disabled={busy}
             onClick={() => {

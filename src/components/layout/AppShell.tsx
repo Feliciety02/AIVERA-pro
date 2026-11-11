@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/shared/states";
 import { Sidebar, MobileSidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { TourHost } from "./TourHost";
 
 export function AppShell() {
   const userId = useSessionStore((s) => s.userId);
@@ -36,6 +37,7 @@ export function AppShell() {
             <Outlet />
           </ErrorBoundary>
         </main>
+        <TourHost />
       </div>
     </div>
   );

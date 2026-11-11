@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -47,6 +49,7 @@ export function RemediationEditDialog({ task, open, onOpenChange }: { task: Reme
           <DialogTitle>Edit {task.code}</DialogTitle>
           <DialogDescription>Status changes are made with the workflow actions so approval and retest rules always apply.</DialogDescription>
         </DialogHeader>
+        <DialogGuide guideKey="remediationEdit" steps={DIALOG_GUIDES.remediationEdit} />
         <div className="grid gap-4">
           <Field id="re-title" label="Title" required><Input id="re-title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></Field>
           <Field id="re-desc" label="Description" required><Textarea id="re-desc" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></Field>

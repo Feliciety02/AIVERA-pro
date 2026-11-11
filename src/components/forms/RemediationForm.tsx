@@ -1,4 +1,6 @@
 import { Controller, useForm } from "react-hook-form";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -63,6 +65,7 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
             From <span className="font-mono">{finding.code}</span>. Tasks can only be resolved through manual approval (and a passed retest when required).
           </DialogDescription>
         </DialogHeader>
+        <DialogGuide guideKey="remediationCreate" steps={DIALOG_GUIDES.remediationCreate} />
         <form id="rem-form" onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
           <Field id="r-title" label="Title" required error={errors.title?.message}>
             <Input id="r-title" {...register("title")} aria-invalid={!!errors.title} />
