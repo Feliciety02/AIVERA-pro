@@ -3,7 +3,7 @@
  *
  * These types are the single source of truth shared by the demo adapter, the
  * Zustand store, and (later) the API adapter that talks to the Node/Express
- * backend. Entities reference each other by stable IDs — never by copies.
+ * backend. Entities reference each other by stable IDs, never by copies.
  */
 
 export type ID = string;
@@ -102,7 +102,7 @@ export interface Target {
 /** One scope entry suggested by automatic detection, with where it came from. */
 export interface ScopeSuggestion {
   value: string;
-  /** e.g. "Web address", "robots.txt", "sitemap.xml" — always a real, checkable source. */
+  /** e.g. "Web address", "robots.txt", "sitemap.xml", always a real, checkable source. */
   source: string;
   note?: string;
 }
@@ -124,7 +124,7 @@ export interface ScopeDetection {
   environmentHint?: TargetEnvironment;
 }
 
-/** A target that belongs to a project — required for scans, imports and findings. */
+/** A target that belongs to a project, required for scans, imports and findings. */
 export type ProjectTarget = Target & { projectId: ID };
 
 /* ------------------------------ Assessments ------------------------------ */

@@ -5,7 +5,7 @@
  * initialisation: when SEED_VERSION changes, state is re-seeded. Every mutating
  * action records an entry in the (demonstration) activity log.
  *
- * Pages should not call these actions directly for writes — they go through
+ * Pages should not call these actions directly for writes, they go through
  * the service layer in `src/services`, which will later be backed by the API.
  */
 import { create } from "zustand";
@@ -267,7 +267,7 @@ export const useDataStore = create<DataStore>()(
           dataOrigin: "user_created",
         };
         set((s) => ({ targets: [target, ...s.targets] }));
-        get().log("target_registered", "target", target.id, target.name, `Registered target ${target.name} (details saved — no scan started)`);
+        get().log("target_registered", "target", target.id, target.name, `Registered target ${target.name} (details saved, no scan started)`);
         return target;
       },
       updateTarget: (id, patch) => {
@@ -346,7 +346,7 @@ export const useDataStore = create<DataStore>()(
           dataOrigin: "simulated",
         };
         set((s) => ({ scans: [scan, ...s.scans] }));
-        get().log("demo_scan_started", "scan", scan.id, scan.code, `Started demo simulation "${scan.name}" (SIMULATED — no network activity)`);
+        get().log("demo_scan_started", "scan", scan.id, scan.code, `Started demo simulation "${scan.name}" (SIMULATED, no network activity)`);
         return scan;
       },
       setScanProgress: (id, progress, stage) =>
@@ -417,7 +417,7 @@ export const useDataStore = create<DataStore>()(
           endpoints: [...endpoints, ...s.endpoints],
           reconRuns: [{ id: createId("rcn"), targetId, tool: "nmap", label: "Imported demo sample bundle", recordsAdded: count, ranAt: now, dataOrigin: "imported" }, ...s.reconRuns],
         }));
-        get().log("recon_imported", "target", targetId, target.name, `Imported ${count} sample reconnaissance records (synthetic — no lookup performed)`);
+        get().log("recon_imported", "target", targetId, target.name, `Imported ${count} sample reconnaissance records (synthetic, no lookup performed)`);
         return count;
       },
 
@@ -522,7 +522,7 @@ export const useDataStore = create<DataStore>()(
           findings: s.findings.map((f) => (f.id === findingId ? { ...f, verificationStatus: toStatus, updatedAt: now } : f)),
           evidence: evidenceReviewed ? s.evidence.map((e) => (e.findingId === findingId ? { ...e, reviewed: true, reviewedBy: currentUser() } : e)) : s.evidence,
         }));
-        get().log(VERIFICATION_ACTIVITY[toStatus], "finding", findingId, finding.code, `Marked "${finding.title}" as ${toStatus.replace("_", " ")}. Reason: ${decisionReason || "—"}`);
+        get().log(VERIFICATION_ACTIVITY[toStatus], "finding", findingId, finding.code, `Marked "${finding.title}" as ${toStatus.replace("_", " ")}. Reason: ${decisionReason || "N/A"}`);
         if (toStatus === "confirmed") get().ensureRisk(findingId);
         if (get().settings.notifications.findingUpdates && toStatus === "confirmed" && (finding.severity === "critical" || finding.severity === "high"))
           get().pushNotification({ title: `${finding.severity === "critical" ? "Critical" : "High"} vulnerability confirmed`, message: `${finding.code} ${finding.title}`, tone: "critical", link: `/findings/${findingId}` });
@@ -541,7 +541,7 @@ export const useDataStore = create<DataStore>()(
       /* --------------------------------- AI --------------------------------- */
       addAnalysis: (analysis) => {
         set((s) => ({ aiAnalyses: [analysis, ...s.aiAnalyses], integrations: s.integrations.map((i) => (i.id === "ai_service" ? { ...i, lastUsedAt: analysis.generatedAt } : i)) }));
-        get().log("ai_analysis_generated", analysis.findingId ? "finding" : "project", analysis.findingId ?? analysis.projectId, analysis.title, "Generated sample AI analysis (demo adapter — not an LLM)");
+        get().log("ai_analysis_generated", analysis.findingId ? "finding" : "project", analysis.findingId ?? analysis.projectId, analysis.title, "Generated sample AI analysis (demo adapter, not an LLM)");
       },
       setAnalysisStatus: (id, status) => set((s) => ({ aiAnalyses: s.aiAnalyses.map((a) => (a.id === id ? { ...a, status } : a)) })),
 
@@ -655,7 +655,7 @@ export const useDataStore = create<DataStore>()(
               : r,
           ),
         }));
-        get().log("remediation_updated", "remediation", id, task.code, `Status ${task.status.replace("_", " ")} → ${to.replace("_", " ")}${note ? ` — ${note}` : ""}`);
+        get().log("remediation_updated", "remediation", id, task.code, `Status ${task.status.replace("_", " ")} → ${to.replace("_", " ")}${note ? `, ${note}` : ""}`);
         if (to === "resolved") {
           const risk = get().risks.find((r) => r.findingId === task.findingId);
           if (risk) get().updateRisk(risk.id, { mitigationStatus: "mitigated" });

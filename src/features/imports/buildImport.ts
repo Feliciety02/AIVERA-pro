@@ -3,7 +3,7 @@
  * enforcing the target's approved scope. The same function powers the import
  * preview and the actual import, so what the user previews is what is saved.
  *
- * All created findings start as "pending" — importing never verifies anything.
+ * All created findings start as "pending", importing never verifies anything.
  */
 import type { Endpoint, Evidence, Host, Port, ProjectTarget, Scan, ScanResult, ScanTool, VulnerabilityFinding } from "@/types";
 import { CATEGORY_BY_ID } from "@/lib/constants";
@@ -49,7 +49,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
   /* ------------------------------ Nmap hosts ------------------------------ */
   parsed.hosts.forEach((h, hi) => {
     if (!hostInScope(h.hostname, target) && !hostInScope(h.address, target)) {
-      skipped.push(`Host ${h.hostname} (${h.address}) — not an in-scope host`);
+      skipped.push(`Host ${h.hostname} (${h.address}), not an in-scope host`);
       return;
     }
     const hostId = `hst-${o.scanId}-${hi}`;
@@ -59,7 +59,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
       const risky = RISKY_SERVICES[p.port];
       if (!risky || p.state !== "open") return;
       if (!allowedCats.has("config_https")) {
-        skipped.push(`Exposed ${risky.label} on ${h.hostname}:${p.port} — category "${CATEGORY_BY_ID.config_https.short}" not permitted by scope (port still recorded)`);
+        skipped.push(`Exposed ${risky.label} on ${h.hostname}:${p.port}, category "${CATEGORY_BY_ID.config_https.short}" not permitted by scope (port still recorded)`);
         return;
       }
       const id = nextFindingId();
@@ -94,12 +94,12 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
   parsed.alerts.forEach((a) => {
     const inScope = a.instances.filter((i) => {
       const v = urlScopeVerdict(i.uri, target);
-      if (!v.ok) skipped.push(`${a.name} @ ${i.uri} — ${v.reason}`);
+      if (!v.ok) skipped.push(`${a.name} @ ${i.uri} · ${v.reason}`);
       return v.ok;
     });
     if (!inScope.length) return;
     if (!allowedCats.has(a.category)) {
-      skipped.push(`${a.name} — category "${CATEGORY_BY_ID[a.category].short}" not permitted by scope`);
+      skipped.push(`${a.name}, category "${CATEGORY_BY_ID[a.category].short}" not permitted by scope`);
       return;
     }
     inScope.forEach((i, ii) => {
@@ -134,7 +134,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
       dataOrigin: "imported",
     });
     inScope.slice(0, 5).forEach((i, k) =>
-      evidence.push({ id: `ev-${id}-${k + 1}`, findingId: id, type: "tool_output", title: `ZAP instance ${k + 1} (imported from ${o.fileName})`, content: `${i.method} ${i.uri}\nParameter: ${i.param || "—"}\nEvidence: ${i.evidence || "—"}\nPlugin: ${a.pluginId} · Confidence: ${a.confidence}${a.reference ? `\nReference: ${a.reference}` : ""}`, source: "owasp_zap", capturedAt: o.now, reviewed: false, dataOrigin: "imported" }),
+      evidence.push({ id: `ev-${id}-${k + 1}`, findingId: id, type: "tool_output", title: `ZAP instance ${k + 1} (imported from ${o.fileName})`, content: `${i.method} ${i.uri}\nParameter: ${i.param || "N/A"}\nEvidence: ${i.evidence || "N/A"}\nPlugin: ${a.pluginId} · Confidence: ${a.confidence}${a.reference ? `\nReference: ${a.reference}` : ""}`, source: "owasp_zap", capturedAt: o.now, reviewed: false, dataOrigin: "imported" }),
     );
   });
 
@@ -142,7 +142,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
   const scan: Scan = {
     id: o.scanId,
     code: o.scanCode,
-    name: `Imported ${tool === "nmap" ? "Nmap" : "OWASP ZAP"} report — ${o.fileName}`,
+    name: `Imported ${tool === "nmap" ? "Nmap" : "OWASP ZAP"} report, ${o.fileName}`,
     projectId: target.projectId,
     targetId: target.id,
     status: "completed",

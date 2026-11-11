@@ -1,6 +1,6 @@
 /**
  * Derived metrics. Every number shown on dashboards/analytics is computed here
- * from store entities — nothing is hardcoded separately from the source data.
+ * from store entities, nothing is hardcoded separately from the source data.
  */
 import { eachWeekOfInterval, endOfWeek, format, isWithinInterval, parseISO, startOfWeek, subWeeks } from "date-fns";
 import type { DataState } from "@/stores/dataStore";

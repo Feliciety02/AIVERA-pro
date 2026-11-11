@@ -35,7 +35,7 @@ export function pathPattern(path: string): string {
   return `${clean.replace(/\/+$/, "")}/*`;
 }
 
-/** Scope taken from the address alone — exact host, and the address's path. */
+/** Scope taken from the address alone, exact host, and the address's path. */
 export function detectFromAddress(rawUrl: string): ScopeDetection {
   const u = new URL(rawUrl);
   const host = u.port ? `${u.hostname}:${u.port}` : u.hostname;
@@ -44,7 +44,7 @@ export function detectFromAddress(rawUrl: string): ScopeDetection {
     host: u.hostname,
     checkedAt: new Date().toISOString(),
     mode: "address",
-    inScopeHosts: [{ value: host, source: "Web address", note: "Only this exact host — other subdomains are not included." }],
+    inScopeHosts: [{ value: host, source: "Web address", note: "Only this exact host, other subdomains are not included." }],
     allowedPaths: [{ value: pathPattern(u.pathname), source: "Web address", note: u.pathname === "/" ? "Everything under the site root." : `Everything under ${u.pathname}` }],
     excludedPaths: [],
     environmentHint: guessEnvironment(u.hostname),
@@ -92,7 +92,7 @@ export function parseRobots(text: string): { excluded: string[]; unsupported: st
       continue;
     }
     if (body === "/") {
-      unsupported.push(r); // "Disallow: /" would exclude the whole site — leave that decision to the user
+      unsupported.push(r); // "Disallow: /" would exclude the whole site, leave that decision to the user
       continue;
     }
     excluded.push(body.endsWith("*") ? body : body.endsWith("/") ? `${body}*` : body);

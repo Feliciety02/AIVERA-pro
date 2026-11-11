@@ -67,7 +67,7 @@ router.post("/remediation/:id/status", requirePermission("manage_remediation"), 
     include: { history: true },
   });
   if (to === "resolved") await prisma.risk.updateMany({ where: { findingId: cur.findingId }, data: { mitigationStatus: "mitigated", updatedAt: now } });
-  await log(me(req).id, "remediation_updated", "remediation", t.id, t.code, `Status ${cur.status.replace("_", " ")} → ${to.replace("_", " ")}${note ? ` — ${note}` : ""}`);
+  await log(me(req).id, "remediation_updated", "remediation", t.id, t.code, `Status ${cur.status.replace("_", " ")} → ${to.replace("_", " ")}${note ? `, ${note}` : ""}`);
   res.json(M.toTask(t));
 });
 

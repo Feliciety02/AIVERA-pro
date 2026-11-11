@@ -79,7 +79,7 @@ export const targetService = {
   /**
    * Suggests scope from real sources. API mode: the AIVERA server looks up DNS and reads the
    * site's robots.txt and sitemap.xml (after permission is confirmed). Demo mode: parsed from
-   * the address only — the browser never contacts the target.
+   * the address only, the browser never contacts the target.
    */
   async detectScope(url: string): Promise<ScopeDetection> {
     if (IS_API) return api<ScopeDetection>("/targets/detect-scope", { body: { url, authorizationConfirmed: true } });

@@ -89,7 +89,7 @@ export function parseNmapXml(text: string): ParseResult {
         protocol: p.getAttribute("protocol") === "udp" ? "udp" : "tcp",
         state: state === "open" ? "open" : state.startsWith("filtered") || state === "open|filtered" ? "filtered" : "closed",
         service: svc?.getAttribute("name") ?? "unknown",
-        version: [svc?.getAttribute("product"), svc?.getAttribute("version"), svc?.getAttribute("extrainfo")].filter(Boolean).join(" ") || "—",
+        version: [svc?.getAttribute("product"), svc?.getAttribute("version"), svc?.getAttribute("extrainfo")].filter(Boolean).join(" ") || "N/A",
       };
     });
     return {
@@ -147,7 +147,8 @@ export function parseZapJson(text: string): ParseResult {
   const confidence: Record<string, string> = { "0": "False Positive", "1": "Low", "2": "Medium", "3": "High", "4": "Confirmed" };
   const alerts: ParsedAlert[] = list.flatMap((site: { alerts?: ZapAlertJson[] }) =>
     (site.alerts ?? []).map((a) => {
-      const name = a.name ?? a.alert ?? "Unnamed alert";
+      // ZAP names use " - " as a separator ("Information Disclosure - Suspicious Comments"); show a colon instead.
+      const name = (a.name ?? a.alert ?? "Unnamed alert").replace(/ - /g, ": ");
       const cwe = a.cweid !== undefined && String(a.cweid) !== "-1" && String(a.cweid) !== "0" ? String(a.cweid) : undefined;
       return {
         pluginId: String(a.pluginid ?? "?"),

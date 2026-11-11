@@ -6,7 +6,7 @@
  * of scope to demonstrate scope filtering.
  */
 export const SAMPLE_NMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<!-- SYNTHETIC SAMPLE for AIVERA demo — not output from a real scan -->
+<!-- SYNTHETIC SAMPLE for AIVERA demo, not output from a real scan -->
 <nmaprun scanner="nmap" args="nmap -sV -oX sample.xml {host}" version="7.95" xmloutputversion="1.05">
   <host>
     <status state="up" reason="syn-ack"/>
@@ -35,7 +35,7 @@ export const SAMPLE_ZAP_JSON = JSON.stringify(
   {
     "@programName": "ZAP",
     "@version": "2.15.0",
-    _note: "SYNTHETIC SAMPLE for AIVERA demo — not output from a real scan",
+    _note: "SYNTHETIC SAMPLE for AIVERA demo, not output from a real scan",
     site: [
       {
         "@name": "{origin}",
@@ -78,8 +78,8 @@ export const SAMPLE_ZAP_JSON = JSON.stringify(
           },
           {
             pluginid: "10096",
-            alert: "Timestamp Disclosure - Unix",
-            name: "Timestamp Disclosure - Unix",
+            alert: "Timestamp Disclosure (Unix)",
+            name: "Timestamp Disclosure (Unix)",
             riskcode: "0",
             confidence: "1",
             desc: "<p>A timestamp was disclosed by the application/web server.</p>",

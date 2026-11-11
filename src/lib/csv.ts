@@ -14,6 +14,6 @@ export function toCSV<T>(rows: T[], columns: { header: string; value: (r: T) => 
 }
 
 export function downloadCSV<T>(filename: string, rows: T[], columns: { header: string; value: (r: T) => unknown }[]) {
-  const banner = "# AIVERA demo export — generated from synthetic demonstration data\n";
+  const banner = "# AIVERA demo export, generated from synthetic demonstration data\n";
   downloadBlob(banner + toCSV(rows, columns), filename, "text/csv;charset=utf-8");
 }

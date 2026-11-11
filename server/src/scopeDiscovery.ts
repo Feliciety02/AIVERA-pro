@@ -4,8 +4,8 @@
  * Contacts the target in the lightest way possible, and only after the user has
  * confirmed permission:
  *   1. DNS lookup of the host (is it real, which addresses does it use)
- *   2. GET /robots.txt   — the owner's own list of paths crawlers must avoid
- *   3. GET /sitemap.xml  — the owner's own list of public pages
+ *   2. GET /robots.txt , the owner's own list of paths crawlers must avoid
+ *   3. GET /sitemap.xml, the owner's own list of public pages
  * That's at most two small HTTP requests: no crawling, no forms, no scanning.
  * Every suggestion is labelled with the file it came from.
  */
@@ -50,7 +50,7 @@ async function getSameHost(url: string, host: string) {
   let r = await fetchText(url);
   if (r.status >= 300 && r.status < 400 && r.location) {
     const next = new URL(r.location, url);
-    if (next.hostname !== host) return { status: r.status, text: "", message: `Redirected to another host (${next.hostname}) — not followed.` };
+    if (next.hostname !== host) return { status: r.status, text: "", message: `Redirected to another host (${next.hostname}), not followed.` };
     r = await fetchText(next.href);
   }
   return { status: r.status, text: r.status === 200 ? r.text : "", message: r.status === 200 ? undefined : `HTTP ${r.status}` };

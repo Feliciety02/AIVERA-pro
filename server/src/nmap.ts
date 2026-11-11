@@ -29,7 +29,7 @@ export function parseNmapXmlServer(text: string): ParseResult {
         protocol: (attr(p, "protocol") === "udp" ? "udp" : "tcp") as "tcp" | "udp",
         state: (state === "open" ? "open" : state.startsWith("filtered") || state === "open|filtered" ? "filtered" : "closed") as "open" | "filtered" | "closed",
         service: attr(svc, "name") ?? "unknown",
-        version: [attr(svc, "product"), attr(svc, "version"), attr(svc, "extrainfo")].filter(Boolean).join(" ") || "—",
+        version: [attr(svc, "product"), attr(svc, "version"), attr(svc, "extrainfo")].filter(Boolean).join(" ") || "N/A",
       };
     });
     return {

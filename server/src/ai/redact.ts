@@ -2,7 +2,7 @@
  * Redaction applied to every piece of text before it is sent to an external AI
  * service. The project brief forbids exposing credentials or confidential data
  * to public AI services, and the Gemini free tier may use content to improve
- * Google's products — so this is mandatory, not optional.
+ * Google's products, so this is mandatory, not optional.
  *
  * It is conservative: it prefers hiding a harmless value over leaking a secret.
  */

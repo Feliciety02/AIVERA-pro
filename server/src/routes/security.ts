@@ -352,7 +352,7 @@ router.post("/ai/analyses", requirePermission("use_ai"), async (req, res) => {
   await prisma.integration.update({ where: { id: "ai_service" }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
   await log(
     me(req).id, "ai_analysis_generated", analysis.findingId ? "finding" : "project", analysis.findingId ?? analysis.projectId, analysis.title,
-    analysis.adapter === "api" ? `Generated AI analysis with ${analysis.model} (${analysis.redactionCount ?? 0} value(s) redacted before sending)` : "Generated sample analysis (demo adapter — no AI model configured)",
+    analysis.adapter === "api" ? `Generated AI analysis with ${analysis.model} (${analysis.redactionCount ?? 0} value(s) redacted before sending)` : "Generated sample analysis (demo adapter, no AI model configured)",
   );
   res.status(201).json(analysis);
 });

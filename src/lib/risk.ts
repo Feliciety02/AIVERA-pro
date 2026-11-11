@@ -1,7 +1,7 @@
 import type { LikertScore, Risk, RiskLevel, Severity } from "@/types";
 
 /**
- * Deterministic DEMO risk model: score = likelihood × impact (1–25).
+ * Deterministic DEMO risk model: score = likelihood × impact (1 to 25).
  *
  * This is a simple qualitative matrix used for prioritisation in the demo.
  * It is NOT a CVSS score and must not be presented as one. A real CVSS v3.1/v4.0

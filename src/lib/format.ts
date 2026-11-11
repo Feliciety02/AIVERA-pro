@@ -41,22 +41,22 @@ function zoned(value: string | Date): Date | null {
 }
 
 export function formatDate(value: string | Date | undefined | null, pattern?: string): string {
-  if (!value) return "—";
+  if (!value) return "N/A";
   const d = zoned(value);
-  return d ? format(d, pattern ?? prefs.dateFormat) : "—";
+  return d ? format(d, pattern ?? prefs.dateFormat) : "N/A";
 }
 
 export function formatDateTime(value: string | Date | undefined | null): string {
-  if (!value) return "—";
+  if (!value) return "N/A";
   const d = zoned(value);
-  if (!d) return "—";
+  if (!d) return "N/A";
   const tz = prefs.timezone === "local" ? "" : ` ${prefs.timezone === "UTC" ? "UTC" : prefs.timezone.split("/").pop()!.replace("_", " ")}`;
   return `${format(d, prefs.dateFormat)} · ${format(d, "HH:mm")}${tz}`;
 }
 
 export function formatRelative(value: string | Date | undefined | null): string {
   const d = toDate(value);
-  return d ? `${formatDistanceToNowStrict(d)} ago` : "—";
+  return d ? `${formatDistanceToNowStrict(d)} ago` : "N/A";
 }
 
 export function daysUntil(value: string | undefined | null): number | null {

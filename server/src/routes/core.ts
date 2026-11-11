@@ -35,7 +35,7 @@ router.post("/auth/login", async (req, res) => {
 
 /**
  * Self-service sign-up. New accounts are read-only viewers and stay pending ("invited")
- * until an administrator activates them on the Users page — nobody can sign up and
+ * until an administrator activates them on the Users page, nobody can sign up and
  * start testing websites on their own.
  */
 const signupBody = z.object({
@@ -114,7 +114,7 @@ router.get("/bootstrap", async (req, res) => {
       i.id === "ai_service"
         ? aiConfigured()
           ? { ...i, name: "AI Analysis Service", status: "connected" as const, integrationType: `Server-side AI, tried in order: ${aiProviderChain().join(" → ")}`, futureEndpoint: "POST /api/ai/analyses (live)" }
-          : { ...i, status: "demo_adapter" as const, integrationType: "Demo adapter — set GEMINI_API_KEY in server/.env to enable Gemini" }
+          : { ...i, status: "demo_adapter" as const, integrationType: "Demo adapter, set GEMINI_API_KEY in server/.env to enable Gemini" }
         : i,
     ),
     settings: settings?.value as unknown as ApplicationSettings,
@@ -243,7 +243,7 @@ router.post("/targets", requirePermission("manage_targets"), async (req, res) =>
   const now = new Date();
   // Saving does not contact the URL (scope detection is a separate, explicit request).
   const t = await prisma.target.create({ data: { ...rest, projectId: rest.projectId ?? null, authorizationReference, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
-  await log(me(req).id, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (details saved — no scan started)`);
+  await log(me(req).id, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (details saved, no scan started)`);
   res.status(201).json(M.toTarget(t));
 });
 

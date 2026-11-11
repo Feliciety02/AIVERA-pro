@@ -5,7 +5,7 @@
  *  - Sessions: random 32-byte token in an httpOnly, SameSite=Lax cookie; only
  *    its SHA-256 hash is stored, so a database leak does not leak sessions.
  *  - Authorization: every mutating route declares the permission it needs and
- *    is checked here on the server — the frontend's role checks are UI only.
+ *    is checked here on the server, the frontend's role checks are UI only.
  */
 import type { NextFunction, Request, Response } from "express";
 import { createHash, randomBytes } from "node:crypto";

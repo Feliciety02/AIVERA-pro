@@ -35,7 +35,7 @@ export interface AIAdapter {
 }
 
 export const DEMO_CAVEAT =
-  "Sample AI Analysis — Demo Mode. This text is a predefined sample linked to the synthetic finding; it was not produced by a language model. AI output is advisory only and must be verified by a human assessor before any decision.";
+  "Sample AI Analysis, Demo Mode. This text is a predefined sample linked to the synthetic finding; it was not produced by a language model. AI output is advisory only and must be verified by a human assessor before any decision.";
 
 function base(req: AIAnalysisRequest, title: string): Omit<AIAnalysis, "interpretation" | "explanation" | "potentialImpact" | "recommendations" | "verificationSteps" | "reasoning" | "suggestedSeverity"> {
   return {
@@ -66,7 +66,7 @@ function findingAnalysis(req: AIAnalysisRequest): AIAnalysis {
     test_recommendations: "Security test recommendations",
     assessment_summary: "Assessment summary",
   };
-  const title = `${modeTitle[req.mode]} — ${f.code}`;
+  const title = `${modeTitle[req.mode]} · ${f.code}`;
   if (!t) {
     // Imported or manually recorded findings have no predefined sample. Be explicit
     // instead of fabricating content: only echo fields already on the record.
@@ -102,7 +102,7 @@ function scanAnalysis(req: AIAnalysisRequest): AIAnalysis {
   const results = req.scanResults ?? [];
   const total = results.reduce((n, r) => n + r.itemsFound, 0);
   return {
-    ...base(req, `Scan result interpretation — ${scan.code}`),
+    ...base(req, `Scan result interpretation, ${scan.code}`),
     interpretation: `${scan.code} (${scan.dataOrigin.toUpperCase()}) recorded ${total} item(s) across ${results.length} tool output(s). ${results.map((r) => `${TOOL_META[r.tool].label}: ${r.summary}`).join(" ")}`,
     explanation: "Scan output lists indicators, not confirmed vulnerabilities. Each indicator must be reviewed against its evidence and reproduced manually before being confirmed.",
     potentialImpact: "Depends on verification outcome of individual findings.",
@@ -124,7 +124,7 @@ function summaryAnalysis(req: AIAnalysisRequest): AIAnalysis {
   const bySev = (sev: string) => confirmed.filter((f) => f.severity === sev).length;
   const top = [...confirmed].sort((a, b) => SEVERITY_META[b.severity].rank - SEVERITY_META[a.severity].rank).slice(0, 3);
   return {
-    ...base(req, `Assessment summary — ${req.project.code}`),
+    ...base(req, `Assessment summary, ${req.project.code}`),
     interpretation: `Draft summary built from ${confirmed.length} human-confirmed finding(s). ${pending.length} observation(s) remain unverified and are excluded from conclusions.`,
     explanation: `The ${req.project.name} engagement (demonstration data) confirmed ${bySev("critical")} critical, ${bySev("high")} high, ${bySev("medium")} medium and ${bySev("low")} low severity issues. ${top.length ? `Most significant: ${top.map((f) => f.title).join("; ")}.` : "No confirmed issues yet."}`,
     potentialImpact: top[0]?.impact ?? "No confirmed impact yet.",

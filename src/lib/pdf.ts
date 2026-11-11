@@ -1,14 +1,14 @@
 /**
  * Client-side PDF generation for assessment reports (jsPDF + autotable).
  * jsPDF is loaded on demand so it does not weigh down the initial bundle.
- * The PDF is built from the current report model — no network request.
+ * The PDF is built from the current report model, no network request.
  */
 import type { ReportModel } from "@/features/reports/reportModel";
 import { riskSummary } from "@/features/reports/reportModel";
 import { CATEGORY_BY_ID, REMEDIATION_STATUS, SEVERITY_HEX, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS, ENVIRONMENTS } from "./constants";
 import { format } from "date-fns";
 
-const fmt = (d?: string) => (d ? format(new Date(d), "MMM d, yyyy") : "—");
+const fmt = (d?: string) => (d ? format(new Date(d), "MMM d, yyyy") : "N/A");
 
 export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   const [{ jsPDF, GState }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
@@ -76,7 +76,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   table(["Field", "Value"], [
     ["Report ID", m.report.code],
     ["Status", m.report.status === "final" ? "Final" : "Draft"],
-    ["Assessment period", `${fmt(m.report.periodStart)} – ${fmt(m.report.periodEnd)}`],
+    ["Assessment period", `${fmt(m.report.periodStart)}, ${fmt(m.report.periodEnd)}`],
     ["Prepared by", m.preparedBy],
     ["Generated", format(new Date(), "MMM d, yyyy HH:mm")],
     ["Data source", `${m.scanOrigins.real} live, ${m.scanOrigins.imported} imported, ${m.scanOrigins.simulated} simulated scan(s)`],
@@ -88,8 +88,8 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   if (has("assessment_info")) {
     heading("Assessment Information");
     table(["Item", "Detail"], [
-      ["Project", `${m.project.code} — ${m.project.name}`],
-      ["Owner", m.owner?.name ?? "—"],
+      ["Project", `${m.project.code} · ${m.project.name}`],
+      ["Owner", m.owner?.name ?? "N/A"],
       ["Organization", m.organization],
       ["Targets", m.targets.map((t) => `${t.name} (${t.url})`).join("\n")],
       ["Objectives", m.project.objectives],
@@ -110,7 +110,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   }
   if (has("tools")) {
     heading("Security Tools Used");
-    table(["Tool", "Purpose"], m.tools.length ? m.tools.map((t) => [TOOL_META[t].label, TOOL_META[t].description]) : [["—", "No tool runs recorded in this period"]], { colWidths: [120] });
+    table(["Tool", "Purpose"], m.tools.length ? m.tools.map((t) => [TOOL_META[t].label, TOOL_META[t].description]) : [["N/A", "No tool runs recorded in this period"]], { colWidths: [120] });
     para(`Scan records in period: ${m.scanOrigins.real} live, ${m.scanOrigins.imported} imported, ${m.scanOrigins.simulated} simulated.`, 9, muted);
   }
   if (has("findings_summary") || has("severity_distribution")) {
@@ -133,7 +133,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
     if (!m.verified.length) para("No verified findings.");
     m.verified.forEach((f) => {
       ensure(80);
-      doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(...ink).text(`${f.code} — ${f.title}`, M, y, { maxWidth: W - M * 2 });
+      doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(...ink).text(`${f.code} · ${f.title}`, M, y, { maxWidth: W - M * 2 });
       y += 16;
       table(["Attribute", "Value"], [
         ["Severity", SEVERITY_META[f.severity].label],
@@ -162,18 +162,18 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   }
   if (has("risk_assessment")) {
     heading("Risk Assessment");
-    para("Qualitative risk model (likelihood × impact, 1–25). Not CVSS.", 9, muted);
-    table(["Finding", "Risk score", "Mitigation"], m.verified.map((f) => [f.code, riskSummary(m.risks[f.id]), m.risks[f.id]?.mitigationStatus.replace("_", " ") ?? "—"]));
+    para("Qualitative risk model (likelihood × impact, 1 to 25). Not CVSS.", 9, muted);
+    table(["Finding", "Risk score", "Mitigation"], m.verified.map((f) => [f.code, riskSummary(m.risks[f.id]), m.risks[f.id]?.mitigationStatus.replace("_", " ") ?? "N/A"]));
   }
   if (has("remediation")) {
     heading("Remediation Recommendations");
-    const rows = m.verified.flatMap((f) => (m.remediation[f.id]?.length ? m.remediation[f.id]!.map((t) => [f.code, t.title, REMEDIATION_STATUS[t.status].label, fmt(t.dueDate)]) : [[f.code, f.remediation, "No task", "—"]]));
-    table(["Finding", "Action", "Status", "Due"], rows.length ? rows : [["—", "No verified findings", "", ""]]);
+    const rows = m.verified.flatMap((f) => (m.remediation[f.id]?.length ? m.remediation[f.id]!.map((t) => [f.code, t.title, REMEDIATION_STATUS[t.status].label, fmt(t.dueDate)]) : [[f.code, f.remediation, "No task", "N/A"]]));
+    table(["Finding", "Action", "Status", "Due"], rows.length ? rows : [["N/A", "No verified findings", "", ""]]);
   }
   if (has("unverified_observations") && m.report.includeUnverified) {
-    heading("Appendix — Unverified Observations");
+    heading("Appendix, Unverified Observations");
     para("The following observations have NOT been verified by an assessor and must not be treated as confirmed vulnerabilities.", 9.5, [180, 83, 9]);
-    table(["ID", "Title", "Status", "Origin"], m.unverified.length ? m.unverified.map((f) => [f.code, f.title, VERIFICATION_STATUS[f.verificationStatus].label, f.dataOrigin]) : [["—", "None", "", ""]]);
+    table(["ID", "Title", "Status", "Origin"], m.unverified.length ? m.unverified.map((f) => [f.code, f.title, VERIFICATION_STATUS[f.verificationStatus].label, f.dataOrigin]) : [["N/A", "None", "", ""]]);
   }
   if (has("conclusion")) {
     heading("Conclusion");
