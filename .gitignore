@@ -5,7 +5,12 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.api
 .vite
 *.tsbuildinfo
 npm-debug.log*
 .DS_Store
+
+server/.env
+server/prisma/*.db
+server/prisma/*.db-journal

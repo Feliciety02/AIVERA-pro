@@ -11,6 +11,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // API mode: the browser talks to the backend through same-origin /api,
+    // so the httpOnly session cookie works without CORS.
+    proxy: { "/api": { target: "http://localhost:4000", changeOrigin: false } },
+  },
   build: {
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
