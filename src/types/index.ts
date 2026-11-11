@@ -329,6 +329,12 @@ export interface AIAnalysis {
   generatedBy: ID;
   /** Which adapter produced this. "demo" responses are predefined samples, not LLM output. */
   adapter: "demo" | "api";
+  /** Model that generated the analysis (API adapter only), e.g. "gemini-3.8-flash". */
+  model?: string;
+  /** Exact redacted context sent to the model, kept for audit and the oral defense. */
+  sentContext?: string;
+  /** Number of values redacted before sending. */
+  redactionCount?: number;
 }
 
 /* --------------------------------- Risks --------------------------------- */
