@@ -24,9 +24,9 @@ export default function IntegrationsPage() {
   const integrations = useDataStore((s) => s.integrations);
   return (
     <ContentContainer wide>
-      <PageHeader title="Integrations" description="Security tools and services AEGIS will orchestrate through its backend. Statuses below reflect the real state of this build." />
-      <Callout tone="warning" icon={ShieldAlert} title="No tools are installed or connected">
-        This frontend does not run Nmap or OWASP ZAP and does not call an AI model. Tools will run on isolated backend workers; the browser will only ever talk to the AEGIS API. “Last used” shows when demo/imported data for that tool was last recorded.
+      <PageHeader title="Integrations" description="Security tools and services AIVERA will orchestrate through its backend. Statuses below reflect the real state of this build." />
+      <Callout tone="warning" icon={ShieldAlert} title="Check assessment prerequisites">
+        The browser does not launch security tools. API mode can run an opt-in passive Nmap and ZAP assessment when Nmap, Docker, the ZAP image, and the live scan gate are configured on the lab server. These cards do not verify installed executables. “Last used” shows when tool data was recorded.
       </Callout>
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         {integrations.map((i) => {
@@ -51,13 +51,13 @@ export default function IntegrationsPage() {
                 <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Available features</p>
                 <div className="flex flex-wrap gap-1">{i.features.map((f) => <ToneBadge key={f} tone="muted">{f}</ToneBadge>)}</div>
               </div>
-              <details className="mt-4 rounded-md border border-border">
+              <details className="mt-4 rounded-lg border border-border">
                 <summary className="cursor-pointer px-3 py-2 text-xs font-medium">Setup information</summary>
                 <ol className="list-decimal space-y-1 border-t border-border px-3 py-2 pl-7 text-xs text-muted-foreground">{i.setupSteps.map((s) => <li key={s}>{s}</li>)}</ol>
                 <p className="border-t border-border px-3 py-2 font-mono text-[11px] text-cyan">{i.futureEndpoint}</p>
               </details>
               <div className="mt-auto pt-4">
-                <Hint label="Connecting integrations requires the AEGIS backend (not part of this phase).">
+                <Hint label="Connecting integrations requires the AIVERA backend (not part of this phase).">
                   <span tabIndex={0} className="inline-block">
                     <Button size="sm" variant="outline" disabled><Plug /> Connect</Button>
                   </span>

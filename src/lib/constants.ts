@@ -20,7 +20,7 @@ import type {
   DataOrigin,
 } from "@/types";
 
-export const APP_NAME = "AEGIS AI";
+export const APP_NAME = "AIVERA";
 export const APP_TAGLINE = "Intelligent Security. Verified Decisions.";
 
 /* -------------------------------- Severity ------------------------------- */
@@ -77,6 +77,7 @@ export const PROJECT_STATUS: Record<ProjectStatus, StatusMeta> = {
 export const SCAN_STATUS: Record<ScanStatus, StatusMeta> = {
   queued: { label: "Queued", tone: "muted" },
   running: { label: "Running", tone: "cyan" },
+  paused: { label: "Paused", tone: "warning" },
   completed: { label: "Completed", tone: "primary" },
   failed: { label: "Failed", tone: "danger" },
   cancelled: { label: "Cancelled", tone: "neutral" },
@@ -121,7 +122,7 @@ export const MITIGATION_STATUS: Record<MitigationStatus, StatusMeta> = {
 export const DATA_ORIGIN: Record<DataOrigin, StatusMeta & { description: string }> = {
   synthetic: { label: "Synthetic", tone: "muted", description: "Fictional sample record included with the demo dataset." },
   simulated: { label: "SIMULATED", tone: "warning", description: "Produced by the in-browser demo simulation. No real scan was performed." },
-  imported: { label: "Imported", tone: "cyan", description: "Tool output imported from a file (bundled synthetic sample or a report you supplied). Parsed in the browser — AEGIS did not run the tool or contact the host." },
+  imported: { label: "Imported", tone: "cyan", description: "Tool output imported from a file (bundled synthetic sample or a report you supplied). Parsed in the browser — AIVERA did not run the tool or contact the host." },
   user_created: { label: "User Entered", tone: "info", description: "Entered manually by a user in this demo session." },
   real: { label: "Live Result", tone: "primary", description: "Reserved for future backend scan results." },
 };

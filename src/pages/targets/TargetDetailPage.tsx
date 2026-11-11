@@ -3,11 +3,11 @@ import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { Ban, CircleCheck, FileUp, Globe, Loader2, Pencil, Radar, ScanLine, ShieldCheck, ShieldOff, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { Ban, CircleCheck, FileUp, Globe, Loader2, Pencil, Radar, ShieldCheck, ShieldOff, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Checkbox, Hint } from "@/components/ui/misc";
+import { Checkbox } from "@/components/ui/misc";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,6 +23,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { targetService } from "@/services";
 import { ToolImportDialog } from "@/components/forms/ToolImportDialog";
+import { QuickScanCard } from "@/components/security/QuickScanCard";
 import type { TargetScope } from "@/types";
 
 export default function TargetDetailPage() {
@@ -107,27 +108,14 @@ export default function TargetDetailPage() {
                   <FileUp /> Import tool output
                 </Button>
               )}
-              {assessable ? (
-                <Button size="sm" asChild>
-                  <Link to={`/scans/new?project=${target.projectId}&target=${target.id}`}>
-                    <ScanLine /> Configure demo scan
-                  </Link>
-                </Button>
-              ) : (
-                <Hint label="Scans can only be configured for authorized targets with confirmed authorization.">
-                  <span tabIndex={0}>
-                    <Button size="sm" disabled>
-                      <ScanLine /> Configure demo scan
-                    </Button>
-                  </span>
-                </Hint>
-              )}
             </>
           )
         }
       />
 
       {!target.projectId && <AddToProject targetId={target.id} canManage={canManage} />}
+
+      <QuickScanCard target={target} onEditScope={canManage ? () => { setDraft(structuredClone(target.scope)); setScopeOpen(true); } : undefined} />
 
       {target.projectId && !assessable && (
         <Callout tone="danger" icon={ShieldAlert} title="This target cannot be assessed">
@@ -195,7 +183,7 @@ export default function TargetDetailPage() {
                 </>
               )}
             </div>
-            <div className="rounded-lg border border-border p-3.5">
+            <div className="rounded-xl border border-border p-3.5">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold">
                 <CircleCheck className="size-3.5 text-primary" /> Allowed activities
               </p>
@@ -209,7 +197,7 @@ export default function TargetDetailPage() {
                 ))}
               </div>
             </div>
-            <div className="rounded-lg border border-border p-3.5">
+            <div className="rounded-xl border border-border p-3.5">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold">
                 <Ban className="size-3.5 text-sev-critical" /> Restricted activities
               </p>
@@ -266,7 +254,7 @@ export default function TargetDetailPage() {
                   <Link to={`/scans/${s.id}`} className="flex flex-wrap items-center gap-2 py-2.5 hover:text-primary">
                     <span className="font-mono text-xs">{s.code}</span>
                     <span className="min-w-0 flex-1 truncate text-sm">{s.name}</span>
-                    <span className="flex gap-1">{s.config.tools.map((t) => <ToolBadge key={t} tool={t} />)}</span>
+                    <span className="flex flex-wrap gap-1">{s.config.tools.map((t) => <ToolBadge key={t} tool={t} />)}</span>
                     <StatusBadge status={s.status} map={SCAN_STATUS} />
                     <OriginBadge origin={s.dataOrigin} />
                   </Link>
@@ -305,7 +293,7 @@ export default function TargetDetailPage() {
             <DialogDescription>Only do this once you hold written authorization ({target.authorizationReference}) from the system owner.</DialogDescription>
           </DialogHeader>
           <DialogGuide guideKey="recordAuthorization" steps={DIALOG_GUIDES.recordAuthorization} />
-          <div className="flex items-start gap-3 rounded-lg border border-border p-3">
+          <div className="flex items-start gap-3 rounded-xl border border-border p-3">
             <Checkbox id="auth-confirm" checked={authChecked} onCheckedChange={(v) => setAuthChecked(v === true)} className="mt-0.5" />
             <Label htmlFor="auth-confirm" className="text-sm leading-snug">
               I confirm that this application is authorized for security assessment.

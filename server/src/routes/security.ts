@@ -14,6 +14,8 @@ import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { parseNmapXmlServer } from "../nmap.ts";
 import { aiConfigured, analyzeWithGemini } from "../ai/gemini.ts";
+import { AUTOMATED_ADAPTERS } from "../automatedAssessment.ts";
+import { TOOL_ACTIVITY, toolPermitted, urlHostInScope, type LiveTool } from "@/features/scanPermissions";
 
 export const router = Router();
 router.use(requireAuth);
@@ -34,10 +36,10 @@ const nextFindingIndex = async () => (await prisma.finding.count()) + 1;
 async function persistBundle(b: {
   scan: ReturnType<typeof M.toScan>; results: ReturnType<typeof M.toScanResult>[]; hosts: ReturnType<typeof M.toHost>[]; ports: ReturnType<typeof M.toPort>[];
   dns: ReturnType<typeof M.toDns>[]; endpoints: ReturnType<typeof M.toEndpoint>[]; findings: ReturnType<typeof M.toFinding>[]; evidence: ReturnType<typeof M.toEvidence>[];
-}) {
+}, includeScan = true) {
   const s = b.scan;
   await prisma.$transaction([
-    prisma.scan.create({ data: { ...s, config: s.config as object, stage: s.stage ?? null, errorMessage: s.errorMessage ?? null, createdAt: new Date(s.createdAt), startedAt: s.startedAt ? new Date(s.startedAt) : null, completedAt: s.completedAt ? new Date(s.completedAt) : null } }),
+    ...(includeScan ? [prisma.scan.create({ data: { ...s, config: s.config as object, stage: s.stage ?? null, errorMessage: s.errorMessage ?? null, createdAt: new Date(s.createdAt), startedAt: s.startedAt ? new Date(s.startedAt) : null, completedAt: s.completedAt ? new Date(s.completedAt) : null } })] : []),
     prisma.scanResult.createMany({ data: b.results.map((r) => ({ ...r, recordedAt: new Date(r.recordedAt) })) }),
     prisma.host.createMany({ data: b.hosts.map((h) => ({ ...h, scanId: h.scanId ?? null, osGuess: h.osGuess ?? null, observedAt: new Date(h.observedAt) })) }),
     prisma.port.createMany({ data: b.ports.map((p) => ({ ...p, observedAt: new Date(p.observedAt) })) }),
@@ -61,6 +63,103 @@ const scanConfig = z.object({
   scopeConfirmed: z.literal(true),
 });
 
+const approvedScanHosts = () => new Set(((process.env.AIVERA_ALLOWED_SCAN_HOSTS ?? process.env.AEGIS_ALLOWED_SCAN_HOSTS) ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean));
+router.get("/scans/automated/capabilities", (_req, res) => {
+  res.json({ enabled: (process.env.AIVERA_LIVE_SCANS_ENABLED ?? process.env.AEGIS_LIVE_SCANS_ENABLED) === "true" && approvedScanHosts().size > 0, tools: ["nmap", "owasp_zap"], profiles: ["passive", "baseline"] });
+});
+
+/** One click starts a bounded passive run. The assessor still verifies findings. */
+router.post("/scans/automated", requirePermission("run_demo_scans"), async (req, res) => {
+  if ((process.env.AIVERA_LIVE_SCANS_ENABLED ?? process.env.AEGIS_LIVE_SCANS_ENABLED) !== "true") fail(503, "Live scanning is disabled. Set AIVERA_LIVE_SCANS_ENABLED=true on a dedicated lab server.");
+  const b = parse(z.object({ name: z.string().trim().min(1).max(160), projectId: z.string(), targetId: z.string(), config: scanConfig }), req.body);
+  const target = await authorizedTarget(b.targetId);
+  if (target.projectId !== b.projectId) fail(400, "Target does not belong to this project.");
+  if (!approvedScanHosts().has(new URL(target.url).hostname.toLowerCase())) fail(403, "The target host is not on the server administrator's live scan allowlist.");
+  if (b.config.profile !== "passive" && b.config.profile !== "baseline") fail(400, "Automated runs currently support passive and baseline profiles only.");
+  if (b.config.tools.some((tool) => tool !== "nmap" && tool !== "owasp_zap")) fail(400, "Automated runs currently support Nmap and OWASP ZAP only.");
+  for (const tool of b.config.tools as LiveTool[])
+    if (!toolPermitted(tool, target.scope.allowedActivities)) fail(403, `The target's scope must allow "${TOOL_ACTIVITY[tool]}" to run ${tool === "nmap" ? "Nmap" : "OWASP ZAP"}.`);
+  if (!b.config.categories.some((c) => target.scope.allowedCategories.includes(c))) fail(400, "No selected assessment category is permitted by the target scope.");
+  if (!urlHostInScope(target.url, target.scope.inScopeHosts)) fail(400, "The target host must be explicitly in scope.");
+  const now = new Date();
+  const scan = await prisma.scan.create({ data: {
+    id: newId("scn"), code: nextCode("SCN", (await prisma.scan.findMany({ select: { code: true } })).map((s) => s.code)),
+    name: b.name, projectId: b.projectId, targetId: b.targetId, status: "queued", progress: 0,
+    stage: "Waiting for tool adapter", config: b.config, createdBy: me(req).id, createdAt: now, dataOrigin: "real",
+  } });
+  await log(me(req).id, "scan_queued", "scan", scan.id, scan.code, `Authorized passive scan queued for ${target.name}`);
+  res.status(202).json({ id: scan.id, code: scan.code });
+  void executeAutomatedScan(scan.id).catch((e) => console.error("Automated scan job failed", e));
+});
+
+async function executeAutomatedScan(id: string) {
+  const row = await prisma.scan.findUniqueOrThrow({ where: { id } });
+  const config = row.config as unknown as ScanConfig;
+  try {
+    await prisma.scan.update({ where: { id }, data: { status: "running", startedAt: new Date(), stage: "Checking approved scope", progress: 5 } });
+    const selected = config.tools as ("nmap" | "owasp_zap")[];
+    let findings = 0;
+    for (const [index, tool] of selected.entries()) {
+      const target = await authorizedTarget(row.targetId);
+      if (!approvedScanHosts().has(new URL(target.url).hostname.toLowerCase())) throw new Error("Target host was removed from the live scan allowlist.");
+      if (!toolPermitted(tool, target.scope.allowedActivities)) throw new Error(`"${TOOL_ACTIVITY[tool]}" was removed from the approved scope.`);
+      const stage = tool === "nmap" ? "Running Nmap" : "Running OWASP ZAP passive assessment";
+      await prisma.scan.update({ where: { id }, data: { stage, progress: 10 + Math.round(index / selected.length * 75) } });
+      const out = await AUTOMATED_ADAPTERS[tool](target, config);
+      const project = await prisma.project.findUniqueOrThrow({ where: { id: row.projectId } });
+      const part = `${id}-${tool}`;
+      const bundle = buildImport(out.parsed, target, {
+        scanId: part, scanCode: row.code, findingStartIndex: await nextFindingIndex(), createdBy: row.createdBy,
+        assessorId: project.ownerId, now: new Date().toISOString(), raw: out.raw, fileName: `automated-${tool}`,
+      });
+      const real = <T extends { dataOrigin: string }>(items: T[]) => items.map((item) => ({ ...item, dataOrigin: "real" as const }));
+      await persistBundle({
+        scan: bundle.scan,
+        results: [{ ...bundle.result, scanId: id, dataOrigin: "real", summary: bundle.result.summary.replace(/^Imported /, "Automated ") }],
+        hosts: real(bundle.hosts).map((h) => ({ ...h, scanId: id })), ports: real(bundle.ports), dns: [], endpoints: real(bundle.endpoints),
+        findings: real(bundle.findings).map((f) => ({ ...f, scanId: id })), evidence: real(bundle.evidence),
+      }, false);
+      findings += bundle.findings.length;
+      await log(row.createdBy, "tool_output_captured", "scan", id, row.code, `${tool} produced ${bundle.findings.length} pending finding(s); ${bundle.skipped.length} out-of-scope item(s) discarded`);
+    }
+    if (aiConfigured()) {
+      await prisma.scan.update({ where: { id }, data: { stage: "Generating advisory AI analysis", progress: 90 } });
+      await analyzeAutomatedScan(id, row.createdBy);
+    }
+    await prisma.scan.update({ where: { id }, data: { status: "completed", progress: 100, stage: "Awaiting assessor verification", completedAt: new Date() } });
+    await notify({ title: "Automated assessment finished", message: `${row.code}: ${findings} finding(s) await verification.`, tone: "info", link: `/scans/${id}` }, "scanEvents");
+  } catch (e) {
+    const message = (e as Error).message.slice(0, 500);
+    await prisma.scan.update({ where: { id }, data: { status: "failed", stage: "Tool adapter failed", errorMessage: message, completedAt: new Date() } });
+    await log(row.createdBy, "scan_failed", "scan", id, row.code, message);
+  }
+}
+
+async function analyzeAutomatedScan(scanId: string, requestedBy: string) {
+  const scanRow = await prisma.scan.findUniqueOrThrow({ where: { id: scanId } });
+  const project = await prisma.project.findUniqueOrThrow({ where: { id: scanRow.projectId }, include: { members: true } });
+  const target = await prisma.target.findUniqueOrThrow({ where: { id: scanRow.targetId } });
+  const scan = M.toScan(scanRow);
+  const scanResults = (await prisma.scanResult.findMany({ where: { scanId } })).map(M.toScanResult);
+  const base = { project: M.toProject(project), target: M.toTarget(target), scan, scanResults, requestedBy };
+  const findings = await prisma.finding.findMany({ where: { scanId }, take: 3 });
+  const tasks = [
+    { mode: "scan_interpretation" as const, evidence: [] },
+    ...findings.map((row) => ({ mode: "remediation" as const, finding: M.toFinding(row) })),
+  ];
+  for (const task of tasks) {
+    try {
+      const evidence = "finding" in task && task.finding
+        ? (await prisma.evidence.findMany({ where: { findingId: task.finding.id } })).map(M.toEvidence) : [];
+      const analysis = await analyzeWithGemini({ ...base, ...task, evidence });
+      await prisma.aIAnalysis.create({ data: M.analysisColumns(analysis) });
+      await log(requestedBy, "ai_analysis_generated", analysis.findingId ? "finding" : "scan", analysis.findingId ?? scanId, analysis.title, `Automatic ${task.mode} analysis generated; assessor verification remains required`);
+    } catch (e) {
+      await log(requestedBy, "scan_failed", "scan", scanId, scan.code, `AI ${task.mode} could not complete: ${(e as Error).message.slice(0, 180)}`);
+    }
+  }
+}
+
 /** Generates a clearly-labelled SIMULATED scan server-side. No network activity. */
 router.post("/scans/simulate", requirePermission("run_demo_scans"), async (req, res) => {
   const b = parse(z.object({ name: z.string().trim().min(1).max(160), projectId: z.string(), targetId: z.string(), config: scanConfig }), req.body);
@@ -79,6 +178,36 @@ router.post("/scans/simulate", requirePermission("run_demo_scans"), async (req, 
   await log(me(req).id, "demo_scan_completed", "scan", scan.id, scan.code, `Demo simulation produced ${out.findings.length} SIMULATED finding(s) awaiting human verification`);
   await notify({ title: "Demo simulation finished", message: `${scan.code}: ${out.findings.length} simulated findings require verification.`, tone: "info", link: `/scans/${scan.id}` }, "scanEvents");
   res.status(201).json({ scan, findingCount: out.findings.length });
+});
+
+/** Removes every SIMULATED record and anything attached to it. Real scans, findings and evidence are untouched. */
+router.post("/simulated-data/reset", requirePermission("run_demo_scans"), async (req, res) => {
+  const scans = await prisma.scan.findMany({ where: { dataOrigin: "simulated" }, select: { id: true } });
+  const scanIds = scans.map((s) => s.id);
+  const findings = await prisma.finding.findMany({ where: { OR: [{ dataOrigin: "simulated" }, { scanId: { in: scanIds } }] }, select: { id: true } });
+  const findingIds = findings.map((f) => f.id);
+  const hosts = await prisma.host.findMany({ where: { OR: [{ dataOrigin: "simulated" }, { scanId: { in: scanIds } }] }, select: { id: true } });
+  const hostIds = hosts.map((h) => h.id);
+  const tasks = await prisma.remediationTask.findMany({ where: { findingId: { in: findingIds } }, select: { id: true } });
+  const taskIds = tasks.map((t) => t.id);
+  await prisma.$transaction([
+    prisma.remediationHistory.deleteMany({ where: { taskId: { in: taskIds } } }),
+    prisma.remediationTask.deleteMany({ where: { id: { in: taskIds } } }),
+    prisma.verification.deleteMany({ where: { findingId: { in: findingIds } } }),
+    prisma.risk.deleteMany({ where: { findingId: { in: findingIds } } }),
+    prisma.aIAnalysis.deleteMany({ where: { OR: [{ findingId: { in: findingIds } }, { scanId: { in: scanIds } }] } }),
+    prisma.evidence.deleteMany({ where: { OR: [{ findingId: { in: findingIds } }, { dataOrigin: "simulated" }] } }),
+    prisma.finding.deleteMany({ where: { id: { in: findingIds } } }),
+    prisma.port.deleteMany({ where: { OR: [{ hostId: { in: hostIds } }, { dataOrigin: "simulated" }] } }),
+    prisma.host.deleteMany({ where: { id: { in: hostIds } } }),
+    prisma.dnsRecord.deleteMany({ where: { dataOrigin: "simulated" } }),
+    prisma.endpoint.deleteMany({ where: { dataOrigin: "simulated" } }),
+    prisma.reconRun.deleteMany({ where: { dataOrigin: "simulated" } }),
+    prisma.scanResult.deleteMany({ where: { OR: [{ scanId: { in: scanIds } }, { dataOrigin: "simulated" }] } }),
+    prisma.scan.deleteMany({ where: { id: { in: scanIds } } }),
+  ]);
+  await log(me(req).id, "simulated_data_removed", "settings", undefined, "Simulated data", `Removed ${scanIds.length} simulated scan(s) and ${findingIds.length} simulated finding(s). Real data was not changed.`);
+  res.json({ scans: scanIds.length, findings: findingIds.length });
 });
 
 /* --------------------------------- Imports -------------------------------- */

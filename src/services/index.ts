@@ -3,7 +3,7 @@
  *
  *  - Demo mode (default): backed by the in-browser Demo Adapter (Zustand + localStorage).
  *  - API mode (`VITE_DATA_MODE=api`, `npm run dev:full`): every write goes to the
- *    AEGIS backend, which validates permissions, scope and business rules, then the
+ *    AIVERA backend, which validates permissions, scope and business rules, then the
  *    store is refreshed from the database.
  *
  * In neither mode does the browser contact a target, run a scanner or call a model.
@@ -34,6 +34,11 @@ async function mutate<T>(path: string, body?: unknown, method?: string): Promise
 }
 
 export const authService = {
+  /** Creates a pending viewer account; an administrator must activate it before sign-in works. */
+  async signUp(input: { name: string; email: string; password: string }) {
+    if (!IS_API) throw new Error("Creating an account needs the AIVERA server. Run the full app (npm run dev:full).");
+    await api("/auth/register", { body: input, silent: true });
+  },
   async signIn(email: string, password: string) {
     await api("/auth/login", { body: { email, password }, silent: true });
     await refresh();
@@ -72,7 +77,7 @@ export const projectService = {
 
 export const targetService = {
   /**
-   * Suggests scope from real sources. API mode: the AEGIS server looks up DNS and reads the
+   * Suggests scope from real sources. API mode: the AIVERA server looks up DNS and reads the
    * site's robots.txt and sitemap.xml (after permission is confirmed). Demo mode: parsed from
    * the address only — the browser never contacts the target.
    */
@@ -100,9 +105,16 @@ export const targetService = {
 };
 
 export const scanService = {
-  /** Real assessments require isolated scan workers, which are not built yet. */
-  async startRealAssessment(): Promise<never> {
-    throw new Error("Real assessments require AEGIS scan workers, which are not part of this phase.");
+  async automatedCapabilities(): Promise<{ enabled: boolean; tools: string[]; profiles: string[] }> {
+    if (!IS_API) return { enabled: false, tools: [], profiles: [] };
+    return api("/scans/automated/capabilities");
+  },
+  async startRealAssessment(input: Args<"createSimulatedScan">[0]): Promise<Scan> {
+    if (!IS_API) throw new Error("Automated assessments require API mode.");
+    const { id } = await mutate<{ id: string; code: string }>("/scans/automated", input);
+    const scan = store().scans.find((item) => item.id === id);
+    if (!scan) throw new Error("Assessment was queued but its scan record could not be loaded.");
+    return scan;
   },
   /** Creates a SIMULATED scan. Demo mode animates it in-browser; API mode generates it on the server. */
   async runDemoSimulation(input: Args<"createSimulatedScan">[0], onDone?: (count: number) => void): Promise<Scan> {
@@ -119,6 +131,21 @@ export const scanService = {
   async cancel(id: ID) {
     stopSimulation(id);
     store().cancelScan(id);
+  },
+  /** Demo mode only: simulations run step by step in the browser and can be paused and continued. */
+  async pause(id: ID) {
+    stopSimulation(id);
+    store().pauseScan(id);
+  },
+  async resume(id: ID, onDone?: (count: number) => void) {
+    store().resumeScan(id);
+    startSimulation(id, onDone);
+  },
+  /** Removes all SIMULATED practice data (scans, findings and everything attached). Real data is kept. */
+  async removeSimulatedData(): Promise<{ scans: number; findings: number }> {
+    if (IS_API) return mutate<{ scans: number; findings: number }>("/simulated-data/reset", {});
+    for (const s of store().scans.filter((x) => x.dataOrigin === "simulated")) stopSimulation(s.id);
+    return store().removeSimulatedData();
   },
 };
 

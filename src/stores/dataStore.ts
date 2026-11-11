@@ -81,6 +81,7 @@ export interface DataState {
 
 type ProjectInput = Omit<Project, "id" | "code" | "createdAt" | "updatedAt" | "dataOrigin" | "statusBeforeArchive">;
 type TargetInput = Omit<Target, "id" | "createdAt" | "updatedAt" | "dataOrigin" | "authorizationConfirmedBy" | "authorizationConfirmedAt">;
+export type SimulatedRemoval = { scans: number; findings: number };
 type ScanInput = Pick<Scan, "name" | "projectId" | "targetId" | "config">;
 type TaskInput = Pick<RemediationTask, "findingId" | "title" | "description" | "recommendation" | "ownerId" | "priority" | "dueDate" | "retestRequired">;
 type ReportInput = Omit<Report, "id" | "code" | "createdAt" | "updatedAt" | "createdBy" | "generatedFrom">;
@@ -107,6 +108,10 @@ export interface DataActions {
   setScanProgress: (id: ID, progress: number, stage: string) => void;
   completeSimulatedScan: (id: ID) => number;
   cancelScan: (id: ID) => void;
+  pauseScan: (id: ID) => void;
+  resumeScan: (id: ID) => void;
+  /** Deletes every SIMULATED record and anything attached to it. Real data is untouched. */
+  removeSimulatedData: () => SimulatedRemoval;
   // recon
   importSampleRecon: (targetId: ID) => number;
   // tool output import (parsed client-side; never runs the tool)
@@ -288,6 +293,43 @@ export const useDataStore = create<DataStore>()(
         if (t) get().log("scope_updated", "target", id, t.name, `Updated scope: ${scope.inScopeHosts.length} host(s), ${scope.excludedPaths.length} exclusion(s)`);
       },
 
+      pauseScan: (id) => {
+        set((s) => ({ scans: s.scans.map((sc) => (sc.id === id && sc.status === "running" ? { ...sc, status: "paused", stage: `Paused at ${sc.progress}%` } : sc)) }));
+        const sc = get().scans.find((x) => x.id === id);
+        if (sc) get().log("demo_scan_paused", "scan", id, sc.code, `Paused demo simulation at ${sc.progress}%`);
+      },
+      resumeScan: (id) => {
+        set((s) => ({ scans: s.scans.map((sc) => (sc.id === id && sc.status === "paused" ? { ...sc, status: "running", stage: "Resuming" } : sc)) }));
+        const sc = get().scans.find((x) => x.id === id);
+        if (sc) get().log("demo_scan_resumed", "scan", id, sc.code, `Resumed demo simulation from ${sc.progress}%`);
+      },
+      removeSimulatedData: () => {
+        const s = get();
+        const sim = <T extends { dataOrigin?: string }>(x: T) => x.dataOrigin === "simulated";
+        const scanIds = new Set(s.scans.filter(sim).map((x) => x.id));
+        const findingIds = new Set(s.findings.filter((f) => sim(f) || (f.scanId && scanIds.has(f.scanId))).map((f) => f.id));
+        const hostIds = new Set(s.hosts.filter((h) => sim(h) || (h.scanId && scanIds.has(h.scanId))).map((h) => h.id));
+        const taskIds = new Set(s.remediation.filter((t) => findingIds.has(t.findingId)).map((t) => t.id));
+        const counts: SimulatedRemoval = { scans: scanIds.size, findings: findingIds.size };
+        set({
+          scans: s.scans.filter((x) => !scanIds.has(x.id)),
+          scanResults: s.scanResults.filter((x) => !scanIds.has(x.scanId) && !sim(x)),
+          findings: s.findings.filter((x) => !findingIds.has(x.id)),
+          evidence: s.evidence.filter((x) => !findingIds.has(x.findingId) && !sim(x)),
+          verifications: s.verifications.filter((x) => !findingIds.has(x.findingId)),
+          risks: s.risks.filter((x) => !findingIds.has(x.findingId)),
+          remediation: s.remediation.filter((x) => !taskIds.has(x.id)),
+          aiAnalyses: s.aiAnalyses.filter((x) => !(x.findingId && findingIds.has(x.findingId)) && !(x.scanId && scanIds.has(x.scanId))),
+          hosts: s.hosts.filter((x) => !hostIds.has(x.id)),
+          ports: s.ports.filter((x) => !hostIds.has(x.hostId) && !sim(x)),
+          dnsRecords: s.dnsRecords.filter((x) => !sim(x)),
+          endpoints: s.endpoints.filter((x) => !sim(x)),
+          reconRuns: s.reconRuns.filter((x) => !sim(x)),
+        });
+        get().log("simulated_data_removed", "settings", undefined, "Simulated data", `Removed ${counts.scans} simulated scan(s) and ${counts.findings} simulated finding(s). Real data was not changed.`);
+        return counts;
+      },
+
       /* -------------------------------- Scans ------------------------------- */
       createSimulatedScan: (input) => {
         const now = nowISO();
@@ -338,7 +380,7 @@ export const useDataStore = create<DataStore>()(
         return out.findings.length;
       },
       cancelScan: (id) => {
-        set((s) => ({ scans: s.scans.map((sc) => (sc.id === id && (sc.status === "running" || sc.status === "queued") ? { ...sc, status: "cancelled", stage: "Cancelled by user", completedAt: nowISO() } : sc)) }));
+        set((s) => ({ scans: s.scans.map((sc) => (sc.id === id && (sc.status === "running" || sc.status === "queued" || sc.status === "paused") ? { ...sc, status: "cancelled", stage: "Cancelled by user", completedAt: nowISO() } : sc)) }));
         const sc = get().scans.find((x) => x.id === id);
         if (sc) get().log("demo_scan_cancelled", "scan", id, sc.code, `Cancelled demo simulation ${sc.name}`);
       },
@@ -671,14 +713,7 @@ export const useDataStore = create<DataStore>()(
       skipHydration: DATA_MODE === "api",
       storage: createJSONStorage(() => localStorage),
       // Versioned initialisation: incompatible persisted data is replaced with a fresh seed.
-      migrate: (persisted, version) => {
-        // v3 → v4 only changed the default theme (redesign); keep the user's demo data.
-        if (version === 3 && persisted && typeof persisted === "object") {
-          const p = persisted as DataState;
-          return { ...p, settings: { ...p.settings, appearance: { ...p.settings.appearance, theme: "light" } } } as unknown as DataStore;
-        }
-        return createSeedState() as unknown as DataStore;
-      },
+      migrate: () => createSeedState() as unknown as DataStore,
       partialize: (state) => {
         if (DATA_MODE === "api") return {} as unknown as DataStore;
         const { ...data } = state;

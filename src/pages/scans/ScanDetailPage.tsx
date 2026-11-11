@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { Bot, CircleStop, ShieldAlert } from "lucide-react";
+import { Bot, CircleStop, Pause, Play, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
 import { CATEGORY_BY_ID, SCAN_PROFILES, SCAN_STATUS, TOOL_META } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
-import { scanService } from "@/services";
+import { IS_API, scanService } from "@/services";
+import { refresh } from "@/services/api/sync";
 
 export default function ScanDetailPage() {
   const { scanId } = useParams();
@@ -27,6 +28,11 @@ export default function ScanDetailPage() {
   useDocumentTitle(scan?.code ?? "Scan");
   const { results, findings } = useDataStore(useShallow((s) => ({ results: s.scanResults, findings: s.findings })));
   const [cancelOpen, setCancelOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!IS_API || !scan || (scan.status !== "queued" && scan.status !== "running")) return;
+    const timer = setInterval(() => { void refresh().catch(() => undefined); }, 3000);
+    return () => clearInterval(timer);
+  }, [scan?.id, scan?.status]);
 
   if (!scan)
     return (
@@ -54,15 +60,26 @@ export default function ScanDetailPage() {
         }
         actions={
           <>
-            {running && can(user?.role, "run_demo_scans") && (
+            {/* Demo simulations run step by step in the browser, so they can be paused, continued or stopped. */}
+            {scan.dataOrigin === "simulated" && !IS_API && can(user?.role, "run_demo_scans") && scan.status === "running" && (
+              <Button variant="outline" size="sm" onClick={() => void scanService.pause(scan.id).then(() => toast("Simulation paused", { description: `Stopped at ${scan.progress}%. Continue whenever you're ready.` }))}>
+                <Pause /> Pause
+              </Button>
+            )}
+            {scan.dataOrigin === "simulated" && !IS_API && can(user?.role, "run_demo_scans") && scan.status === "paused" && (
+              <Button size="sm" onClick={() => void scanService.resume(scan.id, (count) => toast.success(`Simulation ${scan.code} finished`, { description: `${count} SIMULATED finding(s) await human verification.` })).then(() => toast("Simulation continued"))}>
+                <Play /> Continue
+              </Button>
+            )}
+            {(running || scan.status === "paused") && scan.dataOrigin === "simulated" && can(user?.role, "run_demo_scans") && (
               <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
-                <CircleStop /> Cancel simulation
+                <CircleStop /> Stop
               </Button>
             )}
             {scan.status === "completed" && can(user?.role, "use_ai") && (
               <Button variant="outline" size="sm" asChild>
                 <Link to={`/ai-analyst?scan=${scan.id}&mode=scan_interpretation`}>
-                  <Bot /> Interpret results (sample AI)
+                  <Bot /> Interpret results with AI
                 </Link>
               </Button>
             )}
@@ -99,7 +116,7 @@ export default function ScanDetailPage() {
             {scanFindings.length ? (
               <div className="-mx-2 space-y-0.5">{scanFindings.map((f) => <FindingRow key={f.id} finding={f} target={target?.name} />)}</div>
             ) : (
-              <EmptyState compact title={running ? "Simulation in progress…" : "No findings recorded"} description={running ? "Findings will appear when the simulation completes." : undefined} />
+              <EmptyState compact title={running ? "Assessment in progress…" : "No findings recorded"} description={running ? "Findings will appear when the assessment completes." : undefined} />
             )}
           </SectionCard>
         </TabsContent>
@@ -136,13 +153,13 @@ export default function ScanDetailPage() {
       <ConfirmDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
-        title="Cancel this simulation?"
-        description="The simulated run will stop and no findings will be generated."
-        confirmLabel="Cancel simulation"
+        title="Stop this simulation?"
+        description="The simulated run ends here and no findings will be generated. To clear all practice data, use Reset simulated data on the Scan Center page."
+        confirmLabel="Stop simulation"
         destructive
         onConfirm={async () => {
           await scanService.cancel(scan.id);
-          toast("Simulation cancelled");
+          toast("Simulation stopped");
         }}
       />
     </ContentContainer>

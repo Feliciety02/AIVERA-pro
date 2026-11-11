@@ -1,5 +1,5 @@
 /**
- * AEGIS AI domain model.
+ * AIVERA domain model.
  *
  * These types are the single source of truth shared by the demo adapter, the
  * Zustand store, and (later) the API adapter that talks to the Node/Express
@@ -112,7 +112,7 @@ export interface ScopeDetection {
   url: string;
   host: string;
   checkedAt: ISODate;
-  /** "address" = parsed from the URL only (demo mode); "server" = DNS + robots.txt + sitemap checked by the AEGIS server. */
+  /** "address" = parsed from the URL only (demo mode); "server" = DNS + robots.txt + sitemap checked by the AIVERA server. */
   mode: "address" | "server";
   dns?: { status: "resolved" | "not_found" | "skipped" | "blocked"; addresses: string[]; message?: string };
   robots?: { status: "found" | "not_found" | "error" | "skipped"; url: string; message?: string; unsupportedRules: string[] };
@@ -156,7 +156,7 @@ export interface Assessment {
 
 /* ---------------------------------- Scans -------------------------------- */
 export type ScanTool = "nmap" | "owasp_zap" | "dns_utils" | "http_inspector";
-export type ScanStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type ScanStatus = "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
 export type ScanProfile = "passive" | "baseline" | "standard" | "thorough";
 export type OutputFormat = "json" | "xml" | "html";
 
@@ -453,8 +453,8 @@ export interface Report {
   createdBy: ID;
   createdAt: ISODate;
   updatedAt: ISODate;
-  /** Reports in this phase are always built from demonstration data. */
-  generatedFrom: "demonstration_data";
+  /** Provenance is resolved from the selected scans and findings when rendered. */
+  generatedFrom: "demonstration_data" | "database_records";
 }
 
 /* -------------------------------- Activity ------------------------------- */
@@ -470,6 +470,12 @@ export type ActivityType =
   | "demo_scan_started"
   | "demo_scan_completed"
   | "demo_scan_cancelled"
+  | "demo_scan_paused"
+  | "demo_scan_resumed"
+  | "simulated_data_removed"
+  | "scan_queued"
+  | "tool_output_captured"
+  | "scan_failed"
   | "recon_imported"
   | "tool_output_imported"
   | "finding_recorded"
@@ -490,6 +496,7 @@ export type ActivityType =
   | "settings_changed"
   | "demo_login"
   | "user_login"
+  | "user_signup"
   | "user_logout"
   | "demo_reset";
 

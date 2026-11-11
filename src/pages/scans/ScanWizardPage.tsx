@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
@@ -7,7 +8,7 @@ import { Callout } from "@/components/shared/display";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle } from "@/hooks";
 import { can, deniedReason } from "@/lib/permissions";
-import { scanService } from "@/services";
+import { IS_API, scanService } from "@/services";
 
 export default function ScanWizardPage() {
   useDocumentTitle("New scan");
@@ -17,6 +18,11 @@ export default function ScanWizardPage() {
   const { projects, targets, defaults } = useDataStore(useShallow((s) => ({ projects: s.projects, targets: s.targets, defaults: s.settings.assessmentDefaults })));
   const initialTarget = params.get("target") ?? undefined;
   const initialProject = params.get("project") ?? (initialTarget ? targets.find((t) => t.id === initialTarget)?.projectId : undefined);
+  const [liveAvailable, setLiveAvailable] = React.useState(false);
+  const checkLive = React.useCallback(() => {
+    if (IS_API) void scanService.automatedCapabilities().then((c) => setLiveAvailable(c.enabled)).catch(() => setLiveAvailable(false));
+  }, []);
+  React.useEffect(checkLive, [checkLive]);
 
   return (
     <ContentContainer className="max-w-6xl">
@@ -32,6 +38,13 @@ export default function ScanWizardPage() {
           defaults={defaults}
           initialProjectId={initialProject}
           initialTargetId={initialTarget}
+          liveAvailable={liveAvailable}
+          onCheckLive={checkLive}
+          onStart={async (r) => {
+            const scan = await scanService.startRealAssessment(r);
+            toast.success(`Assessment ${scan.code} queued`, { description: "Nmap and ZAP will run in the background. Findings still need human verification." });
+            navigate(`/scans/${scan.id}`);
+          }}
           onCancel={() => navigate("/scans")}
           onSimulate={async (r) => {
             const scan = await scanService.runDemoSimulation(r, (count) => {

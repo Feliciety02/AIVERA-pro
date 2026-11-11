@@ -1,5 +1,5 @@
 /**
- * Minimal JSON client for the AEGIS API (API mode only).
+ * Minimal JSON client for the AIVERA API (API mode only).
  * Same-origin `/api` (proxied by Vite in development, served by Express in
  * production) so the httpOnly session cookie is sent automatically.
  */
@@ -14,7 +14,7 @@ export class ApiError extends Error {
 }
 
 /** Fired when the session is missing/expired so the app can return to sign-in. */
-export const UNAUTHORIZED_EVENT = "aegis:unauthorized";
+export const UNAUTHORIZED_EVENT = "aivera:unauthorized";
 
 export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown; silent?: boolean } = {}): Promise<T> {
   let res: Response;
@@ -26,7 +26,7 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
   } catch {
-    const err = new ApiError(0, "Cannot reach the AEGIS server. Is it running (npm run server:dev)?");
+    const err = new ApiError(0, "Cannot reach the AIVERA server. Is it running (npm run server:dev)?");
     if (!init.silent) toast.error(err.message);
     throw err;
   }

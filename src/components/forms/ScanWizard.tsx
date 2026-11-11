@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, FlaskConical, Globe, Loader2, Network, Play, Rad
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Checkbox, Hint } from "@/components/ui/misc";
+import { Checkbox } from "@/components/ui/misc";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Callout, KeyValue } from "@/components/shared/display";
@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/shared/states";
 import { StatusBadge, ToneBadge, ToolBadge } from "@/components/security/badges";
 import { ChoiceCard, Field, Steps } from "./fields";
 import { AUTHORIZATION_STATUS, CATEGORIES, ENVIRONMENTS, SCAN_PROFILES, TOOL_META } from "@/lib/constants";
+import { TOOL_ACTIVITY, toolPermitted, type LiveTool } from "@/features/scanPermissions";
+import { IS_API } from "@/services";
 import type { ApplicationSettings, AssessmentCategoryId, OutputFormat, Project, ScanConfig, ScanProfile, ScanTool, Target } from "@/types";
 
 const STEPS = ["Select Project", "Select Target", "Confirm Scope", "Select Tools", "Configure", "Review & Confirm"];
@@ -29,6 +31,9 @@ export function ScanWizard({
   defaults,
   initialProjectId,
   initialTargetId,
+  liveAvailable,
+  onCheckLive,
+  onStart,
   onSimulate,
   onCancel,
 }: {
@@ -37,6 +42,10 @@ export function ScanWizard({
   defaults: ApplicationSettings["assessmentDefaults"];
   initialProjectId?: string;
   initialTargetId?: string;
+  liveAvailable: boolean;
+  /** Re-checks whether live scanning is enabled on the server (called on the review step). */
+  onCheckLive?: () => void;
+  onStart: (r: ScanWizardResult) => Promise<void>;
   onSimulate: (r: ScanWizardResult) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -53,6 +62,12 @@ export function ScanWizard({
   const [format, setFormat] = React.useState<OutputFormat>("json");
   const [name, setName] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  React.useEffect(() => {
+    if (liveAvailable) {
+      setTools((current) => current.join(",") === "owasp_zap,http_inspector" ? ["nmap", "owasp_zap"] : current);
+      setProfile((current) => current === "standard" || current === "thorough" ? "baseline" : current);
+    }
+  }, [liveAvailable]);
 
   const activeProjects = projects.filter((p) => p.status !== "archived");
   const project = projects.find((p) => p.id === projectId);
@@ -60,12 +75,30 @@ export function ScanWizard({
   const target = targets.find((t) => t.id === targetId);
   const authorized = !!target && target.authorizationStatus === "authorized" && target.authorizationConfirmed;
   const effectiveCategories = categories.filter((c) => target?.scope.allowedCategories.includes(c));
+  // Why the automated run can't start yet, each with a one-click fix where possible.
+  const liveTools = tools.filter((t): t is LiveTool => t === "nmap" || t === "owasp_zap");
+  const unsupportedTools = tools.filter((t) => t !== "nmap" && t !== "owasp_zap");
+  const liveBlockers: { text: string; fix?: { label: string; run: () => void } }[] = [];
+  if (!IS_API) liveBlockers.push({ text: "Automated runs need the full app with the AIVERA server (npm run dev:full). Demo mode runs only in this browser." });
+  else if (!liveAvailable) liveBlockers.push({ text: "Live scanning is turned off on the AIVERA server (AIVERA_LIVE_SCANS_ENABLED and AIVERA_ALLOWED_SCAN_HOSTS in server/.env)." });
+  if (unsupportedTools.length)
+    liveBlockers.push({
+      text: `Automated runs only use Nmap and OWASP ZAP. Not supported: ${unsupportedTools.map((t) => TOOL_META[t].label).join(", ")}.`,
+      fix: { label: "Use Nmap and ZAP only", run: () => setTools(liveTools.length ? liveTools : ["nmap", "owasp_zap"]) },
+    });
+  if (profile !== "passive" && profile !== "baseline") liveBlockers.push({ text: `The ${SCAN_PROFILES[profile].label} profile isn't available for automated runs.`, fix: { label: "Switch to Baseline", run: () => setProfile("baseline") } });
+  for (const t of liveTools)
+    if (target && !toolPermitted(t, target.scope.allowedActivities)) liveBlockers.push({ text: `The target's scope doesn't allow "${TOOL_ACTIVITY[t]}", which ${TOOL_META[t].label} needs. Edit the target's scope to allow it.` });
+  const liveConfigValid = liveBlockers.length === 0;
 
+  React.useEffect(() => {
+    if (step === 5) onCheckLive?.();
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (target) setCategories((cs) => cs.filter((c) => target.scope.allowedCategories.includes(c)).length ? cs : target.scope.allowedCategories);
   }, [target]);
   React.useEffect(() => {
-    if (target && !name) setName(`${target.name} — demo assessment`);
+    if (target && !name) setName(`${target.name} assessment`);
   }, [target, name]);
 
   const errors: Record<number, string | null> = {
@@ -240,7 +273,7 @@ export function ScanWizard({
           {step === 5 && project && target && (
             <div className="space-y-5">
               <h2 className="text-sm font-semibold">Step 6 · Review and confirm</h2>
-              <dl className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
+              <dl className="grid gap-4 rounded-xl border border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
                 <KeyValue label="Run name">{name}</KeyValue>
                 <KeyValue label="Project">{project.code} — {project.name}</KeyValue>
                 <KeyValue label="Target">{target.name}<span className="block font-mono text-[11px] text-muted-foreground">{target.url}</span></KeyValue>
@@ -251,9 +284,27 @@ export function ScanWizard({
                 <KeyValue label="Output">{format.toUpperCase()}</KeyValue>
                 <KeyValue label="Scope">{target.scope.inScopeHosts.length} host(s), {target.scope.excludedPaths.length} exclusion(s) — confirmed</KeyValue>
               </dl>
-              <Callout tone="warning" icon={TriangleAlert} title="Real assessments are not available in this phase">
-                Starting a real assessment requires the AEGIS backend, which validates authorization and scope server-side and dispatches tools to isolated workers. Until then, you can run a clearly labelled <strong>demo simulation</strong> that generates synthetic results in your browser only.
-              </Callout>
+              {liveConfigValid ? (
+                <Callout tone="info" icon={ShieldCheck} title="Ready for an automated assessment">
+                  {liveTools.map((t) => TOOL_META[t].label).join(" and ")} will run against {target.name} inside its approved scope. ZAP explores for about a minute and only runs passive checks. Results arrive as Pending Verification.
+                </Callout>
+              ) : (
+                <Callout tone="warning" icon={TriangleAlert} title="Start Automated Assessment is not available yet">
+                  <ul className="mt-1 space-y-2">
+                    {liveBlockers.map((b) => (
+                      <li key={b.text} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>{b.text}</span>
+                        {b.fix && (
+                          <Button size="sm" variant="outline" className="h-7 bg-card" onClick={b.fix.run}>
+                            {b.fix.label}
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2">Demo simulation is always available, but its results are practice data, not evidence.</p>
+                </Callout>
+              )}
             </div>
           )}
 
@@ -271,14 +322,14 @@ export function ScanWizard({
           </Button>
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Hint label="Disabled: real assessments require backend integration with isolated scan workers and server-side scope enforcement.">
-              <span tabIndex={0}>
-                <Button variant="outline" disabled className="w-full">
-                  <Play /> Start Assessment
-                </Button>
-              </span>
-            </Hint>
+            <Button variant={liveConfigValid ? "default" : "outline"} disabled={busy || !liveConfigValid} onClick={async () => {
+              setBusy(true);
+              try { await onStart(result); } finally { setBusy(false); }
+            }}>
+              <Play /> Start Automated Assessment
+            </Button>
             <Button
+              variant={liveConfigValid ? "outline" : "default"}
               disabled={busy}
               onClick={async () => {
                 setBusy(true);

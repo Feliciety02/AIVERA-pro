@@ -2,7 +2,10 @@ import * as React from "react";
 import { Link, useNavigate } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
-import { CircleCheck, CircleX, Clock, FileUp, FlaskConical, Import, Plus, Rocket, ScanLine } from "lucide-react";
+import { CircleCheck, CircleX, Clock, FileUp, FlaskConical, Import, Plus, RotateCcw, Rocket, ScanLine } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { scanService } from "@/services";
 import { ToolImportDialog } from "@/components/forms/ToolImportDialog";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -33,6 +36,9 @@ export default function ScansPage() {
   const [origin, setOrigin] = React.useState(ALL);
   const [tool, setTool] = React.useState(ALL);
   const [importOpen, setImportOpen] = React.useState(false);
+  const [resetOpen, setResetOpen] = React.useState(false);
+  const simulatedScans = scans.filter((s) => s.dataOrigin === "simulated").length;
+  const simulatedFindings = useDataStore((s) => s.findings.filter((f) => f.dataOrigin === "simulated").length);
 
   const rows = React.useMemo(
     () =>
@@ -69,10 +75,15 @@ export default function ScansPage() {
     <ContentContainer wide>
       <PageHeader
         title="Scan Center"
-        description="Configure and review security assessment runs. Real scanning requires the backend; this phase supports imported samples and clearly labelled simulations."
+        description="Run Nmap and OWASP ZAP against authorized targets, import their reports, or practise with clearly labelled simulations."
         actions={
           can(user?.role, "run_demo_scans") && (
             <>
+              {(simulatedScans > 0 || simulatedFindings > 0) && (
+                <Button size="sm" variant="ghost" onClick={() => setResetOpen(true)}>
+                  <RotateCcw /> Reset simulated data
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                 <FileUp /> Import tool output
               </Button>
@@ -89,11 +100,11 @@ export default function ScansPage() {
         <StatCard label="Total scans" value={scans.length} icon={ScanLine} tooltip="All imported and simulated scan records." sub={`${scans.filter((s) => s.dataOrigin === "simulated").length} simulated · ${scans.filter((s) => s.dataOrigin === "imported").length} imported`} />
         <StatCard label="Completed" value={scans.filter((s) => s.status === "completed").length} icon={CircleCheck} iconTone="bg-primary/10 text-primary" tooltip="Scans with status Completed (imported samples or finished simulations)." />
         <StatCard label="Failed" value={scans.filter((s) => s.status === "failed").length} icon={CircleX} iconTone="bg-sev-critical/10 text-sev-critical" tooltip="Scans that ended in an error state." />
-        <StatCard label="Pending / running" value={scans.filter((s) => s.status === "queued" || s.status === "running").length} icon={Clock} iconTone="bg-cyan/10 text-cyan" tooltip="Queued or running scans." />
+        <StatCard label="Pending / running" value={scans.filter((s) => s.status === "queued" || s.status === "running" || s.status === "paused").length} icon={Clock} iconTone="bg-cyan/10 text-cyan" tooltip="Queued or running scans." />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <SectionCard title="Result types" description="How AEGIS distinguishes scan data" className="lg:col-span-1">
+        <SectionCard title="Result types" description="How AIVERA distinguishes scan data" className="lg:col-span-1">
           <ul className="space-y-3 text-xs">
             <li className="flex gap-3">
               <Import className="mt-0.5 size-4 shrink-0 text-cyan" />
@@ -150,6 +161,18 @@ export default function ScansPage() {
         </ul>
       </SectionCard>
       <ToolImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Reset simulated data?"
+        description={`This permanently removes ${simulatedScans} simulated scan(s) and ${simulatedFindings} simulated finding(s), with their evidence, decisions, risks, fix tasks and AI analyses. Real and imported results, and findings you recorded yourself, are not touched.`}
+        confirmLabel="Remove simulated data"
+        destructive
+        onConfirm={async () => {
+          const r = await scanService.removeSimulatedData();
+          toast.success("Simulated data removed", { description: `${r.scans} scan(s) and ${r.findings} finding(s) removed. Real results were kept.` });
+        }}
+      />
     </ContentContainer>
   );
 }

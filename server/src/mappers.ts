@@ -135,7 +135,7 @@ export const toTask = (t: P.RemediationTask & { history: P.RemediationHistory[] 
 export const toReport = (r: P.Report): T.Report => ({
   id: r.id, code: r.code, title: r.title, projectId: r.projectId, targetIds: arr(r.targetIds), templateId: r.templateId, periodStart: req(r.periodStart),
   periodEnd: req(r.periodEnd), findingIds: arr(r.findingIds), includeUnverified: r.includeUnverified, sections: arr(r.sections), executiveSummary: r.executiveSummary,
-  status: r.status as T.ReportStatus, createdBy: r.createdBy, createdAt: req(r.createdAt), updatedAt: req(r.updatedAt), generatedFrom: "demonstration_data",
+  status: r.status as T.ReportStatus, createdBy: r.createdBy, createdAt: req(r.createdAt), updatedAt: req(r.updatedAt), generatedFrom: "database_records",
 });
 
 export const toActivity = (a: P.ActivityLog): T.ActivityLog => ({

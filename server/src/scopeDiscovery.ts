@@ -16,7 +16,7 @@ import { detectFromAddress, mergeSuggestions, parseRobots, parseSitemap } from "
 
 const TIMEOUT_MS = 5000;
 const MAX_BYTES = 512 * 1024;
-const USER_AGENT = "AEGIS-AI-scope-helper/1.0 (authorized assessment; reads robots.txt and sitemap.xml only)";
+const USER_AGENT = "AIVERA-scope-helper/1.0 (authorized assessment; reads robots.txt and sitemap.xml only)";
 
 /** Addresses we never contact: cloud metadata/link-local, unspecified and multicast. Private lab ranges are allowed. */
 function isBlockedAddress(ip: string): boolean {
@@ -78,7 +78,7 @@ export async function detectScope(rawUrl: string): Promise<ScopeDetection> {
   }
   const addresses = result.dns.addresses;
   if (addresses.some(isBlockedAddress)) {
-    result.dns = { ...result.dns, status: "blocked", message: "This host points to a reserved address (e.g. cloud metadata). AEGIS will not contact it." };
+    result.dns = { ...result.dns, status: "blocked", message: "This host points to a reserved address (e.g. cloud metadata). AIVERA will not contact it." };
   }
   const canFetch = result.dns.status === "resolved" || result.dns.status === "skipped";
 
