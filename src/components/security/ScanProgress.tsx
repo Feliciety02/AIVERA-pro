@@ -40,7 +40,7 @@ export function ScanProgress({ scan, compact }: { scan: Scan; compact?: boolean 
       )}
       {scan.dataOrigin === "simulated" && (
         <p className="flex items-center gap-1.5 text-[11px] font-medium text-sev-medium">
-          <FlaskConical className="size-3.5" /> SIMULATED run — progress and results are generated in your browser. No traffic is sent to the target.
+          <FlaskConical className="size-3.5" /> SIMULATED run, progress and results are generated in your browser. No traffic is sent to the target.
         </p>
       )}
     </div>

@@ -133,7 +133,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-md border border-sev-critical/25 bg-sev-critical/[0.04] p-3">
             <p className="mb-1 text-[10.5px] font-semibold text-sev-critical">Before</p>
-            <p>{finding ? VERIFICATION_STATUS[finding.verificationStatus].label : "—"} · {finding && SEVERITY_META[finding.severity].label}</p>
+            <p>{finding ? VERIFICATION_STATUS[finding.verificationStatus].label : "N/A"} · {finding && SEVERITY_META[finding.severity].label}</p>
             <p className="mt-1 text-muted-foreground">{findingEvidence.length} evidence item(s) at discovery ({finding && formatDate(finding.discoveredAt)})</p>
           </div>
           <div className={cn("rounded-md border p-3", task.retestResult === "passed" ? "border-primary/30 bg-primary/[0.05]" : task.retestResult === "failed" ? "border-sev-critical/25" : "border-border")}>
@@ -146,7 +146,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
 
       <dl className="grid grid-cols-2 gap-4">
         <KeyValue label="Owner"><UserChip user={lookups.users[task.ownerId]} /></KeyValue>
-        <KeyValue label="Related finding">{finding ? <Link className="font-mono text-xs hover:text-primary" to={`/findings/${finding.id}`}>{finding.code}</Link> : "—"}</KeyValue>
+        <KeyValue label="Related finding">{finding ? <Link className="font-mono text-xs hover:text-primary" to={`/findings/${finding.id}`}>{finding.code}</Link> : "N/A"}</KeyValue>
         <KeyValue label="Created">{formatDate(task.createdAt)}</KeyValue>
         <KeyValue label="Due">{formatDate(task.dueDate)}</KeyValue>
       </dl>
@@ -169,7 +169,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{action?.kind === "status" ? action.title : `Record manual retest: ${action?.kind === "retest" ? action.result : ""}`}</DialogTitle>
-            <DialogDescription>{action?.kind === "status" ? action.description : "Describe how you retested within the authorized scope. In this demo, no traffic is sent — this records your manual result."}</DialogDescription>
+            <DialogDescription>{action?.kind === "status" ? action.description : "Describe how you retested within the authorized scope. In this demo, no traffic is sent, this records your manual result."}</DialogDescription>
           </DialogHeader>
           <DialogGuide guideKey="remediationAction" steps={DIALOG_GUIDES.remediationAction} />
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes / justification" aria-label="Notes" />
@@ -245,7 +245,7 @@ export default function RemediationPage() {
     <ContentContainer wide>
       <PageHeader
         title="Remediation Tracking"
-        description="Turn confirmed vulnerabilities into owned, dated fixes — resolved only through manual approval and, where required, a passed retest."
+        description="Turn confirmed vulnerabilities into owned, dated fixes, resolved only through manual approval and, where required, a passed retest."
         actions={canEdit && <Button size="sm" onClick={() => setPickOpen(true)}><Plus /> New task</Button>}
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

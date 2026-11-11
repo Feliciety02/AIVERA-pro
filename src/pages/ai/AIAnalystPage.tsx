@@ -105,7 +105,7 @@ export default function AIAnalystPage() {
         projectFindings: data.findings.filter((f) => f.projectId === project.id),
       });
       setCurrentId(res.id);
-      toast.success("Sample analysis generated", { description: "Demo adapter — predefined content, requires human verification." });
+      toast.success("Sample analysis generated", { description: "Demo adapter, predefined content, requires human verification." });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -155,7 +155,7 @@ export default function AIAnalystPage() {
         <div className="space-y-4">
           <Card className="space-y-3 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold"><FileSearch className="size-4 text-muted-foreground" /> Analysis context</p>
-            <PickerRow label="Project" value={projectId} onChange={(v) => { setProjectId(v); setTargetId(""); setScanId(""); setFindingId(""); setCurrentId(null); }} placeholder="Select project" options={data.projects.filter((p) => p.status !== "archived").map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} />
+            <PickerRow label="Project" value={projectId} onChange={(v) => { setProjectId(v); setTargetId(""); setScanId(""); setFindingId(""); setCurrentId(null); }} placeholder="Select project" options={data.projects.filter((p) => p.status !== "archived").map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))} />
             <PickerRow label="Target" value={targetId} disabled={!projectId} onChange={(v) => { setTargetId(v); setScanId(""); setFindingId(""); setCurrentId(null); }} placeholder="All targets" options={targets.map((t) => ({ value: t.id, label: t.name }))} />
             <PickerRow label="Scan" value={scanId} disabled={!projectId} onChange={(v) => { setScanId(v); setFindingId(""); setCurrentId(null); }} placeholder="All scans" options={scans.map((s) => ({ value: s.id, label: `${s.code} · ${s.dataOrigin === "simulated" ? "SIMULATED" : "imported"} · ${s.name}` }))} />
             <PickerRow label="Finding" value={findingId} disabled={!projectId} onChange={(v) => { setFindingId(v); setCurrentId(null); }} placeholder="Select finding" options={findings.map((f) => ({ value: f.id, label: `${f.code} · ${f.title}` }))} />

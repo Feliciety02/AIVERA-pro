@@ -44,7 +44,7 @@ export default function ProjectFormPage() {
     <ContentContainer className="max-w-5xl">
       <PageHeader
         title={editing ? `Edit ${project?.code}` : "Create assessment project"}
-        description={editing ? project?.name : "Define the engagement before registering targets. Projects are planning records — creating one does not start any testing."}
+        description={editing ? project?.name : "Define the engagement before registering targets. Projects are planning records, creating one does not start any testing."}
       />
       {!can(user?.role, "manage_projects") ? (
         <Callout tone="warning" title="Not permitted for this demo role">

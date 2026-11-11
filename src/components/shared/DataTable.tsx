@@ -143,7 +143,7 @@ export function DataTable<T>({ data, columns, getRowId, onRowClick, selectable, 
       {total > 0 && (
         <div className="flex flex-col gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Showing <span className="font-medium text-foreground">{from}–{to}</span> of <span className="font-medium text-foreground">{total}</span>
+            Showing <span className="font-medium text-foreground">{from}, {to}</span> of <span className="font-medium text-foreground">{total}</span>
           </span>
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline">Rows</span>

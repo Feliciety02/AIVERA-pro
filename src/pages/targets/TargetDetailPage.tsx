@@ -227,7 +227,7 @@ export default function TargetDetailPage() {
             </KeyValue>
             <KeyValue label="System owner">{target.owner}</KeyValue>
             <KeyValue label="Testing notes">
-              <span className="text-xs text-muted-foreground">{target.testingNotes || "—"}</span>
+              <span className="text-xs text-muted-foreground">{target.testingNotes || "N/A"}</span>
             </KeyValue>
             <KeyValue label="Registered">{formatDate(target.createdAt)}</KeyValue>
           </dl>
@@ -270,7 +270,7 @@ export default function TargetDetailPage() {
       <Dialog open={scopeOpen} onOpenChange={setScopeOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Edit scope — {target.name}</DialogTitle>
+            <DialogTitle>Edit scope, {target.name}</DialogTitle>
             <DialogDescription>Changes are recorded in the demo activity log. The backend will independently enforce scope for future real scans.</DialogDescription>
           </DialogHeader>
           <DialogGuide guideKey="scopeEdit" steps={DIALOG_GUIDES.scopeEdit} />
@@ -338,7 +338,7 @@ function AddToProject({ targetId, canManage }: { targetId: string; canManage: bo
             <SelectContent>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {p.code} — {p.name}
+                  {p.code} · {p.name}
                 </SelectItem>
               ))}
             </SelectContent>

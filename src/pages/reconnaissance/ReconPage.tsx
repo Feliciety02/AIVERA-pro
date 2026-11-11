@@ -80,7 +80,7 @@ export default function ReconPage() {
     { accessorKey: "ipAddress", header: "IP Address", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
     { accessorKey: "state", header: "State", cell: ({ getValue }) => <ToneBadge tone={getValue() === "up" ? "primary" : "muted"} dot>{String(getValue())}</ToneBadge> },
     { id: "ports", header: "Open ports", accessorFn: (h) => data.ports.filter((p) => p.hostId === h.id && p.state === "open").length },
-    { accessorKey: "osGuess", header: "OS guess", cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{(getValue() as string) ?? "—"}</span> },
+    { accessorKey: "osGuess", header: "OS guess", cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{(getValue() as string) ?? "N/A"}</span> },
     { id: "target", header: "Target", accessorFn: (h) => lookups.targets[h.targetId]?.name ?? "", cell: ({ getValue }) => <span className="text-xs">{getValue() as string}</span> },
     { accessorKey: "source", header: "Source", cell: ({ row }) => <ToolBadge tool={row.original.source} /> },
     { accessorKey: "dataOrigin", header: "Origin", cell: ({ row }) => <OriginBadge origin={row.original.dataOrigin} /> },
@@ -108,7 +108,7 @@ export default function ReconPage() {
   const epCols: ColumnDef<Endpoint, unknown>[] = [
     { accessorKey: "method", header: "Method", cell: ({ getValue }) => <span className="font-mono text-[11px] font-bold text-cyan">{getValue() as string}</span> },
     { accessorKey: "path", header: "Endpoint", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
-    { accessorKey: "statusCode", header: "Status", cell: ({ getValue }) => <span className="font-mono text-xs">{(getValue() as number) || "—"}</span> },
+    { accessorKey: "statusCode", header: "Status", cell: ({ getValue }) => <span className="font-mono text-xs">{(getValue() as number) || "N/A"}</span> },
     { accessorKey: "contentType", header: "Content type", cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{getValue() as string}</span> },
     { accessorKey: "authRequired", header: "Auth", cell: ({ getValue }) => (getValue() ? <ToneBadge tone="info">Required</ToneBadge> : <ToneBadge tone="muted">Public</ToneBadge>) },
     { id: "target", header: "Target", accessorFn: (e) => lookups.targets[e.targetId]?.name ?? "", cell: ({ getValue }) => <span className="text-xs">{getValue() as string}</span> },
@@ -129,7 +129,7 @@ export default function ReconPage() {
     setImporting(true);
     const n = await reconService.importSample(selectedTarget.id);
     setImporting(false);
-    toast.success(`Imported ${n} sample records`, { description: "Synthetic demo bundle — no lookups or scans were performed." });
+    toast.success(`Imported ${n} sample records`, { description: "Synthetic demo bundle, no lookups or scans were performed." });
   };
 
   const table = (node: React.ReactNode) => <Card>{node}</Card>;
@@ -258,7 +258,7 @@ export default function ReconPage() {
                 <dl className="grid grid-cols-2 gap-4">
                   <KeyValue label="IP address" mono>{selectedHost.ipAddress}</KeyValue>
                   <KeyValue label="State">{selectedHost.state}</KeyValue>
-                  <KeyValue label="OS guess">{selectedHost.osGuess ?? "—"}</KeyValue>
+                  <KeyValue label="OS guess">{selectedHost.osGuess ?? "N/A"}</KeyValue>
                   <KeyValue label="Observed">{formatDateTime(selectedHost.observedAt)}</KeyValue>
                 </dl>
                 <div>

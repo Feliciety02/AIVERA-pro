@@ -97,7 +97,7 @@ function DemoFooter({ collapsed }: { collapsed: boolean }) {
   if (!show) return null;
   if (collapsed)
     return (
-      <Hint label="Demo mode — all data is synthetic; no real scans or AI" side="right">
+      <Hint label="Demo mode, all data is synthetic; no real scans or AI" side="right">
         <div className="mx-auto mb-3 flex size-8 items-center justify-center text-muted-foreground">
           <FlaskConical className="size-4" />
         </div>

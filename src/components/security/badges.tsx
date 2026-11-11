@@ -50,7 +50,7 @@ export function ToolBadge({ tool, className }: { tool: FindingSource; className?
   );
 }
 
-/** Provenance badge — makes synthetic/simulated/imported data visible everywhere it appears. */
+/** Provenance badge, makes synthetic/simulated/imported data visible everywhere it appears. */
 export function OriginBadge({ origin, className }: { origin: DataOrigin; className?: string }) {
   const m = DATA_ORIGIN[origin];
   return (

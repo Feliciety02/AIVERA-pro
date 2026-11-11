@@ -119,7 +119,7 @@ export function NextStepCard() {
           </span>
           <div className="min-w-0">
             <p className="text-xs font-medium text-primary">{step ? `Next step · ${current + 1} of ${steps.length}` : "All steps done"}</p>
-            <h2 className="mt-0.5 text-lg font-normal">{step ? step.title : "Your assessment is complete"}</h2>
+            <h2 className="mt-0.5 text-lg font-semibold tracking-tight">{step ? step.title : "Your assessment is complete"}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {step ? step.body : "Every finding has a decision, every confirmed problem has a fix plan, and a report exists. Retest fixes as they're deployed."}
             </p>

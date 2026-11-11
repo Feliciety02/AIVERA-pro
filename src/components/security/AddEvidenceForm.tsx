@@ -40,7 +40,7 @@ export function AddEvidenceForm({ findingId }: { findingId: string }) {
       <Field id="ev-title" label="Title" required>
         <Input id="ev-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Retest observation, redacted response excerpt" />
       </Field>
-      <Field id="ev-content" label="Evidence" required hint="Never paste real credentials, tokens or personal data — this demo stores data in browser storage.">
+      <Field id="ev-content" label="Evidence" required hint="Never paste real credentials, tokens or personal data, this demo stores data in browser storage.">
         <Textarea id="ev-content" rows={5} value={content} onChange={(e) => setContent(e.target.value)} className="font-mono text-[11.5px]" />
       </Field>
       {err && <p role="alert" className="text-xs text-destructive">{err}</p>}

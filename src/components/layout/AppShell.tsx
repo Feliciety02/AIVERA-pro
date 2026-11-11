@@ -47,17 +47,33 @@ export function ContentContainer({ children, className, wide }: { children: Reac
   return <div className={cn("mx-auto w-full space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-6", wide ? "max-w-[1680px]" : "max-w-[1440px]", className)}>{children}</div>;
 }
 
-export function PageHeader({ title, description, actions, eyebrow, meta }: { title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; eyebrow?: React.ReactNode; meta?: React.ReactNode }) {
+/**
+ * Page title block. Text hierarchy, largest to smallest:
+ * page title (28px bold) → description (14px) → section titles in cards (16px bold) → body (14px) → details (12px).
+ */
+export function PageHeader({
+  title,
+  description,
+  actions,
+  eyebrow,
+  meta,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+  eyebrow?: React.ReactNode;
+  meta?: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div className="min-w-0 flex-1 space-y-1">
-        {eyebrow && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{eyebrow}</div>}
-        <h1 className="text-[22px] leading-8 font-normal text-balance">{title}</h1>
-        {description && <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>}
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0 flex-1 space-y-1.5">
+        {eyebrow && <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">{eyebrow}</div>}
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-foreground sm:text-[28px]">{title}</h1>
+        {description && <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>}
         {meta && <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div>}
       </div>
       {/* Buttons wrap instead of pushing the page wider than the screen. */}
-      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 lg:max-w-[65%] lg:justify-end">{actions}</div>}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 lg:max-w-[60%] lg:justify-end">{actions}</div>}
     </div>
   );
 }

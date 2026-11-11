@@ -25,7 +25,7 @@ import type { AssessmentCategoryId, AssessmentStatus, ChecklistItem, ChecklistRe
 const RESULTS: Record<ChecklistResult, { label: string; tone: string }> = {
   not_tested: { label: "Not tested", tone: "text-muted-foreground" },
   pass: { label: "Pass", tone: "text-primary" },
-  fail: { label: "Fail — issue observed", tone: "text-sev-critical" },
+  fail: { label: "Fail, issue observed", tone: "text-sev-critical" },
   not_applicable: { label: "Not applicable", tone: "text-muted-foreground" },
 };
 

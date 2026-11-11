@@ -166,7 +166,7 @@ export default function SettingsPage() {
               <Switch checked={ui.tutorialsEnabled} onCheckedChange={(v) => { ui.setTutorialsEnabled(v); toast.success(v ? "Tutorials on" : "Tutorials off"); }} aria-label="Show page tutorials" />
             </Row>
             <Row title="Replay all tutorials" description={`You've finished ${ui.seenTours.length} tutorial${ui.seenTours.length === 1 ? "" : "s"}. Reset to see them again.`}>
-              <Button variant="outline" size="sm" onClick={() => { ui.resetTours(); toast.success("Tutorials reset — they'll show again on each page"); }}>
+              <Button variant="outline" size="sm" onClick={() => { ui.resetTours(); toast.success("Tutorials reset, they'll show again on each page"); }}>
                 <RotateCcw /> Reset tutorials
               </Button>
             </Row>

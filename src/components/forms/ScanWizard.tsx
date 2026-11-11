@@ -106,7 +106,7 @@ export function ScanWizard({
     1: !targetId ? "Select a target to continue." : !authorized ? "This target is not authorized/confirmed and cannot be assessed." : null,
     2: scopeConfirmed ? null : "Confirm the approved scope to continue.",
     3: tools.length ? null : "Select at least one tool.",
-    4: !effectiveCategories.length ? "Select at least one category permitted by the target scope." : rps < 1 || rps > 20 ? "Request rate must be between 1 and 20 req/s." : timeLimit < 5 || timeLimit > 240 ? "Time limit must be 5–240 minutes." : !name.trim() ? "Name the assessment run." : null,
+    4: !effectiveCategories.length ? "Select at least one category permitted by the target scope." : rps < 1 || rps > 20 ? "Request rate must be between 1 and 20 req/s." : timeLimit < 5 || timeLimit > 240 ? "Time limit must be 5 to 240 minutes." : !name.trim() ? "Name the assessment run." : null,
     5: null,
   };
   const canNext = !errors[step];
@@ -172,7 +172,7 @@ export function ScanWizard({
                   <dl className="space-y-2.5">
                     <KeyValue label="Hosts" mono>{target.scope.inScopeHosts.join(", ")}</KeyValue>
                     <KeyValue label="Allowed paths" mono>{target.scope.allowedPaths.join(", ")}</KeyValue>
-                    <KeyValue label="Allowed activities">{target.scope.allowedActivities.join("; ") || "—"}</KeyValue>
+                    <KeyValue label="Allowed activities">{target.scope.allowedActivities.join("; ") || "N/A"}</KeyValue>
                   </dl>
                 </div>
                 <div className="rounded-lg border border-sev-critical/25 bg-sev-critical/[0.04] p-3.5">
@@ -183,7 +183,7 @@ export function ScanWizard({
                   </dl>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Authorization reference: <span className="font-mono text-foreground">{target.authorizationReference}</span>. Testing notes: {target.testingNotes || "—"}</p>
+              <p className="text-xs text-muted-foreground">Authorization reference: <span className="font-mono text-foreground">{target.authorizationReference}</span>. Testing notes: {target.testingNotes || "N/A"}</p>
               <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
                 <Checkbox id="scope-ok" checked={scopeConfirmed} onCheckedChange={(v) => setScopeConfirmed(v === true)} className="mt-0.5" />
                 <Label htmlFor="scope-ok" className="text-sm leading-snug">I have reviewed the approved scope and will keep all activity within it. Exclusions take precedence over allowed paths.</Label>
@@ -242,10 +242,10 @@ export function ScanWizard({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field id="rps" label="Request rate limit (req/s)" hint="1–20. Respect the owner's agreed limit.">
+                <Field id="rps" label="Request rate limit (req/s)" hint="1 to 20. Respect the owner's agreed limit.">
                   <Input id="rps" type="number" min={1} max={20} value={rps} onChange={(e) => setRps(Number(e.target.value))} />
                 </Field>
-                <Field id="time" label="Time limit (minutes)" hint="5–240">
+                <Field id="time" label="Time limit (minutes)" hint="5 to 240">
                   <Input id="time" type="number" min={5} max={240} value={timeLimit} onChange={(e) => setTimeLimit(Number(e.target.value))} />
                 </Field>
                 <Field id="conc" label="Max concurrency">
@@ -275,14 +275,14 @@ export function ScanWizard({
               <h2 className="text-sm font-semibold">Step 6 · Review and confirm</h2>
               <dl className="grid gap-4 rounded-xl border border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
                 <KeyValue label="Run name">{name}</KeyValue>
-                <KeyValue label="Project">{project.code} — {project.name}</KeyValue>
+                <KeyValue label="Project">{project.code} · {project.name}</KeyValue>
                 <KeyValue label="Target">{target.name}<span className="block font-mono text-[11px] text-muted-foreground">{target.url}</span></KeyValue>
                 <KeyValue label="Tools"><span className="flex flex-wrap gap-1">{tools.map((t) => <ToolBadge key={t} tool={t} />)}</span></KeyValue>
                 <KeyValue label="Categories">{effectiveCategories.map((c) => CATEGORIES.find((x) => x.id === c)?.short).join(", ")}</KeyValue>
                 <KeyValue label="Profile">{SCAN_PROFILES[profile].label}</KeyValue>
                 <KeyValue label="Limits">{rps} req/s · {timeLimit} min · concurrency {concurrency}</KeyValue>
                 <KeyValue label="Output">{format.toUpperCase()}</KeyValue>
-                <KeyValue label="Scope">{target.scope.inScopeHosts.length} host(s), {target.scope.excludedPaths.length} exclusion(s) — confirmed</KeyValue>
+                <KeyValue label="Scope">{target.scope.inScopeHosts.length} host(s), {target.scope.excludedPaths.length} exclusion(s), confirmed</KeyValue>
               </dl>
               {liveConfigValid ? (
                 <Callout tone="info" icon={ShieldCheck} title="Ready for an automated assessment">

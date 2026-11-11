@@ -134,7 +134,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
                     <SelectContent>
                       {assessors.map((u) => (
                         <SelectItem key={u.id} value={u.id}>
-                          {u.name} — {u.title}
+                          {u.name} · {u.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -176,7 +176,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
             <Field id="objectives" label="Assessment objectives" required error={err("objectives")}>
               <Textarea id="objectives" rows={4} placeholder="e.g. Verify authorization between customer and admin roles; review session handling…" {...register("objectives")} {...aria("objectives")} />
             </Field>
-            <Field id="notes" label="Notes" hint="Do not store credentials or secrets here — this demo keeps data in browser storage.">
+            <Field id="notes" label="Notes" hint="Do not store credentials or secrets here, this demo keeps data in browser storage.">
               <Textarea id="notes" rows={3} {...register("notes")} />
             </Field>
           </FormSection>

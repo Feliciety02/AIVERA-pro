@@ -110,7 +110,7 @@ export default function ScansPage() {
               <Import className="mt-0.5 size-4 shrink-0 text-cyan" />
               <div>
                 <p className="font-medium">Imported <OriginBadge origin="imported" className="ml-1" /></p>
-                <p className="text-muted-foreground">Nmap XML / ZAP JSON reports parsed in the browser — bundled synthetic samples or files you supply from your own authorized runs. Scope-filtered on import.</p>
+                <p className="text-muted-foreground">Nmap XML / ZAP JSON reports parsed in the browser, bundled synthetic samples or files you supply from your own authorized runs. Scope-filtered on import.</p>
               </div>
             </li>
             <li className="flex gap-3">

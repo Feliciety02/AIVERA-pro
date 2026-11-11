@@ -27,7 +27,7 @@ const saveLastEmail = (email: string) => {
   try {
     localStorage.setItem(LAST_EMAIL_KEY, email);
   } catch {
-    /* storage unavailable — nothing to remember */
+    /* storage unavailable, nothing to remember */
   }
 };
 

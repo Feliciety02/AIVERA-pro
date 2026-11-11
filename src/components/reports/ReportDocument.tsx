@@ -52,7 +52,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-2 text-[11px] sm:grid-cols-4">
             <div><p className="text-slate-500">Report</p><p className="font-mono">{m.report.code}</p></div>
             <div><p className="text-slate-500">Status</p><p>{m.report.status === "final" ? "Final" : "Draft"}</p></div>
-            <div><p className="text-slate-500">Period</p><p>{formatDate(m.report.periodStart)} – {formatDate(m.report.periodEnd)}</p></div>
+            <div><p className="text-slate-500">Period</p><p>{formatDate(m.report.periodStart)}, {formatDate(m.report.periodEnd)}</p></div>
             <div><p className="text-slate-500">Prepared by</p><p>{m.preparedBy}</p></div>
           </div>
         </header>
@@ -66,7 +66,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
         {has("assessment_info") && (
           <>
             <H n={next()}>Assessment Information</H>
-            <T head={["Item", "Detail"]} rows={[["Project", `${m.project.code} — ${m.project.name}`], ["Owner", m.owner?.name ?? "—"], ["Organization", m.organization], ["Targets", m.targets.map((t) => `${t.name} (${t.url})`).join("; ")], ["Objectives", m.project.objectives], ["Generated", formatDateTime(m.report.createdAt)]]} />
+            <T head={["Item", "Detail"]} rows={[["Project", `${m.project.code} · ${m.project.name}`], ["Owner", m.owner?.name ?? "N/A"], ["Organization", m.organization], ["Targets", m.targets.map((t) => `${t.name} (${t.url})`).join("; ")], ["Objectives", m.project.objectives], ["Generated", formatDateTime(m.report.createdAt)]]} />
           </>
         )}
         {has("executive_summary") && (
@@ -98,7 +98,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
         {has("tools") && (
           <>
             <H n={next()}>Security Tools Used</H>
-            <T head={["Tool", "Purpose"]} rows={m.tools.length ? m.tools.map((t) => [TOOL_META[t].label, TOOL_META[t].description]) : [["—", "No tool runs recorded"]]} />
+            <T head={["Tool", "Purpose"]} rows={m.tools.length ? m.tools.map((t) => [TOOL_META[t].label, TOOL_META[t].description]) : [["N/A", "No tool runs recorded"]]} />
             <p className="mt-2 text-[11px] text-slate-500">Scan records in period: {m.scanOrigins.real} live, {m.scanOrigins.imported} imported, {m.scanOrigins.simulated} simulated.</p>
           </>
         )}
@@ -118,7 +118,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
                 ))}
               </div>
             )}
-            {has("findings_summary") && <T head={["ID", "Title", "Severity", "Target"]} rows={m.verified.length ? m.verified.map((f) => [<span className="font-mono">{f.code}</span>, f.title, SEVERITY_META[f.severity].label, m.targets.find((t) => t.id === f.targetId)?.name]) : [["—", "No verified findings", "", ""]]} />}
+            {has("findings_summary") && <T head={["ID", "Title", "Severity", "Target"]} rows={m.verified.length ? m.verified.map((f) => [<span className="font-mono">{f.code}</span>, f.title, SEVERITY_META[f.severity].label, m.targets.find((t) => t.id === f.targetId)?.name]) : [["N/A", "No verified findings", "", ""]]} />}
             {m.excluded.length > 0 && <p className="mt-2 text-[11px] text-amber-700">{m.excluded.length} selected finding(s) are no longer confirmed and were excluded: {m.excluded.map((f) => f.code).join(", ")}.</p>}
           </>
         )}
@@ -142,7 +142,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
                     <p><span className="font-semibold">Impact:</span> {f.impact}</p>
                     {has("evidence") && (m.evidence[f.id] ?? []).map((e) => (
                       <div key={e.id}>
-                        <p className="text-[11px] font-semibold text-slate-500">Evidence — {e.title} <span className="font-mono">({e.id})</span></p>
+                        <p className="text-[11px] font-semibold text-slate-500">Evidence, {e.title} <span className="font-mono">({e.id})</span></p>
                         <pre className="mt-1 overflow-hidden rounded bg-slate-100 p-2 font-mono text-[10.5px] leading-snug whitespace-pre-wrap">{e.content}</pre>
                       </div>
                     ))}
@@ -156,21 +156,21 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
         {has("risk_assessment") && (
           <>
             <H n={next()}>Risk Assessment</H>
-            <p className="mb-2 text-[11px] text-slate-500">Demo qualitative model (likelihood × impact, 1–25). Not CVSS.</p>
-            <T head={["Finding", "Risk score", "Mitigation"]} rows={m.verified.map((f) => [<span className="font-mono">{f.code}</span>, riskSummary(m.risks[f.id]), m.risks[f.id]?.mitigationStatus.replace("_", " ") ?? "—"])} />
+            <p className="mb-2 text-[11px] text-slate-500">Demo qualitative model (likelihood × impact, 1 to 25). Not CVSS.</p>
+            <T head={["Finding", "Risk score", "Mitigation"]} rows={m.verified.map((f) => [<span className="font-mono">{f.code}</span>, riskSummary(m.risks[f.id]), m.risks[f.id]?.mitigationStatus.replace("_", " ") ?? "N/A"])} />
           </>
         )}
         {has("remediation") && (
           <>
             <H n={next()}>Remediation Recommendations</H>
-            <T head={["Finding", "Action", "Status", "Due"]} rows={m.verified.flatMap((f) => (m.remediation[f.id]?.length ? m.remediation[f.id]!.map((t) => [<span className="font-mono">{f.code}</span>, t.title, REMEDIATION_STATUS[t.status].label, formatDate(t.dueDate)]) : [[<span className="font-mono">{f.code}</span>, f.remediation, "No task", "—"]]))} />
+            <T head={["Finding", "Action", "Status", "Due"]} rows={m.verified.flatMap((f) => (m.remediation[f.id]?.length ? m.remediation[f.id]!.map((t) => [<span className="font-mono">{f.code}</span>, t.title, REMEDIATION_STATUS[t.status].label, formatDate(t.dueDate)]) : [[<span className="font-mono">{f.code}</span>, f.remediation, "No task", "N/A"]]))} />
           </>
         )}
         {has("unverified_observations") && m.report.includeUnverified && (
           <>
-            <H n={next()}>Appendix — Unverified Observations</H>
+            <H n={next()}>Appendix, Unverified Observations</H>
             <p className="mb-2 rounded border border-amber-300 bg-amber-50 p-2 text-[11.5px] text-amber-900">These observations have NOT been verified by an assessor and must not be treated as confirmed vulnerabilities.</p>
-            <T head={["ID", "Title", "Status", "Origin"]} rows={m.unverified.length ? m.unverified.map((f) => [<span className="font-mono">{f.code}</span>, f.title, VERIFICATION_STATUS[f.verificationStatus].label, f.dataOrigin === "simulated" ? "SIMULATED" : f.dataOrigin]) : [["—", "None in period", "", ""]]} />
+            <T head={["ID", "Title", "Status", "Origin"]} rows={m.unverified.length ? m.unverified.map((f) => [<span className="font-mono">{f.code}</span>, f.title, VERIFICATION_STATUS[f.verificationStatus].label, f.dataOrigin === "simulated" ? "SIMULATED" : f.dataOrigin]) : [["N/A", "None in period", "", ""]]} />
           </>
         )}
         {has("conclusion") && (

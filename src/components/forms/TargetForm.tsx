@@ -61,7 +61,7 @@ export const targetSchema = z
       if (!u) return true;
       return v.scope.inScopeHosts.some((h) => h.split(":")[0] === u.hostname || (h.startsWith("*.") && u.hostname.endsWith(h.slice(1))));
     },
-    { path: ["scope", "inScopeHosts"], message: "The website's own host must be in scope — click “Detect scope”." },
+    { path: ["scope", "inScopeHosts"], message: "The website's own host must be in scope, click “Detect scope”." },
   );
 
 export type TargetFormValues = z.infer<typeof targetSchema>;
@@ -166,13 +166,13 @@ export function TargetForm({
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          {/* 1 — Website */}
+          {/* 1, Website */}
           <FormSection title="1. Website" description="Paste the address of the website you were given permission to test. AIVERA fills in the rest from it.">
             <Field id="url" label="Website address" required error={errors.url?.message} hint="For example http://127.0.0.1:8000 for UMERCH3.0 running locally">
               <Input id="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://" className="h-11 font-mono text-sm" {...register("url")} {...aria("url")} />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="name" label="Name" required error={errors.name?.message} hint="Filled in from the address — change it if you like.">
+              <Field id="name" label="Name" required error={errors.name?.message} hint="Filled in from the address, change it if you like.">
                 <Input id="name" {...register("name")} {...aria("name")} />
               </Field>
               <Field id="environment" label="Environment" required hint="Guessed from words like “staging” or “dev” in the address.">
@@ -186,7 +186,7 @@ export function TargetForm({
             </div>
           </FormSection>
 
-          {/* 2 — Permission */}
+          {/* 2, Permission */}
           <FormSection title="2. Permission" description="Only test websites whose owner gave you written permission. AIVERA records who confirmed it and when.">
             <Controller
               control={control}
@@ -224,17 +224,17 @@ export function TargetForm({
             )}
           </FormSection>
 
-          {/* 3 — Scope */}
+          {/* 3, Scope */}
           <FormSection
             title="3. What can be tested"
-            description="AIVERA fills this in from real sources: the address itself, and — when the AIVERA server is running — a DNS check plus the site's own robots.txt and sitemap.xml."
+            description="AIVERA fills this in from real sources: the address itself, and, when the AIVERA server is running, a DNS check plus the site's own robots.txt and sitemap.xml."
           >
             <div id="scope-detect" className="space-y-3 rounded-xl border border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Detect scope automatically</p>
                   <p className="text-xs text-muted-foreground">
-                    {IS_API ? "Reads only DNS, /robots.txt and /sitemap.xml — no crawling or scanning." : "Demo mode: uses the address only. Run the full app to also check DNS, robots.txt and sitemap.xml."}
+                    {IS_API ? "Reads only DNS, /robots.txt and /sitemap.xml, no crawling or scanning." : "Demo mode: uses the address only. Run the full app to also check DNS, robots.txt and sitemap.xml."}
                   </p>
                 </div>
                 <Button type="button" variant={detection ? "outline" : "default"} size="sm" onClick={runDetection} disabled={!parsed || (IS_API && !confirmed) || detecting}>
@@ -242,7 +242,7 @@ export function TargetForm({
                   {detection ? "Check again" : "Detect scope"}
                 </Button>
               </div>
-              {IS_API && !confirmed && parsed && <p className="text-xs text-muted-foreground">Tick the permission box in step 2 first — detection contacts the website.</p>}
+              {IS_API && !confirmed && parsed && <p className="text-xs text-muted-foreground">Tick the permission box in step 2 first, detection contacts the website.</p>}
               {detectError && <p role="alert" className="text-xs text-destructive">{detectError}</p>}
               {detection && <DetectionResult d={detection} />}
             </div>
@@ -261,7 +261,7 @@ export function TargetForm({
             </details>
           </FormSection>
 
-          {/* 4 — Details */}
+          {/* 4, Details */}
           <FormSection title="4. Details" description="Who owns the website, and which assessment it belongs to.">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="owner" label="Website owner" required error={errors.owner?.message} hint="The team or person responsible for it.">
@@ -278,7 +278,7 @@ export function TargetForm({
                         <SelectItem value={NO_PROJECT}>No project yet</SelectItem>
                         {projects.filter((p) => p.status !== "archived").map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.code} — {p.name}
+                            {p.code} · {p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -302,7 +302,7 @@ export function TargetForm({
                       </Select>
                     )} />
                   </Field>
-                  <Field id="authorizationStatus" label="Permission status" hint="Use Pending if the owner hasn't signed yet — testing stays blocked.">
+                  <Field id="authorizationStatus" label="Permission status" hint="Use Pending if the owner hasn't signed yet, testing stays blocked.">
                     <Controller control={control} name="authorizationStatus" render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger id="authorizationStatus"><SelectValue /></SelectTrigger>
@@ -366,7 +366,7 @@ function ScopeSummary({ scope, detection }: { scope: TargetScope; detection: Sco
       {row("Never tested", scope.excludedPaths, "no", detection?.excludedPaths, "No exclusions")}
       <div className="grid gap-1.5 sm:grid-cols-[150px_1fr]">
         <p className="text-xs text-muted-foreground">Test categories</p>
-        <p className="text-xs">{scope.allowedCategories.length} of {CATEGORIES.length} selected — change them under “Edit scope manually”.</p>
+        <p className="text-xs">{scope.allowedCategories.length} of {CATEGORIES.length} selected, change them under “Edit scope manually”.</p>
       </div>
     </div>
   );
@@ -383,7 +383,7 @@ function DetectionResult({ d }: { d: ScopeDetection }) {
         <li className="flex gap-2">
           <Icon ok />
           <span>
-            <span className="font-medium">Web address</span> — host <span className="font-mono">{d.host}</span> and path taken from what you typed.
+            <span className="font-medium">Web address</span>, host <span className="font-mono">{d.host}</span> and path taken from what you typed.
           </span>
         </li>
       </ul>
@@ -393,7 +393,7 @@ function DetectionResult({ d }: { d: ScopeDetection }) {
       <li className="flex gap-2">
         <Icon ok={d.dns?.status === "resolved" || d.dns?.status === "skipped"} warn />
         <span>
-          <span className="font-medium">DNS lookup</span> —{" "}
+          <span className="font-medium">DNS lookup</span>, {" "}
           {d.dns?.status === "resolved" ? (
             <>
               the host exists and points to <span className="font-mono">{d.dns.addresses.join(", ")}</span>
@@ -406,7 +406,7 @@ function DetectionResult({ d }: { d: ScopeDetection }) {
       <li className="flex gap-2">
         <Icon ok={d.robots?.status === "found"} warn={d.robots?.status === "error"} />
         <span>
-          <span className="font-medium">robots.txt</span> — {d.robots?.status === "found" ? d.robots.message : `not used (${d.robots?.message})`}
+          <span className="font-medium">robots.txt</span>, {d.robots?.status === "found" ? d.robots.message : `not used (${d.robots?.message})`}
           {!!d.robots?.unsupportedRules.length && (
             <span className="block text-muted-foreground">
               Not added (patterns AIVERA can't represent, review them yourself): <span className="font-mono">{d.robots.unsupportedRules.join("  ")}</span>
@@ -417,7 +417,7 @@ function DetectionResult({ d }: { d: ScopeDetection }) {
       <li className="flex gap-2">
         <Icon ok={d.sitemap?.status === "found"} warn={d.sitemap?.status === "error"} />
         <span>
-          <span className="font-medium">sitemap.xml</span> — {d.sitemap?.status === "found" ? d.sitemap.message : `not used (${d.sitemap?.message})`}
+          <span className="font-medium">sitemap.xml</span>, {d.sitemap?.status === "found" ? d.sitemap.message : `not used (${d.sitemap?.message})`}
           {!!d.sitemap?.sections.length && (
             <span className="block text-muted-foreground">
               Public sections found: <span className="font-mono">{d.sitemap.sections.join("  ")}</span>

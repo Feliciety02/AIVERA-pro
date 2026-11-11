@@ -49,7 +49,7 @@ export default function AssessmentsPage() {
             <SelectContent>
               {active.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {p.code} — {p.name}
+                  {p.code} · {p.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -95,7 +95,7 @@ export default function AssessmentsPage() {
                       <div className="rounded-md bg-muted/40 py-1.5"><dt className="text-[10px] text-muted-foreground">Evidence</dt><dd className="text-sm font-semibold tabular-nums">{reviewed}/{ev.length}</dd></div>
                     </dl>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>Assessor: <span className="text-foreground">{a ? lookups.users[a.assessorId]?.name : project ? lookups.users[project.ownerId]?.name : "—"}</span></span>
+                      <span>Assessor: <span className="text-foreground">{a ? lookups.users[a.assessorId]?.name : project ? lookups.users[project.ownerId]?.name : "N/A"}</span></span>
                       <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </div>

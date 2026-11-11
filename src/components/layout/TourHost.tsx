@@ -112,7 +112,7 @@ function TourOverlay({ tourKey, steps: allSteps }: { tourKey: string; steps: Tou
 
   if (!step) return null;
 
-  // Card placement: below, above, right or left of the target — whichever fits — and
+  // Card placement: below, above, right or left of the target, whichever fits, and
   // centred when there is no target. If nothing fits (very large targets) it docks bottom-right.
   const vw = window.innerWidth;
   const vh = window.innerHeight;

@@ -49,13 +49,13 @@ function RiskEditor({ risk, onClose, readOnly }: { risk: Risk; onClose: () => vo
           <Field id="rk-l" label="Likelihood">
             <Select value={String(draft.likelihood)} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, likelihood: Number(v) as LikertScore })}>
               <SelectTrigger id="rk-l"><SelectValue /></SelectTrigger>
-              <SelectContent>{([1, 2, 3, 4, 5] as LikertScore[]).map((n) => <SelectItem key={n} value={String(n)}>{n} — {LIKELIHOOD_LABELS[n]}</SelectItem>)}</SelectContent>
+              <SelectContent>{([1, 2, 3, 4, 5] as LikertScore[]).map((n) => <SelectItem key={n} value={String(n)}>{n} · {LIKELIHOOD_LABELS[n]}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
           <Field id="rk-i" label="Impact">
             <Select value={String(draft.impact)} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, impact: Number(v) as LikertScore })}>
               <SelectTrigger id="rk-i"><SelectValue /></SelectTrigger>
-              <SelectContent>{([1, 2, 3, 4, 5] as LikertScore[]).map((n) => <SelectItem key={n} value={String(n)}>{n} — {IMPACT_LABELS[n]}</SelectItem>)}</SelectContent>
+              <SelectContent>{([1, 2, 3, 4, 5] as LikertScore[]).map((n) => <SelectItem key={n} value={String(n)}>{n} · {IMPACT_LABELS[n]}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
           <Field id="rk-o" label="Assigned owner">
@@ -171,8 +171,8 @@ export default function RisksPage() {
   return (
     <ContentContainer wide>
       <PageHeader title="Risk Management" description="Prioritise confirmed vulnerabilities using a deterministic likelihood × impact model." />
-      <Callout icon={Info} title="Demo risk model — not CVSS">
-        Scores here are a simple qualitative rating (likelihood 1–5 × impact 1–5), seeded from the finding's severity and adjustable by an assessor. They are not CVSS base scores. A CVSS calculator would require implementing the FIRST specification.
+      <Callout icon={Info} title="Demo risk model, not CVSS">
+        Scores here are a simple qualitative rating (likelihood 1 to 5 × impact 1 to 5), seeded from the finding's severity and adjustable by an assessor. They are not CVSS base scores. A CVSS calculator would require implementing the FIRST specification.
       </Callout>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MiniStat label="Open risks" value={open.length} />

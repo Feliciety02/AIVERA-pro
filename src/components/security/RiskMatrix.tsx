@@ -62,7 +62,7 @@ export function RiskMatrix({ risks, selected, onSelect }: { risks: Risk[]; selec
             <span className={cn("size-3 rounded-sm border", RISK_LEVEL_META[k].cell)} /> {RISK_LEVEL_META[k].label}
           </span>
         ))}
-        <span className="ml-auto">Score = L × I · Low 1–5 · Medium 6–11 · High 12–19 · Critical 20–25</span>
+        <span className="ml-auto">Score = L × I · Low 1 to 5 · Medium 6 to 11 · High 12 to 19 · Critical 20 to 25</span>
       </div>
     </div>
   );

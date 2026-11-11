@@ -98,7 +98,6 @@ export default function DashboardPage() {
       <PageHeader
         title="Security Operations Dashboard"
         description="Where your assessment stands, and what to do next. Only findings a person confirmed count as vulnerabilities."
-        eyebrow={<span>Welcome back, {user?.name.split(" ")[0]}</span>}
         actions={
           // Simple mode keeps the dashboard to one path: the next-step card and the scan button.
           can(user?.role, "manage_projects") && !simpleMode && (
@@ -128,7 +127,7 @@ export default function DashboardPage() {
           <StatCard label="Assessment Projects" value={m.totalProjects} icon={FolderKanban} tooltip="Non-archived assessment projects in the demo workspace." sub={`${m.activeProjects} active`} to="/projects" />
           <StatCard label="Registered Targets" value={m.registeredTargets} icon={Target} iconTone="bg-cyan/10 text-cyan" tooltip="Target applications registered as metadata. Registration never contacts the target." sub={`${m.authorizedTargets} authorized & confirmed`} to="/targets" />
           <StatCard label="Completed Assessments" value={m.completedAssessments} icon={ClipboardCheck} iconTone="bg-primary/10 text-primary" tooltip="Category assessments (e.g. Session Management for a project) marked completed by an assessor." sub={`of ${s.assessments.length} category assessments`} to="/assessments" />
-          <StatCard label="Potential Findings" value={m.potentialFindings} icon={ShieldAlert} iconTone="bg-sev-medium/10 text-sev-medium" tooltip="All findings not rejected — includes unverified tool/simulation output. These are NOT confirmed vulnerabilities." trend={{ delta: m.findingsLast30 - m.findingsPrev30, goodWhenDown: true, label: "new vs. previous 30 days" }} to="/findings" />
+          <StatCard label="Potential Findings" value={m.potentialFindings} icon={ShieldAlert} iconTone="bg-sev-medium/10 text-sev-medium" tooltip="All findings not rejected, includes unverified tool/simulation output. These are NOT confirmed vulnerabilities." trend={{ delta: m.findingsLast30 - m.findingsPrev30, goodWhenDown: true, label: "new vs. previous 30 days" }} to="/findings" />
           <StatCard label="Confirmed Vulnerabilities" value={m.confirmed} icon={CircleCheckBig} tone="text-sev-high" iconTone="bg-sev-high/10 text-sev-high" tooltip="Findings a human assessor marked Confirmed after reviewing evidence. AI suggestions never count here." sub="human-verified only" to="/findings?status=confirmed" />
           <StatCard label="Critical Vulnerabilities" value={m.criticalConfirmed} icon={ShieldX} tone={m.criticalConfirmed ? "text-sev-critical" : undefined} iconTone="bg-sev-critical/10 text-sev-critical" tooltip="Confirmed findings with Critical severity." sub="confirmed & critical" to="/findings?status=confirmed&severity=critical" />
           <StatCard label="Pending Verification" value={m.pendingVerification} icon={Timer} tone="text-sev-medium" iconTone="bg-sev-medium/10 text-sev-medium" tooltip="Findings awaiting a human decision (Pending or Needs Further Review)." sub="awaiting assessor decision" to="/findings?status=unverified" />

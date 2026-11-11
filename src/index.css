@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * AIVERA design tokens — modeled on Google Cloud Console conventions:
+ * AIVERA design tokens, modeled on Google Cloud Console conventions:
  * neutral grays, one blue accent, flat bordered surfaces, no gradients.
  * Light is the default; .dark uses Google's dark-theme palette.
  * Components consume semantic tokens only (bg-background, text-muted-foreground, …).

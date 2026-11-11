@@ -52,7 +52,7 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
     setFrom(toInputDate(firstFinding && firstFinding < project.startDate ? firstFinding : project.startDate));
     const lastFinding = src.findings.filter((f) => f.projectId === project.id).map((f) => f.discoveredAt).sort().pop();
     if (lastFinding && lastFinding.slice(0, 10) > to) setTo(toInputDate(lastFinding));
-    setTitle(`${project.name} — Security Assessment Report`);
+    setTitle(`${project.name}, Security Assessment Report`);
     setFindingIds(null);
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -99,7 +99,7 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
     setDrafting(true);
     try {
       const a = await analysisService.analyze({ mode: "assessment_summary", project, evidence: [], projectFindings: src.findings.filter((f) => f.projectId === project.id && targetIds.includes(f.targetId) && inPeriod(f.discoveredAt)) });
-      setSummary(`${a.explanation}\n\n[Drafted with Sample AI Analysis — Demo Mode. Reviewed and edited by the assessor before use.]`);
+      setSummary(`${a.explanation}\n\n[Drafted with Sample AI Analysis, Demo Mode. Reviewed and edited by the assessor before use.]`);
       toast.success("Sample summary drafted", { description: "Review and edit before generating the report." });
     } finally {
       setDrafting(false);
@@ -216,7 +216,7 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
                   <Textarea id="rp-sum" rows={5} value={summary} onChange={(e) => setSummary(e.target.value)} />
                 </Field>
                 <Button variant="outline" size="sm" onClick={draftSummary} disabled={drafting}>
-                  {drafting ? <Loader2 className="animate-spin" /> : <Bot />} Draft summary (Sample AI — Demo Mode)
+                  {drafting ? <Loader2 className="animate-spin" /> : <Bot />} Draft summary (Sample AI, Demo Mode)
                 </Button>
                 <label className="flex items-center gap-3 text-sm">
                   <Switch checked={final} onCheckedChange={setFinal} aria-label="Mark as final" /> Mark as final (visible to Viewers)

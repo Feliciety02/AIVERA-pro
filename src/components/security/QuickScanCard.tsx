@@ -82,7 +82,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName }: { target:
             <ScanLine className="size-5" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-lg font-normal">{showTargetName ? `Scan ${target.name}` : "Scan this website"}</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{showTargetName ? `Scan ${target.name}` : "Scan this website"}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Runs {tools.length ? tools.map((t) => TOOL_NAME[t]).join(" and ") : "the security tools"} only inside the approved scope, with gentle settings. It takes about two minutes. Then AI explains
               what was found, and every result waits for your review.

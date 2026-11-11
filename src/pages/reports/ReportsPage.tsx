@@ -40,7 +40,7 @@ export default function ReportsPage() {
     { accessorKey: "title", header: "Title", cell: ({ row }) => <div className="min-w-60"><p className="font-medium">{row.original.title}</p><p className="text-[11px] text-muted-foreground">{REPORT_TEMPLATES.find((t) => t.id === row.original.templateId)?.name}</p></div> },
     { id: "project", header: "Project", accessorFn: (r) => lookups.projects[r.projectId]?.code, cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
     { id: "findings", header: "Verified findings", accessorFn: (r) => r.findingIds.length },
-    { id: "period", header: "Period", accessorFn: (r) => r.periodStart, cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(row.original.periodStart)} – {formatDate(row.original.periodEnd)}</span> },
+    { id: "period", header: "Period", accessorFn: (r) => r.periodStart, cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(row.original.periodStart)}, {formatDate(row.original.periodEnd)}</span> },
     { accessorKey: "status", header: "Status", cell: ({ row }) => <ToneBadge tone={row.original.status === "final" ? "primary" : "muted"} dot>{row.original.status === "final" ? "Final" : "Draft"}</ToneBadge> },
     { id: "source", header: "Source", cell: () => <ToneBadge tone="warning">Demo data</ToneBadge> },
     { accessorKey: "createdAt", header: "Generated", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(getValue() as string)}</span> },

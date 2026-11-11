@@ -222,7 +222,7 @@ export default function FindingsPage() {
               <Button size="sm" variant="outline" className="h-7" onClick={() => exportRows(selected, "aivera-findings-selected.csv")}>
                 <Download /> Export selected
               </Button>
-              <span className="text-[11px] text-muted-foreground">Bulk confirmation is intentionally unavailable — each finding needs an individual human decision.</span>
+              <span className="text-[11px] text-muted-foreground">Bulk confirmation is intentionally unavailable, each finding needs an individual human decision.</span>
             </>
           )}
           empty={<EmptyState icon={ShieldAlert} title="No findings match" description="Adjust filters, or run a demo simulation from the Scan Center." action={<Button size="sm" variant="outline" asChild><Link to="/scans/new">Configure demo scan</Link></Button>} />}
@@ -252,7 +252,7 @@ export default function FindingsPage() {
                   <KeyValue label="Evidence">{evidenceCount[preview.id]?.total ?? 0} item(s)</KeyValue>
                 </dl>
                 <KeyValue label="Potential impact"><span className="text-xs text-foreground/85">{preview.impact}</span></KeyValue>
-                {preview.dataOrigin === "simulated" && <ToneBadge tone="warning">SIMULATED — not real evidence</ToneBadge>}
+                {preview.dataOrigin === "simulated" && <ToneBadge tone="warning">SIMULATED, not real evidence</ToneBadge>}
               </SheetBody>
               <SheetFooter>
                 <Button variant="outline" onClick={() => setPreview(null)}>Close</Button>

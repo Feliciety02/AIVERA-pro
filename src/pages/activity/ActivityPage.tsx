@@ -91,7 +91,7 @@ export default function ActivityPage() {
           </Button>
         }
       />
-      <Callout tone="warning" icon={ShieldAlert} title="Demonstration log — not a secure audit trail">
+      <Callout tone="warning" icon={ShieldAlert} title="Demonstration log, not a secure audit trail">
         These entries live in your browser's localStorage and can be edited, cleared, or reset by anyone with access to it. A tamper-evident, append-only audit log will be implemented server-side by the backend.
       </Callout>
       <Card>

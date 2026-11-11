@@ -112,7 +112,7 @@ export default function UsersPage() {
     { accessorKey: "email", header: "Email", cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{getValue() as string}</span> },
     { accessorKey: "role", header: "Role", cell: ({ row }) => <ToneBadge tone={ROLE_META[row.original.role].tone}>{ROLE_META[row.original.role].label}</ToneBadge> },
     { accessorKey: "status", header: "Account Status", cell: ({ row }) => <ToneBadge tone={STATUS_TONE[row.original.status]} dot>{row.original.status}</ToneBadge> },
-    { id: "projects", header: "Assigned Projects", accessorFn: (u) => u.assignedProjectIds.length, cell: ({ row }) => <span className="text-xs">{row.original.assignedProjectIds.map((id) => lookups.projects[id]?.code).filter(Boolean).join(", ") || "—"}</span> },
+    { id: "projects", header: "Assigned Projects", accessorFn: (u) => u.assignedProjectIds.length, cell: ({ row }) => <span className="text-xs">{row.original.assignedProjectIds.map((id) => lookups.projects[id]?.code).filter(Boolean).join(", ") || "N/A"}</span> },
     { id: "activity", header: "Activity", accessorFn: (u) => activity.filter((a) => a.userId === u.id).length, cell: ({ getValue }) => <span className="text-xs tabular-nums">{getValue() as number} actions</span> },
     { accessorKey: "lastActiveAt", header: "Last active", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(getValue() as string)}</span> },
   ];
@@ -124,7 +124,7 @@ export default function UsersPage() {
     <ContentContainer wide>
       <PageHeader title="User Management" description="Manage demo accounts, roles and project assignments." />
       <Callout tone="warning" icon={ShieldAlert} title="Frontend demonstration only">
-        Roles, route guards and permissions here are enforced only in the browser and stored in localStorage. They do not provide real authentication or authorization — the backend will enforce access control on every request.
+        Roles, route guards and permissions here are enforced only in the browser and stored in localStorage. They do not provide real authentication or authorization, the backend will enforce access control on every request.
       </Callout>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat label="Users" value={users.length} />
