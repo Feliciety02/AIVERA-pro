@@ -24,6 +24,46 @@ npm run typecheck  # type-check only
 Open the app, pick a demo persona on `/login` (no password), and you're in.
 To start over, use **Settings → General → Reset demo data**.
 
+### Full stack (backend + database)
+
+The backend is Node.js + Express 5 + Prisma. Local development uses SQLite (no install needed).
+
+```bash
+npm install                                # also generates the Prisma client
+copy server\.env.example server\.env       # Windows (use cp on macOS/Linux)
+npm run db:setup                           # create tables + load the demo dataset
+npm run dev:full                           # API on :4000 + web app (API mode) on :5173
+```
+
+Sign in with a seeded account (e.g. `jordan.kim@aegis-demo.example`) using the password set as
+`SEED_DEMO_PASSWORD` in `server/.env`. Change it before any shared deployment.
+
+| Script | What it does |
+|---|---|
+| `npm run server:dev` | API with auto-reload (`http://localhost:4000/api`) |
+| `npm run dev:api` | Web app in API mode (proxies `/api` to the server) |
+| `npm run db:push` / `db:seed` | Sync schema / reload demo data |
+| `npm run build:api` then `NODE_ENV=production npm run server:start` | Single-origin production deployment (Express serves `dist/`) |
+
+**Real AI (Google Gemini):** create a key at https://aistudio.google.com/apikey, then in `server/.env` set
+`GEMINI_API_KEY=...` (and optionally `GEMINI_MODEL`, default `gemini-3.6-flash`) and restart the server. All six AI
+modes then run on Gemini through the server (`server/src/ai/gemini.ts`, official `@google/genai` SDK):
+evidence is redacted first (`server/src/ai/redact.ts`), output is forced into a JSON schema and validated, each
+analysis stores the model name and the exact redacted text sent (shown under "Data sent to the AI model"), and
+results never change a finding's verification status. Without a key the server uses the labelled demo samples.
+Free-tier note: Google states free-tier content may be used to improve its products — use test/synthetic data only.
+
+**Switching to MySQL:** in `server/prisma/schema.prisma` set `provider = "mysql"`, set `DATABASE_URL` in
+`server/.env` to a MySQL URL, then run `npm run db:setup`.
+
+**What the backend enforces (not just the UI):** bcrypt-hashed passwords, hashed session tokens in httpOnly
+cookies, login throttling, role permissions on every write, target authorization + scope re-checked on every
+import/simulation, verification rules (notes, reason, evidence attestation), remediation rules (passed retest +
+approval before *Resolved*), and an append-only activity log. The server never contacts assessment targets.
+
+> Keep `node_modules` out of OneDrive sync (or move the project outside OneDrive). OneDrive file locks can
+> corrupt installs (`ENOTEMPTY` errors).
+
 ---
 
 ## Tech stack
