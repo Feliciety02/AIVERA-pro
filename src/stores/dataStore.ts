@@ -50,6 +50,7 @@ import { defaultRiskInputs } from "@/lib/risk";
 import { generateSimulation } from "@/features/simulation/generator";
 import type { ParseResult } from "@/features/imports/parsers";
 import { buildImport, type ImportBundle } from "@/features/imports/buildImport";
+import { awaitsReview, uniqueFindings } from "@/features/scanLifecycle";
 import { useSessionStore } from "./sessionStore";
 import { DATA_MODE } from "@/services/api/contracts";
 
@@ -103,6 +104,7 @@ export interface DataActions {
   createTarget: (input: TargetInput) => Target;
   updateTarget: (id: ID, patch: Partial<TargetInput>) => void;
   updateScope: (id: ID, scope: TargetScope) => void;
+  deleteTarget: (id: ID) => void;
   // scans
   createSimulatedScan: (input: ScanInput) => Scan;
   setScanProgress: (id: ID, progress: number, stage: string) => void;
@@ -292,6 +294,34 @@ export const useDataStore = create<DataStore>()(
         const t = get().targets.find((x) => x.id === id);
         if (t) get().log("scope_updated", "target", id, t.name, `Updated scope: ${scope.inScopeHosts.length} host(s), ${scope.excludedPaths.length} exclusion(s)`);
       },
+      deleteTarget: (id) => {
+        const s = get();
+        const target = s.targets.find((t) => t.id === id);
+        if (!target) return;
+        if (s.scans.some((scan) => scan.targetId === id && ["queued", "running", "paused"].includes(scan.status))) throw new Error("Wait for the active scan to finish before deleting this target.");
+        const scanIds = new Set(s.scans.filter((scan) => scan.targetId === id).map((scan) => scan.id));
+        const findingIds = new Set(s.findings.filter((finding) => finding.targetId === id).map((finding) => finding.id));
+        const hostIds = new Set(s.hosts.filter((host) => host.targetId === id).map((host) => host.id));
+        set((state) => ({
+          targets: state.targets.filter((item) => item.id !== id),
+          scans: state.scans.filter((item) => item.targetId !== id),
+          scanResults: state.scanResults.filter((item) => !scanIds.has(item.scanId)),
+          findings: state.findings.filter((item) => item.targetId !== id),
+          evidence: state.evidence.filter((item) => !findingIds.has(item.findingId)),
+          verifications: state.verifications.filter((item) => !findingIds.has(item.findingId)),
+          aiAnalyses: state.aiAnalyses.filter((item) => item.targetId !== id && !findingIds.has(item.findingId ?? "") && !scanIds.has(item.scanId ?? "")),
+          risks: state.risks.filter((item) => !findingIds.has(item.findingId)),
+          remediation: state.remediation.filter((item) => !findingIds.has(item.findingId)),
+          hosts: state.hosts.filter((item) => item.targetId !== id),
+          ports: state.ports.filter((item) => !hostIds.has(item.hostId)),
+          dnsRecords: state.dnsRecords.filter((item) => item.targetId !== id),
+          endpoints: state.endpoints.filter((item) => item.targetId !== id),
+          reconRuns: state.reconRuns.filter((item) => item.targetId !== id),
+          notifications: state.notifications.filter((item) => item.link !== `/targets/${id}` && !scanIds.has(item.link?.split("/scans/")[1] ?? "") && !findingIds.has(item.link?.split("/findings/")[1] ?? "")),
+          reports: state.reports.filter((report) => report.targetIds.some((targetId) => targetId !== id)).map((report) => ({ ...report, targetIds: report.targetIds.filter((targetId) => targetId !== id), findingIds: report.findingIds.filter((findingId) => !findingIds.has(findingId)) })),
+        }));
+        get().log("target_updated", "target", id, target.name, `Deleted target ${target.name} and its assessment records`);
+      },
 
       pauseScan: (id) => {
         set((s) => ({ scans: s.scans.map((sc) => (sc.id === id && sc.status === "running" ? { ...sc, status: "paused", stage: `Paused at ${sc.progress}%` } : sc)) }));
@@ -332,6 +362,8 @@ export const useDataStore = create<DataStore>()(
 
       /* -------------------------------- Scans ------------------------------- */
       createSimulatedScan: (input) => {
+        if (get().scans.some((scan) => scan.targetId === input.targetId && ["queued", "running", "paused"].includes(scan.status))) throw new Error("A scan is already in progress for this target.");
+        if (get().findings.some((finding) => finding.targetId === input.targetId && awaitsReview(finding))) throw new Error("Finish reviewing this target's pending findings before scanning again.");
         const now = nowISO();
         const scan: Scan = {
           ...input,
@@ -357,13 +389,15 @@ export const useDataStore = create<DataStore>()(
         const target = scan && state.targets.find((t) => t.id === scan.targetId);
         if (!scan || !target || scan.status !== "running") return 0;
         const now = nowISO();
-        const startIndex = state.findings.length + 1;
+        const startIndex = Number(nextCode("FND", state.findings.map((finding) => finding.code)).slice(4));
         const project = state.projects.find((p) => p.id === scan.projectId);
         const out = generateSimulation(scan, target, startIndex, project?.ownerId ?? currentUser(), now);
+        const novel = uniqueFindings(out.findings, state.findings.filter((finding) => finding.targetId === target.id));
+        const novelIds = new Set(novel.map((finding) => finding.id));
         set((s) => ({
           scans: s.scans.map((sc) => (sc.id === id ? { ...sc, status: "completed", progress: 100, stage: "Simulation complete", completedAt: now } : sc)),
-          findings: [...out.findings, ...s.findings],
-          evidence: [...out.evidence, ...s.evidence],
+          findings: [...novel, ...s.findings],
+          evidence: [...out.evidence.filter((item) => novelIds.has(item.findingId)), ...s.evidence],
           scanResults: [...out.results, ...s.scanResults],
           hosts: [...out.hosts, ...s.hosts],
           ports: [...out.ports, ...s.ports],
@@ -374,10 +408,10 @@ export const useDataStore = create<DataStore>()(
             : s.reconRuns,
           integrations: s.integrations.map((i) => (scan.config.tools.includes(i.id as never) ? { ...i, lastUsedAt: now } : i)),
         }));
-        get().log("demo_scan_completed", "scan", id, scan.code, `Demo simulation produced ${out.findings.length} SIMULATED finding(s) awaiting human verification`);
+        get().log("demo_scan_completed", "scan", id, scan.code, `Demo simulation produced ${novel.length} new finding(s), ${out.findings.length - novel.length} previously recorded`);
         if (get().settings.notifications.scanEvents)
-          get().pushNotification({ title: "Demo simulation finished", message: `${scan.code}: ${out.findings.length} simulated findings require verification.`, tone: "info", link: `/scans/${id}` });
-        return out.findings.length;
+          get().pushNotification({ title: "Demo simulation finished", message: `${scan.code}: ${novel.length} new findings require verification.`, tone: "info", link: `/scans/${id}` });
+        return novel.length;
       },
       cancelScan: (id) => {
         set((s) => ({ scans: s.scans.map((sc) => (sc.id === id && (sc.status === "running" || sc.status === "queued" || sc.status === "paused") ? { ...sc, status: "cancelled", stage: "Cancelled by user", completedAt: nowISO() } : sc)) }));
@@ -425,19 +459,25 @@ export const useDataStore = create<DataStore>()(
         const state = get();
         const target = state.targets.find((t) => t.id === targetId);
         if (!target || !target.projectId || target.authorizationStatus !== "authorized" || !target.authorizationConfirmed) return null;
+        if (state.scans.some((scan) => scan.targetId === targetId && ["queued", "running", "paused"].includes(scan.status))) throw new Error("A scan is already in progress for this target.");
+        if (state.findings.some((finding) => finding.targetId === targetId && awaitsReview(finding))) throw new Error("Finish reviewing this target's pending findings before importing another scan.");
         const project = state.projects.find((p) => p.id === target.projectId);
         const scanId = createId("scn");
         const now = nowISO();
         const bundle = buildImport(parsed, { ...target, projectId: target.projectId }, {
           scanId,
           scanCode: nextCode("SCN", state.scans.map((s) => s.code)),
-          findingStartIndex: state.findings.length + 1,
+          findingStartIndex: Number(nextCode("FND", state.findings.map((finding) => finding.code)).slice(4)),
           createdBy: currentUser(),
           assessorId: project?.ownerId ?? currentUser(),
           now,
           raw,
           fileName,
         });
+        const novel = uniqueFindings(bundle.findings, state.findings.filter((finding) => finding.targetId === targetId));
+        const novelIds = new Set(novel.map((finding) => finding.id));
+        bundle.findings = novel;
+        bundle.evidence = bundle.evidence.filter((item) => novelIds.has(item.findingId));
         set((s) => ({
           scans: [bundle.scan, ...s.scans],
           scanResults: [bundle.result, ...s.scanResults],
@@ -464,7 +504,7 @@ export const useDataStore = create<DataStore>()(
         const id = createId("fnd");
         const finding: VulnerabilityFinding = {
           id,
-          code: `FND-${String(state.findings.length + 1).padStart(4, "0")}`,
+          code: nextCode("FND", state.findings.map((finding) => finding.code)),
           title: input.title,
           description: input.description,
           projectId,

@@ -28,7 +28,22 @@ export function urlHostInScope(url: string, inScopeHosts: string[]): boolean {
   return inScopeHosts.some((raw) => {
     const entry = norm(raw);
     if (entry.startsWith("*.")) return host.endsWith(entry.slice(1));
-    const [h, p] = entry.split(":");
+    const match = /^(\[[^\]]+\]|[^:]+)(?::(\d+))?$/.exec(entry);
+    if (!match) return false;
+    const [, h, p] = match;
     return h === host && (!p || p === port);
+  });
+}
+
+/** Ports Nmap may probe for this target. A scoped host:port never authorizes other ports. */
+export function nmapPortsInScope(url: string, inScopeHosts: string[]): number[] {
+  const u = new URL(url);
+  const targetPort = Number(u.port || (u.protocol === "https:" ? "443" : "80"));
+  const candidatePorts = [...new Set([80, 443, targetPort])];
+  return candidatePorts.filter((port) => {
+    const candidate = new URL(u.href);
+    candidate.port = String(port);
+    // URL normalizes default ports to an empty string; urlHostInScope restores them.
+    return urlHostInScope(candidate.href, inScopeHosts);
   });
 }

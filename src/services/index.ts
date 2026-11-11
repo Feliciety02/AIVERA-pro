@@ -102,6 +102,11 @@ export const targetService = {
     await delay(LATENCY);
     store().updateScope(id, scope);
   },
+  async delete(id: ID) {
+    if (IS_API) return void (await mutate(`/targets/${id}`, undefined, "DELETE"));
+    await delay(LATENCY);
+    store().deleteTarget(id);
+  },
 };
 
 export const scanService = {
@@ -197,6 +202,11 @@ export const verificationService = {
 };
 
 export const findingService = {
+  async resolveAlias(id: ID): Promise<ID | null> {
+    if (!IS_API) return null;
+    const response = await api<{ canonicalId: ID }>(`/findings/${id}/alias`, { silent: true }).catch(() => null);
+    return response?.canonicalId ?? null;
+  },
   async assign(ids: ID[], assessorId: ID) {
     if (IS_API) return void (await mutate("/findings/assign", { ids, assessorId }));
     await delay(LATENCY);
