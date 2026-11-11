@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { useNavigate } from "react-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,7 +46,7 @@ export interface ManualFindingDefaults {
 export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: boolean; onOpenChange: (o: boolean) => void; defaults?: ManualFindingDefaults }) {
   const navigate = useNavigate();
   const allTargets = useDataStore((s) => s.targets);
-  const targets = allTargets.filter((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed && (!defaults?.projectId || t.projectId === defaults.projectId));
+  const targets = allTargets.filter((t) => !!t.projectId && t.authorizationStatus === "authorized" && t.authorizationConfirmed && (!defaults?.projectId || t.projectId === defaults.projectId));
   const firstTarget = defaults?.targetId ?? (targets.length === 1 ? targets[0]!.id : "");
   const {
     register,
@@ -95,6 +97,7 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
           <DialogTitle className="flex items-center gap-2"><Hand className="size-4" /> Record manual finding</DialogTitle>
           <DialogDescription>Document an issue you observed during manual testing within the authorized scope.</DialogDescription>
         </DialogHeader>
+        <DialogGuide guideKey="manualFinding" steps={DIALOG_GUIDES.manualFinding} />
         <Callout>Recording a finding does not confirm it. It enters the verification queue as <strong>Pending Verification</strong>; confirming is a separate, explicit decision.</Callout>
         <form id="manual-finding" onSubmit={handleSubmit(submit)} className="grid gap-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import { Ban, CircleCheck, FileUp, Globe, Loader2, Pencil, Radar, ScanLine, ShieldCheck, ShieldOff, ShieldAlert, SlidersHorizontal } from "lucide-react";
@@ -7,6 +9,7 @@ import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Hint } from "@/components/ui/misc";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SectionCard, KeyValue, Callout, MiniStat, UserChip } from "@/components/shared/display";
 import { NotFoundState, EmptyState } from "@/components/shared/states";
@@ -47,7 +50,7 @@ export default function TargetDetailPage() {
   const findings = all.findings.filter((f) => f.targetId === target.id);
   const scans = all.scans.filter((s) => s.targetId === target.id);
   const outCats = CATEGORIES.filter((c) => !target.scope.allowedCategories.includes(c.id));
-  const assessable = target.authorizationStatus === "authorized" && target.authorizationConfirmed;
+  const assessable = !!target.projectId && target.authorizationStatus === "authorized" && target.authorizationConfirmed;
 
   const saveScope = async () => {
     if (!draft) return;
@@ -67,9 +70,13 @@ export default function TargetDetailPage() {
       <PageHeader
         eyebrow={
           <>
-            <Link to={`/projects/${target.projectId}`} className="font-mono hover:text-foreground">
-              {lookups.projects[target.projectId]?.code}
-            </Link>
+            {target.projectId ? (
+              <Link to={`/projects/${target.projectId}`} className="font-mono hover:text-foreground">
+                {lookups.projects[target.projectId]?.code}
+              </Link>
+            ) : (
+              <span>No project</span>
+            )}
             <span>·</span>
             <span>{ASSET_TYPES[target.assetType]}</span>
           </>
@@ -120,7 +127,9 @@ export default function TargetDetailPage() {
         }
       />
 
-      {!assessable && (
+      {!target.projectId && <AddToProject targetId={target.id} canManage={canManage} />}
+
+      {target.projectId && !assessable && (
         <Callout tone="danger" icon={ShieldAlert} title="This target cannot be assessed">
           Authorization is {AUTHORIZATION_STATUS[target.authorizationStatus].label.toLowerCase()}
           {!target.authorizationConfirmed && " and has not been confirmed by an assessor"}. Scans, simulations and testing are blocked until authorization is documented and confirmed.
@@ -276,6 +285,7 @@ export default function TargetDetailPage() {
             <DialogTitle>Edit scope — {target.name}</DialogTitle>
             <DialogDescription>Changes are recorded in the demo activity log. The backend will independently enforce scope for future real scans.</DialogDescription>
           </DialogHeader>
+          <DialogGuide guideKey="scopeEdit" steps={DIALOG_GUIDES.scopeEdit} />
           {draft && <ScopeEditor value={draft} onChange={setDraft} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setScopeOpen(false)}>
@@ -294,6 +304,7 @@ export default function TargetDetailPage() {
             <DialogTitle>Record authorization</DialogTitle>
             <DialogDescription>Only do this once you hold written authorization ({target.authorizationReference}) from the system owner.</DialogDescription>
           </DialogHeader>
+          <DialogGuide guideKey="recordAuthorization" steps={DIALOG_GUIDES.recordAuthorization} />
           <div className="flex items-start gap-3 rounded-lg border border-border p-3">
             <Checkbox id="auth-confirm" checked={authChecked} onCheckedChange={(v) => setAuthChecked(v === true)} className="mt-0.5" />
             <Label htmlFor="auth-confirm" className="text-sm leading-snug">
@@ -319,5 +330,48 @@ export default function TargetDetailPage() {
       </Dialog>
       <ToolImportDialog open={importOpen} onOpenChange={setImportOpen} defaultTargetId={target.id} />
     </ContentContainer>
+  );
+}
+
+/** Shown for targets registered without a project: testing needs one. */
+function AddToProject({ targetId, canManage }: { targetId: string; canManage: boolean }) {
+  const projects = useDataStore((s) => s.projects).filter((p) => p.status !== "archived");
+  const [projectId, setProjectId] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <Callout tone="info" title="Not in a project yet">
+      <p>This target is saved, but scans, imports and findings need a project so results are grouped and reported together. Add it to a project when you are ready to test.</p>
+      {canManage && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Select value={projectId} onValueChange={setProjectId}>
+            <SelectTrigger className="h-8 w-64 bg-background" aria-label="Project to add this target to">
+              <SelectValue placeholder="Choose a project" />
+            </SelectTrigger>
+            <SelectContent>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.code} — {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            disabled={!projectId || busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await targetService.update(targetId, { projectId });
+                toast.success("Added to project");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Add to project
+          </Button>
+        </div>
+      )}
+    </Callout>
   );
 }

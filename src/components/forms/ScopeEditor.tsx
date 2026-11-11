@@ -28,7 +28,7 @@ export function ScopeEditor({ value, onChange, errors }: { value: TargetScope; o
           <TagListEditor id="scope-excluded" values={value.excludedPaths} onChange={(v) => set("excludedPaths", v)} placeholder="/api/payments/*" validate={validatePath} tone="danger" />
         </Field>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2" data-guide="scope-categories">
         <p className="text-xs font-medium">
           Allowed assessment categories<span className="text-destructive">*</span>
         </p>

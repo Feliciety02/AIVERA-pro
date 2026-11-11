@@ -5,7 +5,7 @@
  *
  * All created findings start as "pending" — importing never verifies anything.
  */
-import type { Endpoint, Evidence, Host, Port, Scan, ScanResult, ScanTool, Target, VulnerabilityFinding } from "@/types";
+import type { Endpoint, Evidence, Host, Port, ProjectTarget, Scan, ScanResult, ScanTool, VulnerabilityFinding } from "@/types";
 import { CATEGORY_BY_ID } from "@/lib/constants";
 import { hostInScope, RISKY_SERVICES, urlScopeVerdict, type ParseResult } from "./parsers";
 
@@ -33,7 +33,7 @@ export interface ImportOptions {
 
 const RAW_LIMIT = 20_000;
 
-export function buildImport(parsed: ParseResult, target: Target, o: ImportOptions): ImportBundle {
+export function buildImport(parsed: ParseResult, target: ProjectTarget, o: ImportOptions): ImportBundle {
   const tool: ScanTool = parsed.format === "nmap_xml" ? "nmap" : "owasp_zap";
   const skipped: string[] = [];
   const hosts: Host[] = [];

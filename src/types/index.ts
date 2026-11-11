@@ -78,7 +78,8 @@ export interface TargetScope {
 
 export interface Target {
   id: ID;
-  projectId: ID;
+  /** Optional: a target can be registered before it is added to a project. Testing needs a project. */
+  projectId?: ID;
   name: string;
   /** Stored as metadata only. The frontend never connects to this URL. */
   url: string;
@@ -97,6 +98,34 @@ export interface Target {
   updatedAt: ISODate;
   dataOrigin: DataOrigin;
 }
+
+/** One scope entry suggested by automatic detection, with where it came from. */
+export interface ScopeSuggestion {
+  value: string;
+  /** e.g. "Web address", "robots.txt", "sitemap.xml" — always a real, checkable source. */
+  source: string;
+  note?: string;
+}
+
+/** Result of automatic scope detection. Every value comes from the address or the site's own public files. */
+export interface ScopeDetection {
+  url: string;
+  host: string;
+  checkedAt: ISODate;
+  /** "address" = parsed from the URL only (demo mode); "server" = DNS + robots.txt + sitemap checked by the AEGIS server. */
+  mode: "address" | "server";
+  dns?: { status: "resolved" | "not_found" | "skipped" | "blocked"; addresses: string[]; message?: string };
+  robots?: { status: "found" | "not_found" | "error" | "skipped"; url: string; message?: string; unsupportedRules: string[] };
+  sitemap?: { status: "found" | "not_found" | "error" | "skipped"; url: string; message?: string; urlCount: number; sections: string[] };
+  inScopeHosts: ScopeSuggestion[];
+  allowedPaths: ScopeSuggestion[];
+  excludedPaths: ScopeSuggestion[];
+  /** Environment guessed from words in the host name (staging, dev, qa, test, lab). */
+  environmentHint?: TargetEnvironment;
+}
+
+/** A target that belongs to a project — required for scans, imports and findings. */
+export type ProjectTarget = Target & { projectId: ID };
 
 /* ------------------------------ Assessments ------------------------------ */
 export type AssessmentStatus = "not_started" | "in_progress" | "completed" | "blocked";
@@ -435,6 +464,7 @@ export type ActivityType =
   | "project_archived"
   | "project_restored"
   | "target_registered"
+  | "scope_detected"
   | "target_updated"
   | "scope_updated"
   | "demo_scan_started"

@@ -8,7 +8,8 @@
  *
  * In neither mode does the browser contact a target, run a scanner or call a model.
  */
-import type { AIAnalysis, ApplicationSettings, ID, Project, RemediationStatus, RemediationTask, Report, Scan, Target, TargetScope, User, VerificationStatus } from "@/types";
+import type { AIAnalysis, ApplicationSettings, ID, Project, RemediationStatus, RemediationTask, Report, Scan, ScopeDetection, Target, TargetScope, User, VerificationStatus } from "@/types";
+import { detectFromAddress } from "@/features/scopeDetection";
 import { useDataStore, type DataActions, type ManualFindingInput } from "@/stores/dataStore";
 import { parseToolOutput, type ImportFormat, type ParseResult } from "@/features/imports/parsers";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -70,6 +71,16 @@ export const projectService = {
 };
 
 export const targetService = {
+  /**
+   * Suggests scope from real sources. API mode: the AEGIS server looks up DNS and reads the
+   * site's robots.txt and sitemap.xml (after permission is confirmed). Demo mode: parsed from
+   * the address only — the browser never contacts the target.
+   */
+  async detectScope(url: string): Promise<ScopeDetection> {
+    if (IS_API) return api<ScopeDetection>("/targets/detect-scope", { body: { url, authorizationConfirmed: true } });
+    await delay(LATENCY);
+    return detectFromAddress(url);
+  },
   /** Saves metadata only. The URL is validated syntactically and never contacted. */
   async register(input: Args<"createTarget">[0]): Promise<Target> {
     if (IS_API) return mutate<Target>("/targets", input);

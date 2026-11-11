@@ -181,6 +181,13 @@ export function createSeedState(): DataState {
   });
 }
 
+/** Next AUTH-YYYY-NNNN authorization record number. */
+export function nextAuthReference(existing: string[]): string {
+  const prefix = `AUTH-${new Date().getFullYear()}-`;
+  const max = existing.reduce((m, r) => (r.startsWith(prefix) ? Math.max(m, Number(r.slice(prefix.length)) || 0) : m), 0);
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+}
+
 function nextCode(prefix: string, codes: string[], pad = 4): string {
   const max = codes.reduce((m, c) => {
     const n = Number.parseInt(c.split("-").pop() ?? "0", 10);
@@ -245,6 +252,8 @@ export const useDataStore = create<DataStore>()(
         const now = nowISO();
         const target: Target = {
           ...input,
+          projectId: input.projectId || undefined,
+          authorizationReference: input.authorizationReference || nextAuthReference(get().targets.map((t) => t.authorizationReference)),
           id: createId("tgt"),
           authorizationConfirmedBy: input.authorizationConfirmed ? currentUser() : undefined,
           authorizationConfirmedAt: input.authorizationConfirmed ? now : undefined,
@@ -253,7 +262,7 @@ export const useDataStore = create<DataStore>()(
           dataOrigin: "user_created",
         };
         set((s) => ({ targets: [target, ...s.targets] }));
-        get().log("target_registered", "target", target.id, target.name, `Registered target ${target.name} (metadata only — no connection made)`);
+        get().log("target_registered", "target", target.id, target.name, `Registered target ${target.name} (details saved — no scan started)`);
         return target;
       },
       updateTarget: (id, patch) => {
@@ -373,11 +382,11 @@ export const useDataStore = create<DataStore>()(
       importToolOutput: ({ parsed, targetId, raw, fileName }) => {
         const state = get();
         const target = state.targets.find((t) => t.id === targetId);
-        if (!target || target.authorizationStatus !== "authorized" || !target.authorizationConfirmed) return null;
+        if (!target || !target.projectId || target.authorizationStatus !== "authorized" || !target.authorizationConfirmed) return null;
         const project = state.projects.find((p) => p.id === target.projectId);
         const scanId = createId("scn");
         const now = nowISO();
-        const bundle = buildImport(parsed, target, {
+        const bundle = buildImport(parsed, { ...target, projectId: target.projectId }, {
           scanId,
           scanCode: nextCode("SCN", state.scans.map((s) => s.code)),
           findingStartIndex: state.findings.length + 1,
@@ -407,6 +416,8 @@ export const useDataStore = create<DataStore>()(
       createManualFinding: (input) => {
         const state = get();
         const target = state.targets.find((t) => t.id === input.targetId)!;
+        if (!target.projectId) throw new Error("Add this target to a project before recording findings.");
+        const projectId = target.projectId;
         const now = nowISO();
         const id = createId("fnd");
         const finding: VulnerabilityFinding = {
@@ -414,7 +425,7 @@ export const useDataStore = create<DataStore>()(
           code: `FND-${String(state.findings.length + 1).padStart(4, "0")}`,
           title: input.title,
           description: input.description,
-          projectId: target.projectId,
+          projectId,
           targetId: target.id,
           category: input.category,
           severity: input.severity,

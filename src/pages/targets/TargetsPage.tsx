@@ -53,7 +53,7 @@ export default function TargetsPage() {
           </div>
         ),
       },
-      { id: "project", header: "Project", accessorFn: (t) => lookups.projects[t.projectId]?.code ?? "", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
+      { id: "project", header: "Project", accessorFn: (t) => (t.projectId && lookups.projects[t.projectId]?.code) || "—", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
       { accessorKey: "assetType", header: "Asset type", cell: ({ row }) => <span className="text-xs">{ASSET_TYPES[row.original.assetType]}</span> },
       { accessorKey: "environment", header: "Environment", cell: ({ row }) => <span className="text-xs">{ENVIRONMENTS[row.original.environment]}</span> },
       { accessorKey: "authorizationStatus", header: "Authorization", cell: ({ row }) => <StatusBadge status={row.original.authorizationStatus} map={AUTHORIZATION_STATUS} /> },
@@ -83,7 +83,7 @@ export default function TargetsPage() {
         }
       />
       <Callout tone="warning" icon={ShieldAlert} title="Authorized targets only">
-        Only systems with documented, written authorization may be registered and tested. Target records are metadata — this frontend never connects to, scans, or crawls a registered URL.
+        Only websites with written permission from their owner may be registered and tested. Registering saves the details. The only contact with the website is the optional “Detect scope” check (DNS, robots.txt and sitemap.xml), done by the AEGIS server after you confirm permission — no crawling or scanning.
       </Callout>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat label="Registered" value={targets.length} />

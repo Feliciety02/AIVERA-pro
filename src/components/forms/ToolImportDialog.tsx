@@ -1,4 +1,6 @@
 import * as React from "react";
+import { DIALOG_GUIDES } from "@/features/dialogGuides";
+import { DialogGuide } from "@/components/shared/DialogGuide";
 import { useNavigate } from "react-router";
 import { FileCode2, FileUp, FlaskConical, Loader2, Network, ScanSearch, ShieldCheck, ShieldOff, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -25,7 +27,7 @@ interface Preview {
 export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open: boolean; onOpenChange: (o: boolean) => void; defaultTargetId?: string }) {
   const navigate = useNavigate();
   const targets = useDataStore((s) => s.targets);
-  const eligible = targets.filter((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed);
+  const eligible = targets.filter((t) => !!t.projectId && t.authorizationStatus === "authorized" && t.authorizationConfirmed);
   const [targetId, setTargetId] = React.useState(defaultTargetId ?? "");
   const [format, setFormat] = React.useState<ImportFormat>("nmap_xml");
   const [text, setText] = React.useState("");
@@ -88,7 +90,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
     if (!text.trim()) return setError("Choose a file, paste report content, or load the synthetic sample.");
     try {
       const parsed = importService.parse(format, text);
-      const bundle = buildImport(parsed, target, { scanId: "preview", scanCode: "SCN-PREVIEW", findingStartIndex: 1, createdBy: "", assessorId: "", now: nowISO(), raw: text, fileName });
+      const bundle = buildImport(parsed, { ...target, projectId: target.projectId ?? "" }, { scanId: "preview", scanCode: "SCN-PREVIEW", findingStartIndex: 1, createdBy: "", assessorId: "", now: nowISO(), raw: text, fileName });
       setPreview({ parsed, bundle });
     } catch (e) {
       setPreview(null);
@@ -120,6 +122,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
           <DialogTitle className="flex items-center gap-2"><FileUp className="size-4" /> Import tool output</DialogTitle>
           <DialogDescription>Bring in an Nmap XML or OWASP ZAP JSON report produced during an authorized engagement. Parsed entirely in your browser.</DialogDescription>
         </DialogHeader>
+        <DialogGuide guideKey="toolImport" steps={DIALOG_GUIDES.toolImport} />
         <Callout tone="warning" title="AEGIS does not run these tools">
           Only import output from tools you ran against this target within its written authorization. The file is read locally — nothing is uploaded and no host in it is contacted. Entries outside the target's approved scope are skipped. Imported findings start as <strong>Pending Verification</strong>.
         </Callout>
@@ -131,7 +134,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
               <SelectContent>{eligible.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" data-guide="imp-format">
             <p className="text-xs font-medium">Report format</p>
             <div className="grid grid-cols-2 gap-2">
               <ChoiceCard checked={format === "nmap_xml"} onToggle={() => { setFormat("nmap_xml"); reset(); }} title="Nmap XML" icon={<Network className="mt-0.5 size-4 text-cyan" />} />
@@ -140,7 +143,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2" data-guide="imp-file">
           <div className="flex flex-wrap items-center gap-2">
             <input ref={fileRef} type="file" accept={format === "nmap_xml" ? ".xml,text/xml,application/xml" : ".json,application/json"} className="hidden" onChange={(e) => e.target.files?.[0] && void onFile(e.target.files[0])} />
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload /> Choose file…</Button>
@@ -189,7 +192,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
           {!preview ? (
-            <Button onClick={runPreview} disabled={!target || !text.trim()}>Parse & preview</Button>
+            <Button data-guide="imp-submit" onClick={runPreview} disabled={!target || !text.trim()}>Parse & preview</Button>
           ) : (
             <Button onClick={doImport} disabled={busy || (b!.hosts.length + b!.findings.length === 0)}>
               {busy && <Loader2 className="animate-spin" />} Import {b!.findings.length} finding(s)
