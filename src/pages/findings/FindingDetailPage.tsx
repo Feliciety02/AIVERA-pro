@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { Bot, CircleCheck, CircleX, Loader2, RotateCcw, ShieldQuestion, Sparkles, Wrench, TriangleAlert } from "lucide-react";
+import { ArrowRight, Bot, ChevronLeft, ChevronRight, CircleCheck, CircleX, Loader2, PartyPopper, RotateCcw, ShieldQuestion, Sparkles, Wrench, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,13 @@ export default function FindingDetailPage() {
   const [remOpen, setRemOpen] = React.useState(false);
   const [mode, setMode] = React.useState<AIMode>("vulnerability_explanation");
   const [generating, setGenerating] = React.useState(false);
+  const [justSaved, setJustSaved] = React.useState<VerificationStatus | null>(null);
+  const navigate = useNavigate();
+  const allFindings = useDataStore((s) => s.findings);
   const tab = params.get("tab") ?? "overview";
+
+  // A new finding starts without the "decision saved" banner.
+  React.useEffect(() => setJustSaved(null), [findingId]);
 
   React.useEffect(() => {
     if (window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
@@ -67,12 +73,23 @@ export default function FindingDetailPage() {
   const reviewedCount = evidence.filter((e) => e.reviewed).length;
   const cat = CATEGORY_BY_ID[finding.category];
 
+  // Review order: by finding code. "To review" = no final decision yet.
+  const ordered = [...allFindings].sort((a, b) => a.code.localeCompare(b.code));
+  const index = ordered.findIndex((f) => f.id === finding.id);
+  const prev = index > 0 ? ordered[index - 1] : undefined;
+  const next = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : undefined;
+  const isOpen = (f: { verificationStatus: VerificationStatus }) => f.verificationStatus === "pending" || f.verificationStatus === "needs_review";
+  const toReview = ordered.filter(isOpen);
+  // Next undecided finding after this one, wrapping around to the start.
+  const nextToReview = [...ordered.slice(index + 1), ...ordered.slice(0, Math.max(index, 0))].find((f) => f.id !== finding.id && isOpen(f));
+  const goTo = (id: string) => navigate(`/findings/${id}`);
+
   const generate = async () => {
     if (!project) return;
     setGenerating(true);
     try {
       await analysisService.analyze({ mode, project, finding, evidence });
-      toast.success("Sample AI analysis ready", { description: "Demo adapter — predefined sample, not a language model." });
+      toast.success("Sample AI analysis ready", { description: "Demo adapter, predefined sample, not a language model." });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -122,9 +139,43 @@ export default function FindingDetailPage() {
 
       <SectionCard
         title="Human verification"
-        description="The assessor — not the AI — decides whether this is a real vulnerability."
-        actions={<span className="hidden text-[11px] text-muted-foreground sm:inline">Evidence reviewed: {reviewedCount}/{evidence.length}</span>}
+        description={`The assessor, not the AI, decides whether this is a real vulnerability. Evidence reviewed: ${reviewedCount} of ${evidence.length}.`}
+        actions={
+          <div className="flex items-center gap-1" data-tour="finding-nav">
+            <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">
+              {index + 1} of {ordered.length} · <span className="font-medium text-foreground">{toReview.length} to review</span>
+            </span>
+            <Button size="icon-sm" variant="ghost" disabled={!prev} onClick={() => prev && goTo(prev.id)} aria-label={prev ? `Previous finding ${prev.code}` : "No previous finding"}>
+              <ChevronLeft />
+            </Button>
+            <Button size="sm" variant="outline" disabled={!next} onClick={() => next && goTo(next.id)} aria-label={next ? `Next finding ${next.code}` : "No next finding"}>
+              Next <ChevronRight />
+            </Button>
+          </div>
+        }
       >
+        {justSaved && (
+          <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-success/30 bg-success/8 px-4 py-3">
+            <CircleCheck className="size-5 shrink-0 text-success" aria-hidden />
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="font-medium">Saved: {finding.code} is now {VERIFICATION_STATUS[justSaved].label}.</p>
+              <p className="text-muted-foreground">
+                {nextToReview ? `${toReview.length} finding${toReview.length === 1 ? "" : "s"} still to review. Next: ${nextToReview.code}, ${nextToReview.title}.` : "Every finding now has a decision."}
+              </p>
+            </div>
+            {nextToReview ? (
+              <Button className="rounded-full" onClick={() => goTo(nextToReview.id)}>
+                Next to review <ArrowRight />
+              </Button>
+            ) : (
+              <Button className="rounded-full" asChild>
+                <Link to="/findings?status=confirmed">
+                  <PartyPopper /> Plan fixes for confirmed findings
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             {decisionButtons.map((b) =>
@@ -147,7 +198,7 @@ export default function FindingDetailPage() {
         </div>
         {finding.dataOrigin === "simulated" && (
           <p className="mt-3 flex items-center gap-1.5 text-[11px] text-sev-medium">
-            <TriangleAlert className="size-3.5" /> This finding was produced by a demo simulation. A decision here is a demonstration only — the record stays labelled SIMULATED.
+            <TriangleAlert className="size-3.5" /> This finding was produced by a demo simulation. A decision here is a demonstration only, the record stays labelled SIMULATED.
           </p>
         )}
       </SectionCard>
@@ -236,8 +287,8 @@ export default function FindingDetailPage() {
                     <dl className="mt-3 grid gap-3 sm:grid-cols-3">
                       <KeyValue label="Assessor"><UserChip user={lookups.users[v.assessorId]} /></KeyValue>
                       <KeyValue label="Evidence review">{v.evidenceReviewed ? "Evidence reviewed" : "Not recorded"}</KeyValue>
-                      <KeyValue label="Decision reason">{v.decisionReason || "—"}</KeyValue>
-                      <KeyValue label="Verification notes" className="sm:col-span-3"><span className="text-xs text-foreground/85">{v.notes || "—"}</span></KeyValue>
+                      <KeyValue label="Decision reason">{v.decisionReason || "N/A"}</KeyValue>
+                      <KeyValue label="Verification notes" className="sm:col-span-3"><span className="text-xs text-foreground/85">{v.notes || "N/A"}</span></KeyValue>
                     </dl>
                   </li>
                 ))}
@@ -289,7 +340,7 @@ export default function FindingDetailPage() {
         </TabsContent>
       </Tabs>
 
-      <VerificationDialog finding={finding} status={decision} open={!!decision} onOpenChange={(o) => !o && setDecision(null)} />
+      <VerificationDialog finding={finding} status={decision} open={!!decision} onOpenChange={(o) => !o && setDecision(null)} onSaved={setJustSaved} />
       <RemediationForm finding={finding} open={remOpen} onOpenChange={setRemOpen} />
     </ContentContainer>
   );
