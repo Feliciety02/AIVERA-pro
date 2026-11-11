@@ -49,14 +49,15 @@ export function ContentContainer({ children, className, wide }: { children: Reac
 
 export function PageHeader({ title, description, actions, eyebrow, meta }: { title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; eyebrow?: React.ReactNode; meta?: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-      <div className="min-w-0 space-y-1">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0 flex-1 space-y-1">
         {eyebrow && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{eyebrow}</div>}
         <h1 className="text-[22px] leading-8 font-normal text-balance">{title}</h1>
         {description && <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>}
         {meta && <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {/* Buttons wrap instead of pushing the page wider than the screen. */}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 lg:max-w-[65%] lg:justify-end">{actions}</div>}
     </div>
   );
 }

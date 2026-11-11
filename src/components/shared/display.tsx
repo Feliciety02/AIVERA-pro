@@ -79,7 +79,7 @@ export function Callout({ tone = "info", title, children, icon, className }: { t
     demo: "bg-muted [&>svg]:text-muted-foreground",
   }[tone];
   return (
-    <div role="note" className={cn("flex gap-3 rounded-lg px-4 py-3", toneClass, className)}>
+    <div role="note" className={cn("flex gap-3 rounded-xl px-4 py-3", toneClass, className)}>
       <Icon className="mt-0.5 size-[18px] shrink-0" aria-hidden />
       <div className="min-w-0 space-y-0.5 text-sm leading-relaxed">
         {title && <p className="font-medium text-foreground">{title}</p>}
@@ -91,7 +91,7 @@ export function Callout({ tone = "info", title, children, icon, className }: { t
 
 export function CodeBlock({ children, className, label }: { children: string; className?: string; label?: string }) {
   return (
-    <pre aria-label={label} className={cn("max-h-80 overflow-auto rounded-md bg-muted p-3 font-mono text-[11.5px] leading-relaxed text-foreground/90 whitespace-pre-wrap break-all", className)}>
+    <pre aria-label={label} className={cn("max-h-80 overflow-auto rounded-xl bg-muted p-3 font-mono text-[11.5px] leading-relaxed text-foreground/90 whitespace-pre-wrap break-all", className)}>
       {children}
     </pre>
   );
@@ -99,7 +99,7 @@ export function CodeBlock({ children, className, label }: { children: string; cl
 
 export function MiniStat({ label, value, tone, sub }: { label: string; value: React.ReactNode; tone?: string; sub?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
+    <div className="rounded-2xl border border-border bg-card px-4 py-3">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={cn("mt-1 text-2xl font-normal tabular-nums", tone?.includes("critical") ? tone : "text-foreground")}>{value}</p>
       {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}

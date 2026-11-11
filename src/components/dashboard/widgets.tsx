@@ -58,7 +58,7 @@ export function StatCard({
     </Card>
   );
   return to ? (
-    <Link to={to} className="block rounded-lg focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none">
+    <Link to={to} className="block rounded-2xl transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none">
       {body}
     </Link>
   ) : (

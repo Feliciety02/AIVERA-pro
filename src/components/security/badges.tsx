@@ -4,7 +4,7 @@ import { DATA_ORIGIN, SEVERITY_META, SOURCE_LABEL, TONE_CLASS, type StatusMeta, 
 import { Hint } from "@/components/ui/misc";
 import type { DataOrigin, FindingSource, Severity } from "@/types";
 
-const base = "inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium leading-4";
+const base = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium leading-4";
 
 /** Flat tinted chip. `dot` is accepted for API compatibility but not drawn (cleaner, Google-style chips). */
 export function ToneBadge({ tone, children, className }: { tone: Tone; children: React.ReactNode; className?: string; dot?: boolean }) {

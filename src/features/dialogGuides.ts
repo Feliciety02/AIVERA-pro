@@ -6,7 +6,7 @@ import type { GuideStep } from "@/components/shared/DialogGuide";
 
 export const DIALOG_GUIDES = {
   toolImport: [
-    { title: "Bring in real tool results", body: "Use this when you ran a security tool yourself (Nmap or OWASP ZAP) on a website you have permission to test. AEGIS reads the report file; it does not run the tool for you." },
+    { title: "Bring in real tool results", body: "Use this when you ran a security tool yourself (Nmap or OWASP ZAP) on a website you have permission to test. AIVERA reads the report file; it does not run the tool for you." },
     { target: "#imp-target", title: "1. Pick the website", body: "Only websites with confirmed permission that belong to a project are listed. The report is checked against this website's scope." },
     { target: "[data-guide=imp-format]", title: "2. Choose the report type", body: "Nmap XML lists computers, open ports and services. ZAP JSON lists web problems such as missing security headers or injection. Pick the one that matches your file." },
     { target: "[data-guide=imp-file]", title: "3. Add the report", body: "Click “Choose file…” to upload it, or paste its text in the box below. No report yet? “Load synthetic sample” fills in a practice report for this website." },
@@ -72,7 +72,7 @@ export const DIALOG_GUIDES = {
     { target: "#auth-confirm", title: "Tick to confirm", body: "By ticking, you take responsibility that permission exists for this website." },
   ],
   userEditor: [
-    { title: "Manage a user", body: "Choose what this person can do in AEGIS." },
+    { title: "Manage a user", body: "Choose what this person can do in AIVERA." },
     { target: "[aria-label=Role]", title: "Role", body: "Administrator: everything. Security assessor: plan, test, verify and report. Viewer: read dashboards and final reports only." },
     { target: "[aria-label='Account status']", title: "Account status", body: "Suspended users can't sign in. Invited users haven't signed in yet." },
     { target: "[data-guide=user-projects]", title: "Projects", body: "The assessments this person works on. They can be assigned findings and checklists in these projects." },

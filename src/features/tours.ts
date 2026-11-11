@@ -22,46 +22,23 @@ const card = (text: string, selector = "h3") => ({ text, selector, closest: "[da
 const btn = (text: string) => ({ text, selector: "button, a" });
 const tab = (text: string) => ({ text, selector: "[role=tab]" });
 const statGrid = (label: string) => ({ text: label, selector: "p", closest: ".grid" });
-const navGroup = (label: string) => ({ text: label, selector: 'nav[aria-label="Main navigation"] p', closest: "div" });
+const menuLink = (to: string) => `nav[aria-label="Main navigation"] a[href="${to}"]`;
 const TABS = "main [role=tablist]";
 const TABLE = "main table";
 const NOTE = "main [role=note]";
 
 export const WELCOME_TOUR: TourStep[] = [
   {
-    title: "Welcome to AEGIS AI",
-    body: "AEGIS runs an authorized web security assessment from start to finish: define what you are allowed to test, collect tool results, use AI to understand them, decide yourself which findings are real, track the fixes, and produce the final report. The AI only assists — it never confirms a vulnerability on its own.",
+    title: "Welcome to AIVERA",
+    body: "AIVERA helps you test a website you have permission to test, step by step: add the website, scan it, decide which findings are real, plan the fixes, and create a report. AI helps explain things, but you always make the final call.",
   },
-  {
-    target: navGroup("Overview"),
-    keepIfHidden: true,
-    title: "1 · Overview",
-    body: "Dashboard and Security Analytics summarise the whole assessment: how many findings exist, how severe they are, how many a person has confirmed, and how the fixing is going.",
-  },
-  {
-    target: navGroup("Security Operations"),
-    keepIfHidden: true,
-    title: "2 · Plan and collect",
-    body: "Work top to bottom: create a Project, register the Target you are allowed to test with its scope, review Reconnaissance (hosts, ports, pages), run or import scans in the Scan Center, and follow the category checklists in Vulnerability Assessment.",
-  },
-  {
-    target: navGroup("Intelligence"),
-    keepIfHidden: true,
-    title: "3 · Analyse and decide",
-    body: "The AI Security Analyst explains results and suggests fixes. In Findings & Evidence you review the proof and confirm or reject each finding. Risk Management then ranks the confirmed issues by likelihood × impact.",
-  },
-  {
-    target: navGroup("Management"),
-    keepIfHidden: true,
-    title: "4 · Fix and report",
-    body: "Remediation Tracking assigns each fix to an owner and requires a retest before it can be closed. Reports turns verified findings into a PDF. Activity Logs records who did what.",
-  },
-  {
-    target: navGroup("System"),
-    keepIfHidden: true,
-    title: "5 · Setup",
-    body: "Users and roles, the tool and AI connections, and your preferences. Every page has its own short tutorial the first time you open it — replay it anytime with the ? button, or turn tutorials off in Settings → Appearance.",
-  },
+  { target: '[data-tour="next-step"]', title: "Start here every time", body: "This card always shows your next step and one button to do it. Follow it from top to bottom and you won't miss anything." },
+  { target: menuLink("/targets"), title: "1 · Websites", body: "The websites you're allowed to test. Adding one takes four short steps, and AIVERA works out what may be tested.", keepIfHidden: true },
+  { target: menuLink("/scans"), title: "2 · Scans", body: "Every scan of your website. The easiest way to start one is the Scan this website button on the dashboard or on the website's page.", keepIfHidden: true },
+  { target: menuLink("/findings"), title: "3 · Findings", body: "What the scans found. Look at the evidence and decide: real problem or false alarm. Only your decision counts.", keepIfHidden: true },
+  { target: menuLink("/remediation"), title: "4 · Fixes", body: "A to-do list of fixes for confirmed problems: who fixes it, by when, and a retest to prove it's fixed.", keepIfHidden: true },
+  { target: menuLink("/reports"), title: "5 · Reports", body: "Turn your confirmed findings, evidence and fixes into a PDF report.", keepIfHidden: true },
+  { target: '[data-tour="menu-mode"]', title: "Need more tools?", body: "The menu is in Simple mode. Click Show all tools for advanced pages like risk scoring, reconnaissance and the AI analyst. Replay any page's tutorial with the ? button at the top.", keepIfHidden: true },
 ];
 
 interface PageTour {
@@ -76,6 +53,8 @@ export const PAGE_TOURS: PageTour[] = [
     key: "dashboard",
     match: /^\/dashboard$/,
     steps: [
+      { target: '[data-tour="next-step"]', title: "What to do next", body: "The steps of your assessment, with the current one highlighted. The button does the next step for you. When a step is done it turns green." },
+      { target: '[data-tour="quick-scan"]', title: "Scan with one click", body: "Runs the security tools on your website inside the approved scope, with gentle settings. It asks you to confirm first, takes about two minutes, and AI explains the results." },
       { target: statGrid("Assessment Projects"), title: "Assessment at a glance", body: "Eight live counters calculated from your data. \"Potential Findings\" includes everything not rejected, including unverified tool output. \"Confirmed Vulnerabilities\" counts only findings a person verified. Click any card to open the matching list." },
       { target: { text: "Critical Vulnerabilities", selector: "p", closest: "[data-slot=card]" }, title: "Critical issues first", body: "Confirmed critical vulnerabilities. These are the most serious problems and should be fixed and reported first." },
       { target: card("Vulnerability Severity Distribution"), title: "Severity distribution", body: "How the open findings split into Critical, High, Medium, Low and Info. Hover a slice to see exact numbers." },
@@ -142,10 +121,10 @@ export const PAGE_TOURS: PageTour[] = [
     key: "target-form",
     match: /^\/targets\/(new|[^/]+\/edit)$/,
     steps: [
-      { title: "Register a website in 4 steps", body: "Paste the address, confirm you have permission, let AEGIS detect what may be tested, and say who owns it. Most fields fill themselves in." },
-      { target: "#url", title: "1. Website address", body: "Paste the full address, e.g. https://shop.staging.example.com. AEGIS fills in the name, the environment (from words like “staging” or “dev”) and the host to test." },
+      { title: "Register a website in 4 steps", body: "Paste the address, confirm you have permission, let AIVERA detect what may be tested, and say who owns it. Most fields fill themselves in." },
+      { target: "#url", title: "1. Website address", body: "Paste the full address, e.g. http://127.0.0.1:8000 for UMERCH3.0. AIVERA fills in the name, the environment (from words like “staging” or “dev”) and the host to test." },
       { target: "#authorizationConfirmed", title: "2. Permission", body: "Tick this only if the owner gave you written permission. Your name and the time are saved. A permission record number (AUTH-year-number) is created automatically; you can use your own document number instead." },
-      { target: "#scope-detect", title: "3. Detect scope", body: "Click “Detect scope”. With the AEGIS server running it checks that the host exists (DNS) and reads the site's own robots.txt and sitemap.xml — nothing else. Paths the owner asks crawlers to avoid become “Never tested”. In demo mode only the address is used." },
+      { target: "#scope-detect", title: "3. Detect scope", body: "Click “Detect scope”. With the AIVERA server running it checks that the host exists (DNS) and reads the site's own robots.txt and sitemap.xml — nothing else. Paths the owner asks crawlers to avoid become “Never tested”. In demo mode only the address is used." },
       { target: "#scope-summary", title: "Check the result", body: "This is exactly what will be saved. Each item shows where it came from (Web address, robots.txt…), so nothing is made up." },
       { target: "#scope-advanced", title: "Change it by hand", body: "Open this to add hosts or paths, exclude pages, or choose which test categories are allowed." },
       { target: "#owner", title: "4. Owner and project", body: "Who is responsible for the website. Adding it to a project is optional now — but scans and findings need one, so you can add it later from the target's page." },
@@ -156,6 +135,7 @@ export const PAGE_TOURS: PageTour[] = [
     key: "target-detail",
     match: /^\/targets\/[^/]+$/,
     steps: [
+      { target: '[data-tour="quick-scan"]', title: "Scan this website", body: "One button runs Nmap and OWASP ZAP inside the approved scope. If it can't run yet, the yellow note says exactly why and how to fix it. Advanced options opens the full 6-step scan wizard." },
       { target: card("Authorization"), title: "Authorization record", body: "The permission status, reference, who confirmed it and when. If it isn't authorized, every scan and import for this target is blocked." },
       { target: card("Scope visualization"), title: "What may be tested", body: "Green: hosts and paths you may test, plus allowed activities. Red: excluded paths, other hosts, categories not permitted, and activities that are never allowed (like denial-of-service)." },
       { target: btn("Edit scope"), title: "Change the scope", body: "Update hosts, paths and categories when your permission changes. Every change is recorded in the activity log." },

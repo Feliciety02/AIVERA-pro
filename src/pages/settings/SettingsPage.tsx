@@ -135,7 +135,7 @@ export default function SettingsPage() {
                 <p className="mb-2 text-sm font-medium">Theme</p>
                 <div className="grid grid-cols-3 gap-2 sm:w-96">
                   {themes.map((t) => (
-                    <button key={t.id} type="button" onClick={() => setAppearance({ theme: t.id }, `Theme: ${t.label}`)} aria-pressed={appearance.theme === t.id} className={cn("flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", appearance.theme === t.id ? "border-primary/50 bg-primary/8 text-primary" : "border-border hover:border-ring/40")}>
+                    <button key={t.id} type="button" onClick={() => setAppearance({ theme: t.id }, `Theme: ${t.label}`)} aria-pressed={appearance.theme === t.id} className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-3 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", appearance.theme === t.id ? "border-primary/50 bg-primary/8 text-primary" : "border-border hover:border-ring/40")}>
                       <t.icon className="size-4" /> {t.label}
                     </button>
                   ))}
@@ -159,6 +159,9 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
           <SectionCard title="Tutorials & help" className="mt-4" description="Saved in this browser only.">
+            <Row title="Simple menu" description="Show only the main steps: Websites, Scans, Findings, Fixes and Reports. Turn off to see every tool.">
+              <Switch checked={ui.simpleMode} onCheckedChange={(v) => { ui.setSimpleMode(v); toast.success(v ? "Simple menu on" : "Showing all tools"); }} aria-label="Simple menu" />
+            </Row>
             <Row title="Show page tutorials" description="Step-by-step tips the first time you open each page.">
               <Switch checked={ui.tutorialsEnabled} onCheckedChange={(v) => { ui.setTutorialsEnabled(v); toast.success(v ? "Tutorials on" : "Tutorials off"); }} aria-label="Show page tutorials" />
             </Row>

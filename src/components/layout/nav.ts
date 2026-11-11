@@ -76,6 +76,31 @@ export const NAV: NavGroup[] = [
   },
 ];
 
+/**
+ * Simple mode menu: the assessment workflow in order, with plain names. Every other page is
+ * still reachable (links, search, "Show all tools"), it just isn't in the way.
+ */
+export const SIMPLE_NAV: NavGroup[] = [
+  {
+    label: "Your assessment",
+    items: [
+      { label: "Dashboard", to: "/dashboard", icon: Gauge },
+      { label: "Websites", to: "/targets", icon: Target },
+      { label: "Scans", to: "/scans", icon: ScanLine },
+      { label: "Findings", to: "/findings", icon: ShieldAlert },
+      { label: "Fixes", to: "/remediation", icon: Wrench },
+      { label: "Reports", to: "/reports", icon: FileText },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { label: "Users", to: "/users", icon: Users, requires: "manage_users" },
+      { label: "Settings", to: "/settings", icon: Settings },
+    ],
+  },
+];
+
 export const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   analytics: "Security Analytics",

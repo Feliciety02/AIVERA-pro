@@ -34,6 +34,8 @@ interface UIState {
   activeTour: string | null;
   /** General "Demo mode" reminders (header chip, sidebar box, demo banners). Record labels stay. */
   showDemoNotices: boolean;
+  /** Simple mode: a short menu in workflow order with plain names. Off shows every tool. */
+  simpleMode: boolean;
   toggleSidebar: () => void;
   setMobileNav: (open: boolean) => void;
   setCommandOpen: (open: boolean) => void;
@@ -42,6 +44,7 @@ interface UIState {
   setTutorialsEnabled: (on: boolean) => void;
   resetTours: () => void;
   setShowDemoNotices: (on: boolean) => void;
+  setSimpleMode: (on: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -54,6 +57,7 @@ export const useUIStore = create<UIState>()(
       seenTours: [],
       activeTour: null,
       showDemoNotices: true,
+      simpleMode: true,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setMobileNav: (open) => set({ mobileNavOpen: open }),
       setCommandOpen: (open) => set({ commandOpen: open }),
@@ -62,12 +66,15 @@ export const useUIStore = create<UIState>()(
       setTutorialsEnabled: (on) => set({ tutorialsEnabled: on, activeTour: null }),
       resetTours: () => set({ seenTours: [], tutorialsEnabled: true }),
       setShowDemoNotices: (on) => set({ showDemoNotices: on }),
+      setSimpleMode: (on) => set({ simpleMode: on }),
     }),
     {
       name: "aegis-ui",
-      version: 2,
-      migrate: (s) => ({ ...(s as object), tutorialsEnabled: true, seenTours: [], showDemoNotices: true }) as unknown as UIState,
-      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, tutorialsEnabled: s.tutorialsEnabled, seenTours: s.seenTours, showDemoNotices: s.showDemoNotices }),
+      version: 3,
+      // v2 → v3 adds Simple mode (on by default) and keeps everything else the user chose.
+      migrate: (s, version) =>
+        (version >= 2 ? { ...(s as object), simpleMode: true } : { ...(s as object), tutorialsEnabled: true, seenTours: [], showDemoNotices: true, simpleMode: true }) as unknown as UIState,
+      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, tutorialsEnabled: s.tutorialsEnabled, seenTours: s.seenTours, showDemoNotices: s.showDemoNotices, simpleMode: s.simpleMode }),
     },
   ),
 );

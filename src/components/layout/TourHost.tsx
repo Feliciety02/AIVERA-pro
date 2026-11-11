@@ -26,7 +26,10 @@ export function TourHost() {
     if (!tutorialsEnabled || activeTour) return;
     const key = !seenTours.includes("welcome") ? "welcome" : tourForPath(pathname)?.key;
     if (!key || seenTours.includes(key)) return;
-    const t = setTimeout(() => startTour(key), 900); // let the page finish loading
+    // Let the page finish loading, and never open on top of a popup the user is working in.
+    const t = setTimeout(() => {
+      if (!document.querySelector("[role=dialog][data-state=open], [role=alertdialog][data-state=open]")) startTour(key);
+    }, 900);
     return () => clearTimeout(t);
   }, [pathname, tutorialsEnabled, activeTour, seenTours, startTour]);
 

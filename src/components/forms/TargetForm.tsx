@@ -167,8 +167,8 @@ export function TargetForm({
       <Card>
         <CardContent className="pt-6">
           {/* 1 — Website */}
-          <FormSection title="1. Website" description="Paste the address of the website you were given permission to test. AEGIS fills in the rest from it.">
-            <Field id="url" label="Website address" required error={errors.url?.message} hint="For example https://shop.staging.example.com">
+          <FormSection title="1. Website" description="Paste the address of the website you were given permission to test. AIVERA fills in the rest from it.">
+            <Field id="url" label="Website address" required error={errors.url?.message} hint="For example http://127.0.0.1:8000 for UMERCH3.0 running locally">
               <Input id="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://" className="h-11 font-mono text-sm" {...register("url")} {...aria("url")} />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -187,12 +187,12 @@ export function TargetForm({
           </FormSection>
 
           {/* 2 — Permission */}
-          <FormSection title="2. Permission" description="Only test websites whose owner gave you written permission. AEGIS records who confirmed it and when.">
+          <FormSection title="2. Permission" description="Only test websites whose owner gave you written permission. AIVERA records who confirmed it and when.">
             <Controller
               control={control}
               name="authorizationConfirmed"
               render={({ field }) => (
-                <div className={cn("rounded-lg border p-4", errors.authorizationConfirmed ? "border-destructive/60 bg-destructive/5" : field.value ? "border-primary/40 bg-primary/5" : "border-border")}>
+                <div className={cn("rounded-xl border p-4", errors.authorizationConfirmed ? "border-destructive/60 bg-destructive/5" : field.value ? "border-primary/40 bg-primary/5" : "border-border")}>
                   <div className="flex items-start gap-3">
                     <Checkbox id="authorizationConfirmed" checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} aria-invalid={!!errors.authorizationConfirmed} aria-describedby="authorizationConfirmed-error" className="mt-0.5" />
                     <Label htmlFor="authorizationConfirmed" className="text-sm leading-snug font-normal">
@@ -227,9 +227,9 @@ export function TargetForm({
           {/* 3 — Scope */}
           <FormSection
             title="3. What can be tested"
-            description="AEGIS fills this in from real sources: the address itself, and — when the AEGIS server is running — a DNS check plus the site's own robots.txt and sitemap.xml."
+            description="AIVERA fills this in from real sources: the address itself, and — when the AIVERA server is running — a DNS check plus the site's own robots.txt and sitemap.xml."
           >
-            <div id="scope-detect" className="space-y-3 rounded-lg border border-border p-4">
+            <div id="scope-detect" className="space-y-3 rounded-xl border border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Detect scope automatically</p>
@@ -265,7 +265,7 @@ export function TargetForm({
           <FormSection title="4. Details" description="Who owns the website, and which assessment it belongs to.">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="owner" label="Website owner" required error={errors.owner?.message} hint="The team or person responsible for it.">
-                <Input id="owner" placeholder="e.g. Northwind IT team" {...register("owner")} {...aria("owner")} />
+                <Input id="owner" placeholder="e.g. UMERCH3.0 developer" {...register("owner")} {...aria("owner")} />
               </Field>
               <Field id="projectId" label="Project (optional)" hint="You can add it to a project later, before testing.">
                 <Controller
@@ -409,7 +409,7 @@ function DetectionResult({ d }: { d: ScopeDetection }) {
           <span className="font-medium">robots.txt</span> — {d.robots?.status === "found" ? d.robots.message : `not used (${d.robots?.message})`}
           {!!d.robots?.unsupportedRules.length && (
             <span className="block text-muted-foreground">
-              Not added (patterns AEGIS can't represent, review them yourself): <span className="font-mono">{d.robots.unsupportedRules.join("  ")}</span>
+              Not added (patterns AIVERA can't represent, review them yourself): <span className="font-mono">{d.robots.unsupportedRules.join("  ")}</span>
             </span>
           )}
         </span>
@@ -425,7 +425,7 @@ function DetectionResult({ d }: { d: ScopeDetection }) {
           )}
         </span>
       </li>
-      <li className="text-muted-foreground">Checked by the AEGIS server at {time}. Suggestions were added to the scope below.</li>
+      <li className="text-muted-foreground">Checked by the AIVERA server at {time}. Suggestions were added to the scope below.</li>
     </ul>
   );
 }

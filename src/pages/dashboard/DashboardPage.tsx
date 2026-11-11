@@ -18,11 +18,14 @@ import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/misc";
 import { StatCard, RecentActivity, VerificationQueue, FindingRow } from "@/components/dashboard/widgets";
+import { NextStepCard } from "@/components/dashboard/NextStepCard";
+import { QuickScanCard } from "@/components/security/QuickScanCard";
 import { ChartCard, DonutChart, StackedBars, TrendArea, summarize } from "@/components/charts/charts";
 import { SectionCard } from "@/components/shared/display";
 import { CardsSkeleton } from "@/components/shared/states";
 import { StatusBadge, ToneBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
+import { useUIStore } from "@/stores/sessionStore";
 import { useDocumentTitle, useInitialLoading, useLookups, useCurrentUser } from "@/hooks";
 import { activityOverTime, categoryBreakdown, computeDashboardMetrics, findingsOverTime, remediationDistribution, severityDistribution, verificationDistribution } from "@/features/metrics";
 import { ASSESSMENT_STATUS, PROJECT_STATUS } from "@/lib/constants";
@@ -33,6 +36,9 @@ import { can } from "@/lib/permissions";
 import type { ProjectStatus, AssessmentStatus } from "@/types";
 
 export default function DashboardPage() {
+  const simpleMode = useUIStore((st) => st.simpleMode);
+  // The website to offer a one-click scan for: the first one that's ready, otherwise the first registered.
+  const scanTarget = useDataStore((st) => st.targets.find((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed && t.projectId) ?? st.targets[0]);
   useDocumentTitle("Dashboard");
   const loading = useInitialLoading();
   const user = useCurrentUser();
@@ -91,14 +97,15 @@ export default function DashboardPage() {
     <ContentContainer wide>
       <PageHeader
         title="Security Operations Dashboard"
-        description="Live overview computed from the current demo dataset. Only human-confirmed findings count as verified vulnerabilities."
+        description="Where your assessment stands, and what to do next. Only findings a person confirmed count as vulnerabilities."
         eyebrow={<span>Welcome back, {user?.name.split(" ")[0]}</span>}
         actions={
-          can(user?.role, "manage_projects") && (
+          // Simple mode keeps the dashboard to one path: the next-step card and the scan button.
+          can(user?.role, "manage_projects") && !simpleMode && (
             <>
               <Button variant="outline" size="sm" asChild>
                 <Link to="/scans/new">
-                  <ScanLine /> Configure demo scan
+                  <ScanLine /> New scan
                 </Link>
               </Button>
               <Button size="sm" asChild>
@@ -110,6 +117,9 @@ export default function DashboardPage() {
           )
         }
       />
+
+      <NextStepCard />
+      {scanTarget && <QuickScanCard target={scanTarget} showTargetName />}
 
       {loading ? (
         <CardsSkeleton count={8} />
@@ -223,7 +233,7 @@ export default function DashboardPage() {
               return (
                 <li key={p.id}>
                   <Link to={`/projects/${p.id}`} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/50">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
                       <FolderKanban className="size-4 text-muted-foreground" />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -252,7 +262,7 @@ export default function DashboardPage() {
               <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Projects</p>
               <div className="grid grid-cols-2 gap-2">
                 {projectStatusCounts.map(({ k, n }) => (
-                  <Link key={k} to={`/projects?status=${k}`} className="flex items-center justify-between rounded-md border border-border px-2.5 py-1.5 text-xs hover:border-primary/35">
+                  <Link key={k} to={`/projects?status=${k}`} className="flex items-center justify-between rounded-lg border border-border px-2.5 py-1.5 text-xs hover:border-primary/35">
                     <StatusBadge status={k} map={PROJECT_STATUS} />
                     <span className="font-semibold tabular-nums">{n}</span>
                   </Link>
