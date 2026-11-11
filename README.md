@@ -1,4 +1,4 @@
-# AIVERA — Intelligent Web Security Assessment & Vulnerability Management Platform
+# AIVERA: Intelligent Web Security Assessment & Vulnerability Management Platform
 
 > **Intelligent Security. Verified Decisions.**
 > University final project with a browser demo mode and a database-backed API mode. API mode can run bounded passive assessments when explicitly enabled on a dedicated lab machine.
@@ -51,10 +51,10 @@ modes then run on Gemini through the server (`server/src/ai/gemini.ts`, official
 evidence is redacted first (`server/src/ai/redact.ts`), output is forced into a JSON schema and validated, each
 analysis stores the model name and the exact redacted text sent (shown under "Data sent to the AI model"), and
 results never change a finding's verification status. Without a key the server uses the labelled demo samples.
-Free-tier note: Google states free-tier content may be used to improve its products — use test/synthetic data only.
+Free-tier note: Google states free-tier content may be used to improve its products, use test/synthetic data only.
 
-**Switching to MySQL:** in `server/prisma/schema.prisma` set `provider = "mysql"`, set `DATABASE_URL` in
-`server/.env` to a MySQL URL, then run `npm run db:setup`.
+**Database:** the current server uses SQLite through Prisma's `better-sqlite3` adapter. A MySQL deployment
+requires changing the Prisma provider and replacing the adapter in `server/src/db.ts` before running database setup.
 
 **What the backend enforces (not just the UI):** bcrypt-hashed passwords, hashed session tokens in httpOnly
 cookies, login throttling, role permissions on every write, target authorization + scope re-checked on every
@@ -83,22 +83,22 @@ TanStack Table 8 · date-fns 4 · Sonner · jsPDF + jspdf-autotable (client-side
 ## End-to-end demo script (all steps share one state store)
 
 1. Open AIVERA → `/login`, choose **Jordan Kim (Security Assessor)**.
-2. **Dashboard** — metrics computed from state (only *Confirmed* findings count as vulnerabilities).
-3. **Projects → New project** — validated multi-section form → project detail page.
-4. **Register target** (from the project) — URL is syntax-validated only and **never contacted**; the
+2. **Dashboard**: metrics computed from state (only *Confirmed* findings count as vulnerabilities).
+3. **Projects → New project**: validated multi-section form → project detail page.
+4. **Register target** (from the project), URL is syntax-validated only and **never contacted**; the
    "I confirm that this application is authorized…" checkbox is required; scope (hosts, allowed/excluded paths,
    categories, allowed/restricted activities) is defined in the same form. Use **Add &lt;host&gt; to scope**.
 5. On the target page: **Edit scope** to add an exclusion; review the scope visualization.
 6. **Configure demo scan** → 6-step wizard (project → authorized target → confirm scope → tools → configuration → review).
    **Start Automated Assessment** is available in API mode when the live scan gate and tool prerequisites are configured. Otherwise click **Run Demo Simulation**.
 7. Watch the progress (labelled **SIMULATED**). Findings appear when it completes (toast → *View findings*).
-8. Open a finding → **AI Analysis** tab → *Generate sample analysis* ("Sample AI Analysis — Demo Mode").
+8. Open a finding → **AI Analysis** tab → *Generate sample analysis* ("Sample AI Analysis, Demo Mode").
 9. **Technical Evidence** tab → review / mark evidence reviewed.
 10. **Confirm** (notes + reason + evidence attestation + second confirmation) or **Reject**.
 11. Back on the **Dashboard**: confirmed / critical / pending counts update.
 12. **Risk & Remediation** tab → **Create task** → **Remediation Tracking**: Start work → Request retest →
     Record retest passed → **Approve & resolve** (resolution is blocked until a passed retest + manual approval).
-13. **Reports → Create report** — 7-step wizard → preview → **Generate** → **Download PDF** (real PDF, watermarked "DEMO DATA").
+13. **Reports → Create report**: 7-step wizard → preview → **Generate** → **Download PDF** (real PDF, watermarked "DEMO DATA").
 
 ---
 
@@ -148,7 +148,7 @@ src/
 
 - **One source of truth:** every entity lives once in `useDataStore`, referenced by ID. Dashboards, analytics and
   reports are *derived* (see `src/features/metrics.ts`, `src/features/reports/reportModel.ts`).
-- **Persistence:** `localStorage` key `aegis-demo-state`, versioned by `SEED_VERSION` — a version bump re-seeds.
+- **Persistence:** `localStorage` key `aegis-demo-state`, versioned by `SEED_VERSION`, a version bump re-seeds.
 - **Seed data:** fixed dates and IDs (no randomness on reload). Hostnames use `.example` / `.test` / `localhost`;
   IPs use documentation ranges (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24).
 - **Provenance everywhere:** every scan, finding, evidence item and recon record carries `dataOrigin`
@@ -183,7 +183,7 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
   Status still changes only through the workflow actions.
 - **Settings that now take effect**: date format and timezone apply to every displayed date (calendar dates don't shift);
   overdue remediation tasks raise one notification each when "Remediation due dates" is on; the idle lock signs out of the
-  demo persona after inactivity (Off / 5–60 min).
+  demo persona after inactivity (Off / 5 to 60 min).
 - The demo AI adapter states plainly when no sample exists (imported/manual findings) and only echoes recorded fields.
 
 ### Implementation status
@@ -191,12 +191,12 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
 | Module | Status |
 |---|---|
 | App shell, navigation, search, notifications, themes, demo login/roles | Complete (frontend) |
-| Dashboard, Security Analytics | Complete — all numbers derived from state |
+| Dashboard, Security Analytics | Complete, all numbers derived from state |
 | Projects, Targets & Scope | Complete |
-| Reconnaissance | Complete — sample bundles + Nmap XML import |
+| Reconnaissance | Complete, sample bundles + Nmap XML import |
 | Scan Center | Simulation and file import; API mode has an opt-in bounded Nmap and ZAP passive runner |
-| Vulnerability Assessment | Complete — guided checklists, manual findings |
-| Findings & Evidence, Verification | Complete — incl. manual evidence |
+| Vulnerability Assessment | Complete, guided checklists, manual findings |
+| Findings & Evidence, Verification | Complete, incl. manual evidence |
 | AI Security Analyst | Demo samples in browser mode; server-side Gemini when configured |
 | Risk, Remediation | Complete |
 | Reports (preview, print, PDF) | Complete; provenance notice and watermark depend on selected data |
@@ -205,13 +205,13 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
 
 ## Demo-only (clearly labelled in the UI)
 
-- **Login & roles** — personas, client-side guards and permissions are UI demonstrations, not security.
-- **Scans in demo mode** — "Run Demo Simulation" fabricates clearly labelled SIMULATED records. API mode has a separate opt-in passive assessment path.
-- **Reconnaissance in demo mode** — sample bundles only. API mode has scope detection and an opt-in Nmap adapter.
-- **AI in demo mode** — deterministic samples. API mode calls Gemini when configured.
-- **Integrations** — the integration cards do not certify installed external tools; check the assessment prerequisites separately.
-- **Activity log in demo mode** — stored in localStorage. API mode uses database records, but these are not tamper-evident.
-- **Reports** — simulated and synthetic data are explicitly marked. Imported output retains a provenance warning.
+- **Login & roles**: personas, client-side guards and permissions are UI demonstrations, not security.
+- **Scans in demo mode**: "Run Demo Simulation" fabricates clearly labelled SIMULATED records. API mode has a separate opt-in passive assessment path.
+- **Reconnaissance in demo mode**: sample bundles only. API mode has scope detection and an opt-in Nmap adapter.
+- **AI in demo mode**: deterministic samples. API mode calls Gemini when configured.
+- **Integrations**: the integration cards do not certify installed external tools; check the assessment prerequisites separately.
+- **Activity log in demo mode**: stored in localStorage. API mode uses database records, but these are not tamper-evident.
+- **Reports**: simulated and synthetic data are explicitly marked. Imported output retains a provenance warning.
 
 The browser never launches tools or stores model secrets. API mode can contact an authorized target only through scope detection or an explicitly enabled automated assessment.
 
@@ -219,12 +219,12 @@ The browser never launches tools or stores model secrets. API mode can contact a
 
 ## Backend integration points
 
-- `src/services/api/contracts.ts` — documented REST routes (`API_ROUTES`) and `DATA_MODE` switch (`VITE_DATA_MODE`).
-- `src/services/index.ts` — typed services (`projectService`, `targetService`, `scanService`, `reconService`,
+- `src/services/api/contracts.ts`: documented REST routes (`API_ROUTES`) and `DATA_MODE` switch (`VITE_DATA_MODE`).
+- `src/services/index.ts`: typed services (`projectService`, `targetService`, `scanService`, `reconService`,
   `findingService`, `verificationService`, `analysisService`, `riskService`, `remediationService`, `reportService`,
   `userService`, `settingsService`). Swap each demo implementation for an API call with the same signature.
-- `src/services/ai/aiService.ts` — `AIAdapter` interface for demo samples; API mode uses the server-side Gemini route.
-- `scanService.startRealAssessment()` — queues the opt-in passive assessment through the API.
+- `src/services/ai/aiService.ts`: `AIAdapter` interface for demo samples; API mode uses the server-side Gemini route.
+- `scanService.startRealAssessment()`: queues the opt-in passive assessment through the API.
 
 The backend authenticates users, authorizes actions, and checks target scope before each tool. ZAP runs in a separate container; Nmap runs as a bounded subprocess on the assessment host. For shared deployment, move both adapters to dedicated isolated workers, add durable queue recovery and strict network egress controls, and make the activity log tamper-evident.
 

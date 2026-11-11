@@ -1,6 +1,6 @@
 # Source excerpts from UMERCH3.0 (white-box review). Secret values redacted.
 
-## routes/web.php — /debug-env (no authentication)
+## routes/web.php, /debug-env (no authentication)
 9:Route::get('/debug-env', function () {
 10-    return response()->json([
 11-        'db_connection' => env('DB_CONNECTION'),
@@ -13,7 +13,7 @@
 18-});
 19-
 
-## LoginCont.php — login(): rate limit, optional reCAPTCHA, hard-coded admin
+## LoginCont.php, login(): rate limit, optional reCAPTCHA, hard-coded admin
         // Check brute force rate limiter
         $rateLimitDecay = 60; // seconds (tracking window)
         $rateLimitLockout = 10; // seconds (lockout duration)
@@ -43,7 +43,7 @@
                 $adminUser = User::create([
                     'user_fullname' => 'Admin',
                     'email' => 'admin@umerch.com',
-                    'um_id' => 1,  
+                    'um_id' => 1,
                     'user_password' => '[REDACTED]',
                     'role' => 'Admin',
                     'status' => 'active'
@@ -58,7 +58,7 @@
                 ? Hash::check($inputPassword, $dbPassword)
                 : $inputPassword === $dbPassword;
 
-## app/Http/Controllers/InventoryApiController.php — unauthenticated inventory API
+## app/Http/Controllers/InventoryApiController.php, unauthenticated inventory API
     public function index(): JsonResponse
     {
         $inventory = Inventory::all();
@@ -79,5 +79,5 @@
 185:    'http_only' => env('SESSION_HTTP_ONLY', true),
 202:    'same_site' => env('SESSION_SAME_SITE', 'lax'),
 
-## LoginCont.php — lockout trigger
+## LoginCont.php, lockout trigger
 109:        if ($attempts->count() >= 5) {

@@ -1,4 +1,4 @@
-# UMERCH3.0 (local) — first assessment pass, 2026-11-12
+# UMERCH3.0 (local): first assessment pass, 2026-11-12
 
 **Target:** UMERCH3.0 (local), `http://127.0.0.1:8000/` · permission record AUTH-2026-0001 · scope `127.0.0.1:8000 /*`
 **Method:** read-only HTTP requests (GET/HEAD) against the local copy, plus white-box review of the UMERCH3.0 source code.
@@ -18,38 +18,38 @@ No attacks, no data changes, no password guessing. Session cookies and secret va
 
 ## Details
 
-### U-01 Hard-coded administrator credentials — Critical
+### U-01 Hard-coded administrator credentials: Critical
 `LoginCont::login()` checks for a fixed username and password before the normal login. If they match, it signs the visitor in as **Admin**, and creates the admin account if it doesn't exist. The values are in the source code (and therefore in the Git repository), so anyone with the code can take over the admin side.
 - **Weakness:** CWE-798 Use of Hard-coded Credentials · OWASP Top 10 2021 A07 Identification and Authentication Failures
 - **Fix:** delete the special case. Create the first admin with a seeder or an artisan command that reads a password from `.env`, store it hashed, and change the admin password anywhere this code has run.
 - **To verify:** sign in to the local copy with the hard-coded values from the source and confirm you land on the admin side.
 
-### U-02 `/debug-env` configuration disclosure — Medium
+### U-02 `/debug-env` configuration disclosure: Medium
 `GET /debug-env` needs no login and returns the database driver, host and name, `APP_ENV` and `APP_DEBUG`. On a production deployment this tells an attacker which database and environment they face, and whether debug mode is on.
 - **Weakness:** CWE-200 Exposure of Sensitive Information · CWE-215 Insertion of Sensitive Information into Debugging Code · OWASP A05 Security Misconfiguration
 - **Fix:** remove the route, or limit it to `APP_ENV=local` behind the admin login.
 
-### U-03 Weak brute-force protection and optional reCAPTCHA — Medium
-After 5 failed attempts in 60 seconds the account is locked for only **10 seconds**, which still allows about 25–30 guesses a minute per account. The limit is keyed on the username only, not the IP address. reCAPTCHA is only checked **if a token is sent**, so a script can simply leave it out.
+### U-03 Weak brute-force protection and optional reCAPTCHA: Medium
+After 5 failed attempts in 60 seconds the account is locked for only **10 seconds**, which still allows about 25 to 30 guesses a minute per account. The limit is keyed on the username only, not the IP address. reCAPTCHA is only checked **if a token is sent**, so a script can simply leave it out.
 - **Weakness:** CWE-307 Improper Restriction of Excessive Authentication Attempts · OWASP A07
 - **Fix:** use Laravel's `RateLimiter` keyed on username + IP with increasing lockouts (for example 15 minutes after 5 failures), and make reCAPTCHA required when a site key is configured.
 
-### U-04 Plain-text password comparison fallback — Medium
+### U-04 Plain-text password comparison fallback: Medium
 If a stored password does not start with the bcrypt prefix, the login compares it as plain text (`===`). Any account still holding a plain-text password stays valid, and the comparison is not constant-time.
 - **Weakness:** CWE-256 Plaintext Storage of a Password · OWASP A02 Cryptographic Failures
 - **Fix:** migrate any plain-text passwords to bcrypt once, then remove the fallback and always use `Hash::check`.
 
-### U-05 Missing security headers — Low
+### U-05 Missing security headers: Low
 Responses have no `Content-Security-Policy`, `X-Frame-Options` / `frame-ancestors`, `X-Content-Type-Options` or `Referrer-Policy`, and `X-Powered-By: PHP/8.4.27` reveals the PHP version. (`Strict-Transport-Security` applies once the site is served over HTTPS.)
 - **Weakness:** CWE-693 Protection Mechanism Failure · OWASP A05
 - **Fix:** add a middleware that sets these headers, and set `expose_php = Off` in php.ini.
 
-### U-06 Public inventory API with `Access-Control-Allow-Origin: *` — Low
+### U-06 Public inventory API with `Access-Control-Allow-Origin: *`: Low
 `/api/inventory` and `/api/inventory/{productId}` return every inventory record without a login, and allow any website to read them. This is fine if stock levels are meant to be public; if not, it's a data exposure.
 - **Weakness:** CWE-942 Permissive Cross-domain Policy · OWASP A01 Broken Access Control
 - **Fix:** decide whether stock data is public. If not, require login. Either way, restrict CORS to UMERCH's own domain.
 
-### U-07 Session cookie `Secure` flag not enforced — Low
+### U-07 Session cookie `Secure` flag not enforced: Low
 `config/session.php` takes `secure` from `SESSION_SECURE_COOKIE`, which isn't set in `.env.example`. On an HTTPS deployment the session cookie could still be sent over plain HTTP. `HttpOnly` and `SameSite=Lax` are set correctly.
 - **Weakness:** CWE-614 Sensitive Cookie Without 'Secure' Attribute · OWASP A05
 - **Fix:** set `SESSION_SECURE_COOKIE=true` in production.
