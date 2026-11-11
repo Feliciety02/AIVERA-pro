@@ -24,7 +24,8 @@ const severityEnum = z.enum(SEVERITIES as [Severity, ...Severity[]]);
 async function authorizedTarget(id: string) {
   const t = (await prisma.target.findUnique({ where: { id } })) ?? fail(404, "Target not found");
   if (t.authorizationStatus !== "authorized" || !t.authorizationConfirmed) fail(403, "This target does not have confirmed authorization.");
-  return M.toTarget(t);
+  if (!t.projectId) fail(400, "Add this target to a project before testing it.");
+  return { ...M.toTarget(t), projectId: t.projectId! };
 }
 
 const nextFindingIndex = async () => (await prisma.finding.count()) + 1;

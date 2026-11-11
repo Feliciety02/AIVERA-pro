@@ -72,8 +72,8 @@ model ProjectMember {
 
 model Target {
   id                       String    @id
-  projectId                String
-  project                  Project   @relation(fields: [projectId], references: [id])
+  projectId                String?
+  project                  Project?  @relation(fields: [projectId], references: [id])
   name                     String
   url                      String
   description              String

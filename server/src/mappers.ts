@@ -23,7 +23,7 @@ export const toProject = (p: P.Project & { members: P.ProjectMember[] }): T.Proj
 });
 
 export const toTarget = (t: P.Target): T.Target => ({
-  id: t.id, projectId: t.projectId, name: t.name, url: t.url, description: t.description, assetType: t.assetType as T.AssetType,
+  id: t.id, projectId: t.projectId ?? undefined, name: t.name, url: t.url, description: t.description, assetType: t.assetType as T.AssetType,
   environment: t.environment as T.TargetEnvironment, owner: t.owner, authorizationStatus: t.authorizationStatus as T.AuthorizationStatus,
   authorizationReference: t.authorizationReference, authorizationConfirmed: t.authorizationConfirmed,
   authorizationConfirmedBy: t.authorizationConfirmedBy ?? undefined, authorizationConfirmedAt: iso(t.authorizationConfirmedAt),

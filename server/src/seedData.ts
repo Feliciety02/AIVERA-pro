@@ -32,7 +32,7 @@ export async function seedDatabase() {
   }
   await prisma.target.createMany({
     data: seed.seedTargets.map(({ scope, ...t }) => ({
-      ...t, ...scopeColumns(scope), authorizationConfirmedBy: t.authorizationConfirmedBy ?? null,
+      ...t, projectId: t.projectId ?? null, ...scopeColumns(scope), authorizationConfirmedBy: t.authorizationConfirmedBy ?? null,
       authorizationConfirmedAt: t.authorizationConfirmedAt ? d(t.authorizationConfirmedAt) : null, createdAt: d(t.createdAt), updatedAt: d(t.updatedAt),
     })),
   });

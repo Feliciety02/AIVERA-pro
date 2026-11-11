@@ -8,6 +8,7 @@ import { log, notify } from "../audit.ts";
 import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { seedDatabase } from "../seedData.ts";
+import { detectScope } from "../scopeDiscovery.ts";
 import { aiConfigured, GEMINI_MODEL } from "../ai/gemini.ts";
 
 export const router = Router();
@@ -173,17 +174,29 @@ const scopeBody = z.object({
 const targetBody = z.object({
   name: z.string().trim().min(3).max(120),
   url: z.string().url().refine((u) => /^https?:$/.test(new URL(u).protocol), "Only http(s) URLs"),
-  projectId: z.string().min(1),
+  projectId: z.string().min(1).nullish(),
   description: z.string().max(600),
   assetType: z.enum(["web_application", "rest_api", "single_page_app", "admin_portal", "cms"]),
   environment: z.enum(["development", "staging", "qa", "lab"]),
   owner: z.string().trim().min(2).max(200),
   authorizationStatus: z.enum(["authorized", "pending", "expired", "revoked"]),
-  authorizationReference: z.string().trim().min(3).max(200),
+  // Optional: when empty, AEGIS assigns the next AUTH-YYYY-NNNN record number.
+  authorizationReference: z.string().trim().max(200).optional(),
   authorizationConfirmed: z.boolean(),
   testingNotes: z.string().max(2000),
   scope: scopeBody,
 });
+
+async function nextAuthReference() {
+  const prefix = `AUTH-${new Date().getFullYear()}-`;
+  const refs = await prisma.target.findMany({ where: { authorizationReference: { startsWith: prefix } }, select: { authorizationReference: true } });
+  const max = refs.reduce((m, r) => Math.max(m, Number(r.authorizationReference.slice(prefix.length)) || 0), 0);
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+}
+
+async function checkProject(projectId: string | null | undefined) {
+  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId } }))) fail(400, "Selected project does not exist.");
+}
 
 function hostCovered(url: string, hosts: string[]) {
   const h = new URL(url).hostname;
@@ -194,17 +207,21 @@ router.post("/targets", requirePermission("manage_targets"), async (req, res) =>
   const b = parse(targetBody, req.body);
   if (!b.authorizationConfirmed) fail(400, "You must confirm that this application is authorized for security assessment.");
   if (!hostCovered(b.url, b.scope.inScopeHosts)) fail(400, "The application URL's host must be listed as an in-scope host.");
+  await checkProject(b.projectId);
   const { scope, ...rest } = b;
+  const authorizationReference = rest.authorizationReference || (await nextAuthReference());
   const now = new Date();
-  // Metadata only: the server does not contact the URL.
-  const t = await prisma.target.create({ data: { ...rest, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
-  await log(me(req).id, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (metadata only — no connection made)`);
+  // Saving does not contact the URL (scope detection is a separate, explicit request).
+  const t = await prisma.target.create({ data: { ...rest, projectId: rest.projectId ?? null, authorizationReference, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
+  await log(me(req).id, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (details saved — no scan started)`);
   res.status(201).json(M.toTarget(t));
 });
 
 router.patch("/targets/:id", requirePermission("manage_targets"), async (req, res) => {
   const b = parse(targetBody.partial(), req.body);
   const cur = (await prisma.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
+  await checkProject(b.projectId);
+  if (b.authorizationReference === "") b.authorizationReference = cur.authorizationReference || (await nextAuthReference());
   const { scope, ...rest } = b;
   const confirmedNow = b.authorizationConfirmed && !cur.authorizationConfirmed;
   const t = await prisma.target.update({
@@ -213,6 +230,14 @@ router.patch("/targets/:id", requirePermission("manage_targets"), async (req, re
   });
   await log(me(req).id, "target_updated", "target", t.id, t.name, `Updated target ${t.name}`);
   res.json(M.toTarget(t));
+});
+
+// Automatic scope detection: DNS lookup + robots.txt + sitemap.xml, only after permission is confirmed.
+router.post("/targets/detect-scope", requirePermission("manage_targets"), async (req, res) => {
+  const b = parse(z.object({ url: targetBody.shape.url, authorizationConfirmed: z.literal(true, { errorMap: () => ({ message: "Confirm you have permission to test this website first." }) }) }), req.body);
+  const result = await detectScope(b.url);
+  await log(me(req).id, "scope_detected", "target", undefined, result.host, `Detected scope for ${result.host}: DNS ${result.dns?.status}, robots.txt ${result.robots?.status}, sitemap ${result.sitemap?.status}`);
+  res.json(result);
 });
 
 router.put("/targets/:id/scope", requirePermission("manage_targets"), async (req, res) => {
