@@ -149,11 +149,9 @@ const projectBody = z.object({
 router.post("/projects", requirePermission("manage_projects"), async (req, res) => {
   const b = parse(projectBody, req.body);
   if (b.dueDate < b.startDate) fail(400, "Completion date must be on or after the start date.");
-  const year = new Date().getFullYear();
-  const codes = (await prisma.project.findMany({ where: { code: { startsWith: `AEG-${year}` } }, select: { code: true } })).map((p) => p.code);
   const { memberIds, ...rest } = b;
   const p = await prisma.project.create({
-    data: { ...rest, id: newId("prj"), code: nextCode(`AEG-${year}`, codes, 3), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", members: { create: [...new Set([...memberIds, b.ownerId])].map((userId) => ({ userId })) } },
+    data: { ...rest, id: newId("prj"), code: await nextProjectCode(), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", members: { create: [...new Set([...memberIds, b.ownerId])].map((userId) => ({ userId })) } },
     include: { members: true },
   });
   await log(me(req).id, "project_created", "project", p.id, p.code, `Created project ${p.name}`);
@@ -224,6 +222,33 @@ async function nextAuthReference() {
   return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
 
+async function nextProjectCode() {
+  const prefix = `AIV-${new Date().getFullYear()}`;
+  const codes = (await prisma.project.findMany({ where: { code: { startsWith: prefix } }, select: { code: true } })).map((p) => p.code);
+  return nextCode(prefix, codes, 3);
+}
+
+/**
+ * Every website needs a project before it can be scanned. When none was chosen, AIVERA makes
+ * one just for this website instead of guessing, so an unrelated site is never filed under
+ * another system's assessment.
+ */
+async function createProjectForTarget(name: string, url: string, userId: string) {
+  const start = new Date();
+  const p = await prisma.project.create({
+    data: {
+      id: newId("prj"), code: await nextProjectCode(), name: `${name} Security Assessment`,
+      description: `Security assessment of ${url}, created automatically when the website was added.`,
+      assessmentType: "web_application", ownerId: userId, status: "planning",
+      startDate: start, dueDate: new Date(start.getTime() + 30 * 86400_000),
+      objectives: `Find, verify and fix security weaknesses in ${name} within the approved scope.`, notes: "",
+      dataOrigin: "user_created", members: { create: [{ userId }] },
+    },
+  });
+  await log(userId, "project_created", "project", p.id, p.code, `Created project ${p.name} for the website ${name}`);
+  return p;
+}
+
 async function checkProject(projectId: string | null | undefined) {
   if (projectId && !(await prisma.project.findUnique({ where: { id: projectId } }))) fail(400, "Selected project does not exist.");
 }
@@ -242,7 +267,8 @@ router.post("/targets", requirePermission("manage_targets"), async (req, res) =>
   const authorizationReference = rest.authorizationReference || (await nextAuthReference());
   const now = new Date();
   // Saving does not contact the URL (scope detection is a separate, explicit request).
-  const t = await prisma.target.create({ data: { ...rest, projectId: rest.projectId ?? null, authorizationReference, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
+  const projectId = rest.projectId || (await createProjectForTarget(rest.name, rest.url, me(req).id)).id;
+  const t = await prisma.target.create({ data: { ...rest, projectId, authorizationReference, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
   await log(me(req).id, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (details saved, no scan started)`);
   res.status(201).json(M.toTarget(t));
 });
@@ -260,6 +286,15 @@ router.patch("/targets/:id", requirePermission("manage_targets"), async (req, re
   });
   await log(me(req).id, "target_updated", "target", t.id, t.name, `Updated target ${t.name}`);
   res.json(M.toTarget(t));
+});
+
+/** One click for a website saved without a project: give it its own. */
+router.post("/targets/:id/own-project", requirePermission("manage_targets"), async (req, res) => {
+  const cur = (await prisma.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
+  if (cur.projectId) fail(409, "This website is already in a project.");
+  const p = await createProjectForTarget(cur.name, cur.url, me(req).id);
+  await prisma.target.update({ where: { id: cur.id }, data: { projectId: p.id } });
+  res.json({ projectId: p.id, code: p.code });
 });
 
 /** Remove a target and its assessment history so the project can start fresh. */

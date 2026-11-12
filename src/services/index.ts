@@ -92,6 +92,10 @@ export const targetService = {
     await delay(LATENCY);
     return store().createTarget(input);
   },
+  /** Gives a website saved without a project a project of its own (full app). */
+  async createOwnProject(id: ID): Promise<{ projectId: ID; code: string }> {
+    return mutate(`/targets/${id}/own-project`);
+  },
   async update(id: ID, patch: Args<"updateTarget">[1]) {
     if (IS_API) return void (await mutate(`/targets/${id}`, patch, "PATCH"));
     await delay(LATENCY);

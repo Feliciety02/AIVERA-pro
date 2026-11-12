@@ -110,6 +110,8 @@ export function TargetForm({
       scope: initial?.scope ?? { inScopeHosts: [], allowedPaths: [], excludedPaths: [], allowedCategories: DEFAULT_CATEGORIES, allowedActivities: ["Passive reconnaissance", "Manual verification of findings"], restrictedActivities: RESTRICTED_ACTIVITY_DEFAULTS },
     },
   });
+  // The server creates a project for a brand new website when none is picked.
+  const autoProject = IS_API && !initial;
 
   const url = watch("url");
   const scope = watch("scope");
@@ -267,7 +269,11 @@ export function TargetForm({
               <Field id="owner" label="Website owner" required error={errors.owner?.message} hint="The team or person responsible for it.">
                 <Input id="owner" placeholder="e.g. UMERCH3.0 developer" {...register("owner")} {...aria("owner")} />
               </Field>
-              <Field id="projectId" label="Project (optional)" hint="You can add it to a project later, before testing.">
+              <Field
+                id="projectId"
+                label="Project"
+                hint={autoProject ? "Leave it as is and AIVERA makes a project just for this website. Pick one only if this site belongs to an existing assessment." : "You can add it to a project later, before testing."}
+              >
                 <Controller
                   control={control}
                   name="projectId"
@@ -275,7 +281,7 @@ export function TargetForm({
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger id="projectId"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NO_PROJECT}>No project yet</SelectItem>
+                        <SelectItem value={NO_PROJECT}>{autoProject ? "New project for this website (automatic)" : "No project yet"}</SelectItem>
                         {projects.filter((p) => p.status !== "archived").map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.code} · {p.name}

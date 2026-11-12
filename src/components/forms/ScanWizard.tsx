@@ -53,7 +53,8 @@ export function ScanWizard({
   const [projectId, setProjectId] = React.useState(initialProjectId ?? "");
   const [targetId, setTargetId] = React.useState(initialTargetId ?? "");
   const [scopeConfirmed, setScopeConfirmed] = React.useState(false);
-  const [tools, setTools] = React.useState<ScanTool[]>(["owasp_zap", "http_inspector"]);
+  // The full app can only run Nmap and OWASP ZAP, so those are the defaults there.
+  const [tools, setTools] = React.useState<ScanTool[]>(IS_API ? ["nmap", "owasp_zap"] : ["owasp_zap", "http_inspector"]);
   const [categories, setCategories] = React.useState<AssessmentCategoryId[]>(defaults.categories);
   const [profile, setProfile] = React.useState<ScanProfile>(defaults.profile);
   const [timeLimit, setTimeLimit] = React.useState(defaults.timeLimitMinutes);
@@ -64,7 +65,6 @@ export function ScanWizard({
   const [busy, setBusy] = React.useState(false);
   React.useEffect(() => {
     if (liveAvailable) {
-      setTools((current) => current.join(",") === "owasp_zap,http_inspector" ? ["nmap", "owasp_zap"] : current);
       setProfile((current) => current === "standard" || current === "thorough" ? "baseline" : current);
     }
   }, [liveAvailable]);
@@ -197,20 +197,23 @@ export function ScanWizard({
               <div className="grid gap-2 md:grid-cols-2">
                 {(Object.keys(TOOL_META) as ScanTool[]).map((t) => {
                   const Icon = TOOL_ICONS[t];
+                  // In the full app only tools the server can really run are offered.
+                  const runnable = !IS_API || t === "nmap" || t === "owasp_zap";
                   return (
                     <ChoiceCard
                       key={t}
-                      checked={tools.includes(t)}
+                      checked={runnable && tools.includes(t)}
+                      disabled={!runnable}
                       onToggle={() => setTools(toggle(tools, t))}
                       icon={<Icon className="mt-0.5 size-4 shrink-0 text-cyan" />}
                       title={TOOL_META[t].label}
-                      description={TOOL_META[t].description}
+                      description={runnable ? TOOL_META[t].description : "Not available for real scans yet. Nmap and OWASP ZAP cover these checks."}
                       badge={<ToneBadge tone="muted">{TOOL_META[t].kind}</ToneBadge>}
                     />
                   );
                 })}
               </div>
-              <p className="text-[11px] text-muted-foreground">Tool integrations are “Not Connected” in this phase. Selections are used to shape the demo simulation and, later, backend jobs.</p>
+              {!IS_API && <p className="text-[11px] text-muted-foreground">Demo mode: selections only shape the practice simulation.</p>}
             </div>
           )}
 
@@ -302,7 +305,7 @@ export function ScanWizard({
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-2">Demo simulation is always available, but its results are practice data, not evidence.</p>
+                  {!IS_API && <p className="mt-2">Demo simulation is always available, but its results are practice data, not evidence.</p>}
                 </Callout>
               )}
             </div>
@@ -328,6 +331,7 @@ export function ScanWizard({
             }}>
               <Play /> Start Automated Assessment
             </Button>
+            {!IS_API && (
             <Button
               variant={liveConfigValid ? "outline" : "default"}
               disabled={busy}
@@ -342,6 +346,7 @@ export function ScanWizard({
             >
               {busy ? <Loader2 className="animate-spin" /> : <FlaskConical />} Run Demo Simulation
             </Button>
+            )}
           </div>
         )}
       </div>

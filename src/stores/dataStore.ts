@@ -231,7 +231,7 @@ export const useDataStore = create<DataStore>()(
       /* ------------------------------ Projects ------------------------------ */
       createProject: (input) => {
         const year = new Date().getFullYear();
-        const code = nextCode(`AEG-${year}`, get().projects.filter((p) => p.code.startsWith(`AEG-${year}`)).map((p) => p.code), 3);
+        const code = nextCode(`AIV-${year}`, get().projects.filter((p) => p.code.startsWith(`AIV-${year}`)).map((p) => p.code), 3);
         const now = nowISO();
         const project: Project = { ...input, id: createId("prj"), code, createdAt: now, updatedAt: now, dataOrigin: "user_created" };
         set((s) => ({ projects: [project, ...s.projects] }));

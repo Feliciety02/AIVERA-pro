@@ -21,7 +21,7 @@ import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
 import { ASSET_TYPES, AUTHORIZATION_STATUS, CATEGORIES, ENVIRONMENTS, SCAN_STATUS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
-import { targetService } from "@/services";
+import { IS_API, targetService } from "@/services";
 import { ToolImportDialog } from "@/components/forms/ToolImportDialog";
 import { QuickScanCard } from "@/components/security/QuickScanCard";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -346,14 +346,29 @@ function AddToProject({ targetId, canManage }: { targetId: string; canManage: bo
   const projects = useDataStore((s) => s.projects).filter((p) => p.status !== "archived");
   const [projectId, setProjectId] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const run = async (fn: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(done);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <Callout tone="info" title="Not in a project yet">
-      <p>This target is saved, but scans, imports and findings need a project so results are grouped and reported together. Add it to a project when you are ready to test.</p>
+      <p>Scans and findings are grouped by project. Give this website its own project, or add it to an existing one if it is part of the same assessment.</p>
       {canManage && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          {IS_API && (
+            <Button size="sm" className="rounded-full" disabled={busy} onClick={() => run(() => targetService.createOwnProject(targetId), "Project created for this website")}>
+              Create its own project
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground">{IS_API ? "or" : ""}</span>
           <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger className="h-8 w-64 bg-background" aria-label="Project to add this target to">
-              <SelectValue placeholder="Choose a project" />
+            <SelectTrigger className="h-8 w-64 bg-background" aria-label="Existing project">
+              <SelectValue placeholder="Add to an existing project" />
             </SelectTrigger>
             <SelectContent>
               {projects.map((p) => (
@@ -363,21 +378,11 @@ function AddToProject({ targetId, canManage }: { targetId: string; canManage: bo
               ))}
             </SelectContent>
           </Select>
-          <Button
-            size="sm"
-            disabled={!projectId || busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await targetService.update(targetId, { projectId });
-                toast.success("Added to project");
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            Add to project
-          </Button>
+          {projectId && (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => targetService.update(targetId, { projectId }), "Added to project")}>
+              Add
+            </Button>
+          )}
         </div>
       )}
     </Callout>
