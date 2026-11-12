@@ -281,8 +281,6 @@ function WorkspacePreview() {
 
 /* --------------------------------- Content -------------------------------- */
 
-const MARQUEE = ["Login and OTP", "Access control", "SQL injection", "Cross site scripting", "Session cookies", "Exposed files", "Debug routes", "Security headers", "HTTPS settings", "Rate limits", "Admin pages", "Inventory API"];
-
 const WORKFLOW: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: FileLock2, title: "Scope", body: "Register UMERCH3.0, confirm permission, and lock exactly which hosts and paths may be touched." },
   { icon: RadarIcon, title: "Recon", body: "Read robots.txt and sitemap.xml, resolve DNS, and map hosts, ports and pages." },
@@ -312,7 +310,7 @@ const GUARDS = [
 
 function SectionHeading({ title, body, align = "center" }: { title: string; body?: string; align?: "center" | "left" }) {
   return (
-    <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}>
+    <div className={cn("sr-rise max-w-2xl", align === "center" && "mx-auto text-center")}>
       <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
       {body && <p className="mt-4 text-base leading-relaxed text-muted-foreground">{body}</p>}
     </div>
@@ -325,7 +323,7 @@ export default function LandingPage() {
   const reduced = useReducedMotion();
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-dvh overflow-x-clip bg-background text-foreground">
       <div className="landing-grid pointer-events-none fixed inset-0" aria-hidden />
       <div className="pointer-events-none fixed -top-48 left-1/2 h-[480px] w-[880px] -translate-x-1/2 rounded-full bg-landing-accent/10 blur-[120px]" aria-hidden />
 
@@ -360,12 +358,13 @@ export default function LandingPage() {
             )}
           </div>
         </nav>
+        <div className="sr-progress absolute inset-x-0 -bottom-px h-0.5 bg-landing-accent" aria-hidden />
       </header>
 
       <main className="relative">
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-14 px-4 pt-14 pb-20 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-20">
-          <div>
+          <div className="sr-exit">
             <h1 className="text-4xl leading-[1.12] font-semibold tracking-tight sm:text-5xl lg:text-[3.4rem]">
               Find the weak spots in <span className="landing-gradient-text">UMERCH3.0</span>{" "}
               <span className="relative inline-block whitespace-nowrap">
@@ -403,7 +402,7 @@ export default function LandingPage() {
               ))}
             </dl>
           </div>
-          <div className="relative">
+          <div className="sr-parallax relative">
             <FloatingCard icon={ShieldCheck} title="Permission" value="Confirmed" className="top-6 -left-2 lg:-left-10" />
             <FloatingCard icon={KeyRound} title="Scope locked" value="127.0.0.1:8000 /*" className="right-0 bottom-16 lg:-right-6" delay="1.5s" />
             <Radar />
@@ -413,27 +412,16 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Marquee of what gets checked */}
-        <section className="border-y border-border bg-card/60 py-4 backdrop-blur" aria-label="What AIVERA checks">
-          <div className="landing-marquee-mask overflow-hidden">
-            <ul className={cn("flex w-max gap-3", !reduced && "landing-marquee")}>
-              {[...MARQUEE, ...MARQUEE].map((m, i) => (
-                <li key={i} aria-hidden={i >= MARQUEE.length} className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-1.5 text-sm whitespace-nowrap">
-                  <span className="size-1.5 rounded-full bg-landing-accent" /> {m}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
         {/* Example run */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-24 sm:px-6 lg:grid-cols-2">
-          <TerminalDemo />
+          <div className="sr-tilt">
+            <TerminalDemo />
+          </div>
           <div>
             <SectionHeading align="left" title="Every run follows the same rules" body="Permission first, scope locked, results held as pending until a person decides. This is what a run against the local UMERCH3.0 copy looks like." />
             <ul className="mt-6 space-y-3 text-sm">
-              {["Scope comes from the site's own robots.txt and sitemap.xml", "Scanners never leave the approved host and paths", "AI suggestions are advice, never a verdict"].map((t) => (
-                <li key={t} className="flex items-start gap-3">
+              {["Scope comes from the site's own robots.txt and sitemap.xml", "Scanners never leave the approved host and paths", "AI suggestions are advice, never a verdict"].map((t, i) => (
+                <li key={t} className="sr-slide flex items-start gap-3" style={{ "--sr-i": i } as React.CSSProperties}>
                   <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden /> {t}
                 </li>
               ))}
@@ -445,9 +433,12 @@ export default function LandingPage() {
         <section id="workflow" className="scroll-mt-20 border-t border-border bg-muted/30 py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading title="From permission to patched in six steps" body="Each step hands off to the next, and nothing moves forward without the checks before it." />
-            <ol className="relative mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="relative mt-12 h-px bg-border" aria-hidden>
+              <div className="sr-line absolute inset-0 bg-gradient-to-r from-landing-accent to-landing-deep" />
+            </div>
+            <ol className="relative mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {WORKFLOW.map((s, i) => (
-                <li key={s.title} className="group relative rounded-xl border border-border bg-card p-6 pt-8 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-1 hover:border-landing-accent/50 hover:shadow-xl hover:shadow-landing-accent/10">
+                <li key={s.title} style={{ "--sr-i": i % 3 } as React.CSSProperties} className="sr-rise group relative rounded-xl border border-border bg-card p-6 pt-8 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-1 hover:border-landing-accent/50 hover:shadow-xl hover:shadow-landing-accent/10">
                   <Brackets className="opacity-0 transition-opacity group-hover:opacity-100" />
                   <span className="absolute -top-4 left-6 flex size-8 items-center justify-center rounded-full border-2 border-background bg-landing-accent font-mono text-xs font-semibold text-white shadow-md dark:text-slate-950">
                     {i + 1}
@@ -473,7 +464,7 @@ export default function LandingPage() {
               </Link>
             </Button>
           </div>
-          <div className="relative">
+          <div className="sr-clip relative">
             <div className="absolute -inset-4 -z-10 rotate-2 rounded-3xl bg-gradient-to-br from-landing-accent/20 to-landing-deep/10" aria-hidden />
             <WorkspacePreview />
           </div>
@@ -484,8 +475,8 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading title="Built for a careful assessor" body="The parts of AIVERA that turn raw tool output into decisions you can defend." />
             <div className="mt-14 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map((f) => (
-                <div key={f.title} className="group relative bg-card p-7 transition-colors hover:bg-accent/40">
+              {FEATURES.map((f, i) => (
+                <div key={f.title} style={{ "--sr-i": i % 3 } as React.CSSProperties} className="sr-blur group relative bg-card p-7 transition-colors hover:bg-accent/40">
                   <f.icon className="size-6 text-landing-accent transition-transform group-hover:scale-110" aria-hidden />
                   <h3 className="mt-4 text-base font-medium">{f.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
@@ -508,7 +499,7 @@ export default function LandingPage() {
             </div>
             <ul className="space-y-3">
               {GUARDS.map((g, i) => (
-                <li key={g} className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm transition-colors hover:border-landing-accent/40">
+                <li key={g} style={{ "--sr-i": i } as React.CSSProperties} className="sr-slide flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm transition-colors hover:border-landing-accent/40">
                   <span className="font-mono text-xs text-muted-foreground tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                   {g}
                 </li>
@@ -519,7 +510,7 @@ export default function LandingPage() {
 
         {/* CTA */}
         <section className="px-4 py-24 sm:px-6">
-          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-landing-accent/25 bg-gradient-to-br from-landing-accent/15 via-card to-landing-deep/10 px-6 py-16 sm:px-12">
+          <div className="sr-zoom relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-landing-accent/25 bg-gradient-to-br from-landing-accent/15 via-card to-landing-deep/10 px-6 py-16 sm:px-12">
             <div className="landing-grid pointer-events-none absolute inset-0" aria-hidden />
             <BrandMark className="pointer-events-none absolute -right-10 -bottom-12 size-72 opacity-15 sm:size-96" />
             <div className="relative max-w-xl">

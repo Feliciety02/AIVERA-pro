@@ -32,7 +32,9 @@ export function AppShell() {
       <MobileSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-        <main id="main" ref={mainRef} className="min-w-0 flex-1">
+        <main id="main" ref={mainRef} className="relative isolate min-w-0 flex-1">
+          <div className="app-backdrop pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]" aria-hidden />
+          <div className="pointer-events-none absolute top-[-220px] left-1/2 -z-10 h-[360px] w-[min(880px,90%)] -translate-x-1/2 rounded-full bg-landing-accent/8 blur-[110px]" aria-hidden />
           <ErrorBoundary key={location.pathname}>
             <Outlet />
           </ErrorBoundary>
