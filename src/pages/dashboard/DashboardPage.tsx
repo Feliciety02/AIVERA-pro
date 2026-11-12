@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/misc";
 import { StatCard, RecentActivity, VerificationQueue, FindingRow } from "@/components/dashboard/widgets";
 import { NextStepCard } from "@/components/dashboard/NextStepCard";
-import { QuickScanCard } from "@/components/security/QuickScanCard";
 import { ChartCard, DonutChart, StackedBars, TrendArea, summarize } from "@/components/charts/charts";
 import { SectionCard } from "@/components/shared/display";
 import { CardsSkeleton } from "@/components/shared/states";
@@ -117,8 +116,7 @@ export default function DashboardPage() {
         }
       />
 
-      <NextStepCard />
-      {scanTarget && <QuickScanCard target={scanTarget} showTargetName />}
+      <NextStepCard scanTarget={scanTarget} />
 
       {loading ? (
         <CardsSkeleton count={8} />

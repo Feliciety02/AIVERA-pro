@@ -1,5 +1,5 @@
 import { NavLink } from "react-router";
-import { ChevronsLeft, ChevronsRight, FlaskConical, LayoutGrid, ListChecks } from "lucide-react";
+import { FlaskConical, LayoutGrid, ListChecks } from "lucide-react";
 import { useUIStore } from "@/stores/sessionStore";
 import { IS_API } from "@/services";
 import { useCurrentUser } from "@/hooks";
@@ -15,7 +15,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const simple = useUIStore((s) => s.simpleMode);
   return (
     <nav aria-label="Main navigation" className="flex-1 space-y-4 overflow-y-auto py-3">
-      {(simple ? SIMPLE_NAV : NAV).map((group) => {
+      {(simple ? SIMPLE_NAV : NAV).map((group, groupIndex) => {
         const items = group.items.filter((i) => !i.requires || can(user?.role, i.requires));
         if (!items.length) return null;
         return (
@@ -23,7 +23,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
             {!collapsed ? (
               <p className="mb-1 pl-7 text-xs font-medium text-muted-foreground">{group.label}</p>
             ) : (
-              <div className="mx-auto mb-2 ml-4 h-px w-6 bg-border" aria-hidden />
+              // Rail: a centred divider between groups, none above the first one.
+              groupIndex > 0 && <div className="mx-auto mb-3 h-px w-8 bg-border" aria-hidden />
             )}
             <ul>
               {items.map((item) => {
@@ -88,7 +89,13 @@ function MenuModeSwitch({ collapsed }: { collapsed: boolean }) {
       {collapsed ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
     </button>
   );
-  return <div className="mb-2">{collapsed ? <Hint label={label} side="right">{button}</Hint> : button}</div>;
+  // Same divider as between nav groups: short and centred on the rail, inset when expanded.
+  return (
+    <div className="pb-2">
+      <div className={cn("mb-2 h-px bg-border", collapsed ? "mx-auto w-8" : "mx-4")} aria-hidden />
+      {collapsed ? <Hint label={label} side="right">{button}</Hint> : button}
+    </div>
+  );
 }
 
 function DemoFooter({ collapsed }: { collapsed: boolean }) {
@@ -98,7 +105,7 @@ function DemoFooter({ collapsed }: { collapsed: boolean }) {
   if (collapsed)
     return (
       <Hint label="Demo mode, all data is synthetic; no real scans or AI" side="right">
-        <div className="mx-auto mb-3 flex size-8 items-center justify-center text-muted-foreground">
+        <div className="mx-auto mb-3 flex h-10 w-12 items-center justify-center text-muted-foreground">
           <FlaskConical className="size-4" />
         </div>
       </Hint>
@@ -115,7 +122,6 @@ function DemoFooter({ collapsed }: { collapsed: boolean }) {
 
 export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
-  const toggle = useUIStore((s) => s.toggleSidebar);
   return (
     <aside
       className={cn(
@@ -123,20 +129,12 @@ export function Sidebar() {
         collapsed ? "w-[64px]" : "w-64",
       )}
     >
-      <div className={cn("flex h-14 items-center px-5", collapsed && "justify-center px-0")}>
+      <div className={cn("flex h-16 items-center px-5", collapsed && "justify-center px-0")}>
         <BrandWordmark collapsed={collapsed} />
       </div>
       <NavContent collapsed={collapsed} />
       <MenuModeSwitch collapsed={collapsed} />
       <DemoFooter collapsed={collapsed} />
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="flex h-10 items-center justify-center gap-2 border-t border-border text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        {collapsed ? <ChevronsRight className="size-4" /> : <><ChevronsLeft className="size-4" /> Collapse</>}
-      </button>
     </aside>
   );
 }
@@ -149,7 +147,7 @@ export function MobileSidebar() {
       <SheetContent side="left" className="w-72 bg-sidebar p-0">
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <SheetDescription className="sr-only">Main application navigation</SheetDescription>
-        <div className="flex h-14 items-center border-b border-border px-4">
+        <div className="flex h-16 items-center px-5">
           <BrandWordmark />
         </div>
         <NavContent collapsed={false} onNavigate={() => setOpen(false)} />

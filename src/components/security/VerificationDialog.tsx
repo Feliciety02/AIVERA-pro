@@ -73,11 +73,19 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
 
   const submit = async () => {
     setBusy(true);
+    setErr(null);
     try {
       await verificationService.record({ findingId: finding.id, toStatus: status, notes: notes.trim(), decisionReason: reason.trim(), evidenceReviewed: reviewed });
+      // Only report success once the stored finding really shows the new decision.
+      const saved = useDataStore.getState().findings.find((f) => f.id === finding.id);
+      if (saved && saved.verificationStatus !== status) throw new Error("The server did not keep this decision. Reload the page and try again.");
       toast.success(`${finding.code} marked ${VERIFICATION_STATUS[status].label}`, { description: isConfirm ? "Now counted as a verified vulnerability on the dashboard." : undefined });
       onOpenChange(false);
       onSaved?.(status);
+    } catch (e) {
+      // Keep the dialog open with the typed notes, so nothing is lost.
+      setStage("form");
+      setErr(`Not saved. ${(e as Error).message || "The AIVERA server could not be reached."} Your notes are still here, so you can try again.`);
     } finally {
       setBusy(false);
     }

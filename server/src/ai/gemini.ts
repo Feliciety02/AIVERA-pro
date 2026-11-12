@@ -268,6 +268,23 @@ function buildContext(c: AIContext): { text: string; evidenceIds: string[] } {
   return { text: lines.join("\n"), evidenceIds };
 }
 
+/**
+ * Busy providers rest for a short time. While Gemini is resting, Groq and then Ollama answer
+ * first; once the rest is over, Gemini is first in line again, so AIVERA moves back up by itself.
+ */
+const COOLDOWN_MS = Math.max(0, Number(process.env.AI_COOLDOWN_SECONDS ?? 60)) * 1000;
+const restingUntil = new Map<string, number>();
+const isBusy = (msg: string) => /rate limit|overloaded|did not respond|timed out|exceeded|ECONNREFUSED|fetch failed/i.test(msg);
+
+/** Current state of every provider, in the order they are tried. */
+export function aiProviderStatus(): { name: string; resting: boolean; secondsLeft: number }[] {
+  const now = Date.now();
+  return aiProviderChain().map((name) => {
+    const left = Math.max(0, (restingUntil.get(name) ?? 0) - now);
+    return { name, resting: left > 0, secondsLeft: Math.ceil(left / 1000) };
+  });
+}
+
 export async function analyzeWithGemini(c: AIContext): Promise<AIAnalysis> {
   const built = buildContext(c);
   const { text: sent, count } = redact(built.text);
@@ -295,15 +312,23 @@ export async function analyzeWithGemini(c: AIContext): Promise<AIAnalysis> {
   let parsed: z.infer<typeof Output> | undefined;
   let usedModel = "";
   const failures: string[] = [];
-  for (const a of attempts) {
+  // Resting providers go to the back of the line (never dropped), keeping the normal order otherwise.
+  const now = Date.now();
+  const ready = attempts.filter((a) => (restingUntil.get(a.label) ?? 0) <= now);
+  const resting = attempts.filter((a) => (restingUntil.get(a.label) ?? 0) > now);
+  for (const a of [...ready, ...resting]) {
     try {
       parsed = parseOutput(await a.run(), a.label);
       usedModel = a.model;
+      restingUntil.delete(a.label);
       break;
     } catch (e) {
-      failures.push(describe(e, a.label).message);
+      const msg = describe(e, a.label).message;
+      failures.push(msg);
+      if (COOLDOWN_MS && isBusy(msg)) restingUntil.set(a.label, Date.now() + COOLDOWN_MS);
     }
   }
+  if (resting.length && parsed) console.info(`[ai] answered by ${usedModel}; resting: ${resting.map((a) => a.label).join(", ")}`);
   if (!parsed) {
     const allBusy = failures.every((f) => /rate limit|overloaded|did not respond/.test(f));
     throw new HttpError(allBusy ? 503 : 502, `No AI provider could answer. ${failures.join(" · ")}${allBusy ? ". All are busy right now; try again in a minute." : ""}`);

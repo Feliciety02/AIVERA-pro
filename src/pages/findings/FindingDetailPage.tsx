@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, Bot, ChevronLeft, ChevronRight, CircleCheck, CircleX, Loader2, PartyPopper, RotateCcw, ShieldQuestion, Sparkles, Wrench, TriangleAlert } from "lucide-react";
+import { ArrowRight, Bot, ChevronLeft, ChevronRight, Loader2, Sparkles, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,9 @@ import { AI_MODES, CATEGORY_BY_ID, MITIGATION_STATUS, REMEDIATION_STATUS, VERIFI
 import { formatDate, formatDateTime } from "@/lib/format";
 import { riskLevel, riskScore, RISK_LEVEL_META } from "@/lib/risk";
 import { can, deniedReason } from "@/lib/permissions";
-import { analysisService } from "@/services";
+import { analysisService, findingService } from "@/services";
 import type { AIMode, VerificationStatus } from "@/types";
+import { awaitsReview } from "@/features/scanLifecycle";
 
 const FINDING_MODES = AI_MODES.filter((m) => m.needs === "finding");
 
@@ -44,9 +45,18 @@ export default function FindingDetailPage() {
   const [mode, setMode] = React.useState<AIMode>("vulnerability_explanation");
   const [generating, setGenerating] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState<VerificationStatus | null>(null);
+  const [aliasCheckedId, setAliasCheckedId] = React.useState<string | null>(null);
   const navigate = useNavigate();
   const allFindings = useDataStore((s) => s.findings);
   const tab = params.get("tab") ?? "overview";
+
+  React.useEffect(() => {
+    if (finding || !findingId) return;
+    void findingService.resolveAlias(findingId).then((canonicalId) => {
+      if (canonicalId) navigate(`/findings/${canonicalId}`, { replace: true });
+      else setAliasCheckedId(findingId);
+    });
+  }, [finding, findingId, navigate]);
 
   // A new finding starts without the "decision saved" banner.
   React.useEffect(() => setJustSaved(null), [findingId]);
@@ -58,7 +68,9 @@ export default function FindingDetailPage() {
   if (!finding)
     return (
       <ContentContainer>
-        <NotFoundState entity="Finding" backTo="/findings" backLabel="Back to findings" />
+        {aliasCheckedId === findingId
+          ? <NotFoundState entity="Finding" backTo="/findings" backLabel="Back to findings" />
+          : <div role="status" className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Opening finding…</div>}
       </ContentContainer>
     );
 
@@ -70,18 +82,16 @@ export default function FindingDetailPage() {
   const risk = all.risks.find((r) => r.findingId === finding.id);
   const target = lookups.targets[finding.targetId];
   const project = lookups.projects[finding.projectId];
-  const reviewedCount = evidence.filter((e) => e.reviewed).length;
   const cat = CATEGORY_BY_ID[finding.category];
 
   // Review order: by finding code. "To review" = no final decision yet.
-  const ordered = [...allFindings].sort((a, b) => a.code.localeCompare(b.code));
+  const ordered = allFindings.filter((f) => f.targetId === finding.targetId).sort((a, b) => a.code.localeCompare(b.code));
   const index = ordered.findIndex((f) => f.id === finding.id);
   const prev = index > 0 ? ordered[index - 1] : undefined;
   const next = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : undefined;
-  const isOpen = (f: { verificationStatus: VerificationStatus }) => f.verificationStatus === "pending" || f.verificationStatus === "needs_review";
-  const toReview = ordered.filter(isOpen);
+  const toReview = ordered.filter(awaitsReview);
   // Next undecided finding after this one, wrapping around to the start.
-  const nextToReview = [...ordered.slice(index + 1), ...ordered.slice(0, Math.max(index, 0))].find((f) => f.id !== finding.id && isOpen(f));
+  const nextToReview = [...ordered.slice(index + 1), ...ordered.slice(0, Math.max(index, 0))].find((f) => f.id !== finding.id && awaitsReview(f));
   const goTo = (id: string) => navigate(`/findings/${id}`);
 
   const generate = async () => {
@@ -97,12 +107,12 @@ export default function FindingDetailPage() {
     }
   };
 
-  const decisionButtons: { status: VerificationStatus; label: string; icon: typeof CircleCheck; variant: "destructive" | "secondary" | "outline" }[] = [
-    { status: "confirmed", label: "Confirm", icon: CircleCheck, variant: "destructive" },
-    { status: "rejected", label: "Reject", icon: CircleX, variant: "secondary" },
-    { status: "needs_review", label: "Needs further review", icon: ShieldQuestion, variant: "outline" },
-    { status: "pending", label: "Reset to pending", icon: RotateCcw, variant: "outline" },
+  const decisionButtons: { status: VerificationStatus; label: string }[] = [
+    { status: "confirmed", label: "Confirm" },
+    { status: "rejected", label: "Reject" },
+    { status: "needs_review", label: "Review later" },
   ];
+  const current = finding.verificationStatus;
 
   return (
     <ContentContainer>
@@ -137,71 +147,84 @@ export default function FindingDetailPage() {
         }
       />
 
-      <SectionCard
-        title="Human verification"
-        description={`The assessor, not the AI, decides whether this is a real vulnerability. Evidence reviewed: ${reviewedCount} of ${evidence.length}.`}
-        actions={
-          <div className="flex items-center gap-1" data-tour="finding-nav">
-            <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">
-              {index + 1} of {ordered.length} · <span className="font-medium text-foreground">{toReview.length} to review</span>
-            </span>
-            <Button size="icon-sm" variant="ghost" disabled={!prev} onClick={() => prev && goTo(prev.id)} aria-label={prev ? `Previous finding ${prev.code}` : "No previous finding"}>
-              <ChevronLeft />
-            </Button>
-            <Button size="sm" variant="outline" disabled={!next} onClick={() => next && goTo(next.id)} aria-label={next ? `Next finding ${next.code}` : "No next finding"}>
-              Next <ChevronRight />
-            </Button>
-          </div>
-        }
-      >
+      <section aria-label="Your decision" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         {justSaved && (
-          <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-success/30 bg-success/8 px-4 py-3">
-            <CircleCheck className="size-5 shrink-0 text-success" aria-hidden />
-            <div className="min-w-0 flex-1 text-sm">
-              <p className="font-medium">Saved: {finding.code} is now {VERIFICATION_STATUS[justSaved].label}.</p>
-              <p className="text-muted-foreground">
-                {nextToReview ? `${toReview.length} finding${toReview.length === 1 ? "" : "s"} still to review. Next: ${nextToReview.code}, ${nextToReview.title}.` : "Every finding now has a decision."}
-              </p>
-            </div>
+          <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-success/8 px-4 py-2.5 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Saved as {VERIFICATION_STATUS[justSaved].label}.</span>{" "}
+              <span className="text-muted-foreground">{nextToReview ? `${toReview.length} left to review.` : "Every finding has a decision."}</span>
+            </span>
             {nextToReview ? (
-              <Button className="rounded-full" onClick={() => goTo(nextToReview.id)}>
+              <Button size="sm" className="rounded-full" onClick={() => goTo(nextToReview.id)}>
                 Next to review <ArrowRight />
               </Button>
             ) : (
-              <Button className="rounded-full" asChild>
-                <Link to="/findings?status=confirmed">
-                  <PartyPopper /> Plan fixes for confirmed findings
-                </Link>
+              <Button size="sm" className="rounded-full" asChild>
+                <Link to="/findings?status=confirmed">Plan fixes</Link>
               </Button>
             )}
           </div>
         )}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {decisionButtons.map((b) =>
-              canVerify ? (
-                <Button key={b.status} size="sm" variant={b.variant} disabled={finding.verificationStatus === b.status} onClick={() => setDecision(b.status)}>
-                  <b.icon /> {b.label}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">Your decision</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {history[0] ? (
+                <>
+                  Last set by {lookups.users[history[0].assessorId]?.name ?? "unknown"}, {formatDateTime(history[0].decidedAt)}
+                  {canVerify && current !== "pending" && (
+                    <>
+                      {" · "}
+                      <button type="button" className="font-medium text-primary hover:underline" onClick={() => setDecision("pending")}>
+                        Undo
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                "Check the evidence below, then choose."
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Record your decision">
+            {decisionButtons.map((b) => {
+              const active = current === b.status;
+              const button = (
+                <Button
+                  size="sm"
+                  variant={active ? "default" : "outline"}
+                  className="min-w-24 rounded-full"
+                  disabled={!canVerify || active}
+                  aria-pressed={active}
+                  onClick={() => setDecision(b.status)}
+                >
+                  {b.label}
                 </Button>
+              );
+              return canVerify ? (
+                <React.Fragment key={b.status}>{button}</React.Fragment>
               ) : (
                 <Hint key={b.status} label={deniedReason(user?.role)}>
-                  <span tabIndex={0}><Button size="sm" variant={b.variant} disabled><b.icon /> {b.label}</Button></span>
+                  <span tabIndex={0}>{button}</span>
                 </Hint>
-              ),
-            )}
+              );
+            })}
           </div>
-          {history[0] && (
-            <p className="text-xs text-muted-foreground">
-              Last decision: <span className="text-foreground">{VERIFICATION_STATUS[history[0].toStatus].label}</span> by {lookups.users[history[0].assessorId]?.name} · {formatDateTime(history[0].decidedAt)}
-            </p>
-          )}
         </div>
-        {finding.dataOrigin === "simulated" && (
-          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-sev-medium">
-            <TriangleAlert className="size-3.5" /> This finding was produced by a demo simulation. A decision here is a demonstration only, the record stays labelled SIMULATED.
-          </p>
-        )}
-      </SectionCard>
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs" data-tour="finding-nav">
+          <Link to={`/findings?target=${finding.targetId}&status=unverified`} className="text-muted-foreground hover:text-foreground">
+            {toReview.length ? `${toReview.length} left to review` : "All reviewed"}
+          </Link>
+          <div className="flex items-center gap-1" aria-label="Finding navigation">
+            <Button size="sm" variant="ghost" disabled={!prev} onClick={() => prev && goTo(prev.id)} aria-label={prev ? `Previous finding ${prev.code}` : "No previous finding"}>
+              <ChevronLeft /> Previous
+            </Button>
+            <Button size="sm" variant="ghost" disabled={!next} onClick={() => next && goTo(next.id)} aria-label={next ? `Next finding ${next.code}` : "No next finding"}>
+              Next <ChevronRight />
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
         <TabsList>

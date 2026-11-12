@@ -15,13 +15,15 @@ Requirements: Node.js 20.19+ (tested on Node 24) and npm.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev:full   # AIVERA server on :4000 + web app on http://localhost:5173 (full app)
+npm run dev        # web app only, full-app mode (needs the server running)
+npm run dev:demo   # optional browser-only demo with synthetic data, no server
 npm run build      # strict type-check (tsc -b) + production build to dist/
 npm run preview    # serve the production build
 npm run typecheck  # type-check only
 ```
 
-Open the app, pick a demo persona on `/login` (no password), and you're in.
+Open the app and sign in with one of the AIVERA accounts.
 To start over, use **Settings → General → Reset demo data**.
 
 ### Full stack (backend + database)
@@ -64,6 +66,8 @@ approval before *Resolved*), and an append-only activity log. Live target contac
 ### Automated assessment in API mode
 
 Install Nmap and Docker on the dedicated assessment machine, pull `ghcr.io/zaproxy/zaproxy:stable`, and set `AIVERA_LIVE_SCANS_ENABLED=true` plus `AIVERA_ALLOWED_SCAN_HOSTS=<exact lab host>` in `server/.env`. Register only an approved lab target with explicit hosts, paths, exclusions, and an authorization reference. In **Scan Center → New assessment**, choose Nmap and/or OWASP ZAP with the Passive or Baseline profile, then select **Start Automated Assessment**. The API queues a background run, Nmap performs bounded TCP discovery, ZAP spiders inside a generated context with passive checks, and the server normalizes results into pending findings and evidence. Configured Gemini analysis automatically interprets the scan and drafts remediation for up to three findings. An assessor must still verify every finding.
+
+Before another scan or tool import for the same target, decide every pending or needs-review finding. Each completed rescan stays in scan history; recurring alerts reuse the existing finding instead of adding another review row, while new alerts enter a new review batch. Deleting a target from its detail page removes its scan history and related assessment records so it can be registered again. For older databases, `npm run db:dedupe` previews repeated unreviewed rows and `npm run db:dedupe -- --apply` consolidates them; back up the database before applying it. Old finding links redirect to the retained record.
 
 This first automated adapter supports authorized web targets reachable by both Nmap and the ZAP container. It does not run active ZAP attacks, authenticated scans, or tools for non-web systems. The Docker and Nmap executables are not bundled. See [the authorized target lab plan](docs/Authorized-Target-Lab.md) before a live demonstration.
 

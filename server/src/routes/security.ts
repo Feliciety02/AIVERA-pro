@@ -16,6 +16,7 @@ import { parseNmapXmlServer } from "../nmap.ts";
 import { aiConfigured, analyzeWithGemini } from "../ai/gemini.ts";
 import { AUTOMATED_ADAPTERS } from "../automatedAssessment.ts";
 import { TOOL_ACTIVITY, toolPermitted, urlHostInScope, type LiveTool } from "@/features/scanPermissions";
+import { uniqueFindings } from "@/features/scanLifecycle";
 
 export const router = Router();
 router.use(requireAuth);
@@ -30,24 +31,40 @@ async function authorizedTarget(id: string) {
   return { ...M.toTarget(t), projectId: t.projectId! };
 }
 
-const nextFindingIndex = async () => (await prisma.finding.count()) + 1;
+const nextFindingIndex = async () => {
+  const codes = (await prisma.finding.findMany({ select: { code: true } })).map((finding) => finding.code);
+  return Number(nextCode("FND", codes).slice(4));
+};
 
 /** Persists records produced by simulation or import in one transaction. */
 async function persistBundle(b: {
   scan: ReturnType<typeof M.toScan>; results: ReturnType<typeof M.toScanResult>[]; hosts: ReturnType<typeof M.toHost>[]; ports: ReturnType<typeof M.toPort>[];
   dns: ReturnType<typeof M.toDns>[]; endpoints: ReturnType<typeof M.toEndpoint>[]; findings: ReturnType<typeof M.toFinding>[]; evidence: ReturnType<typeof M.toEvidence>[];
-}, includeScan = true) {
+}, includeScan = true): Promise<{ newFindings: number; repeatedFindings: number }> {
   const s = b.scan;
+  const existing = await prisma.finding.findMany({ where: { targetId: s.targetId }, select: { targetId: true, sourceTool: true, templateKey: true, affectedAsset: true, parameter: true, title: true } });
+  const novel = uniqueFindings(b.findings, existing);
+  const novelIds = new Set(novel.map((f) => f.id));
+  const repeatedFindings = b.findings.length - novel.length;
+  const results = b.results.map((r) => ({ ...r, summary: `${r.summary}; ${novel.length} new, ${repeatedFindings} previously recorded finding(s)` }));
   await prisma.$transaction([
     ...(includeScan ? [prisma.scan.create({ data: { ...s, config: s.config as object, stage: s.stage ?? null, errorMessage: s.errorMessage ?? null, createdAt: new Date(s.createdAt), startedAt: s.startedAt ? new Date(s.startedAt) : null, completedAt: s.completedAt ? new Date(s.completedAt) : null } })] : []),
-    prisma.scanResult.createMany({ data: b.results.map((r) => ({ ...r, recordedAt: new Date(r.recordedAt) })) }),
+    prisma.scanResult.createMany({ data: results.map((r) => ({ ...r, recordedAt: new Date(r.recordedAt) })) }),
     prisma.host.createMany({ data: b.hosts.map((h) => ({ ...h, scanId: h.scanId ?? null, osGuess: h.osGuess ?? null, observedAt: new Date(h.observedAt) })) }),
     prisma.port.createMany({ data: b.ports.map((p) => ({ ...p, observedAt: new Date(p.observedAt) })) }),
     prisma.dnsRecord.createMany({ data: b.dns.map((d) => ({ ...d, observedAt: new Date(d.observedAt) })) }),
     prisma.endpoint.createMany({ data: b.endpoints.map((e) => ({ ...e, observedAt: new Date(e.observedAt) })) }),
-    prisma.finding.createMany({ data: b.findings.map(M.findingColumns) }),
-    prisma.evidence.createMany({ data: b.evidence.map(M.evidenceColumns) }),
+    prisma.finding.createMany({ data: novel.map(M.findingColumns) }),
+    prisma.evidence.createMany({ data: b.evidence.filter((e) => novelIds.has(e.findingId)).map(M.evidenceColumns) }),
   ]);
+  return { newFindings: novel.length, repeatedFindings };
+}
+
+async function requireReviewComplete(targetId: string) {
+  const active = await prisma.scan.count({ where: { targetId, status: { in: ["queued", "running", "paused"] } } });
+  if (active) fail(409, "A scan is already in progress for this target.");
+  const pending = await prisma.finding.count({ where: { targetId, verificationStatus: { in: ["pending", "needs_review"] } } });
+  if (pending) fail(409, `Review the ${pending} pending finding(s) for this target before starting another scan or import.`);
 }
 
 /* ------------------------------- Simulation ------------------------------- */
@@ -73,6 +90,7 @@ router.post("/scans/automated", requirePermission("run_demo_scans"), async (req,
   if ((process.env.AIVERA_LIVE_SCANS_ENABLED ?? process.env.AEGIS_LIVE_SCANS_ENABLED) !== "true") fail(503, "Live scanning is disabled. Set AIVERA_LIVE_SCANS_ENABLED=true on a dedicated lab server.");
   const b = parse(z.object({ name: z.string().trim().min(1).max(160), projectId: z.string(), targetId: z.string(), config: scanConfig }), req.body);
   const target = await authorizedTarget(b.targetId);
+  await requireReviewComplete(target.id);
   if (target.projectId !== b.projectId) fail(400, "Target does not belong to this project.");
   if (!approvedScanHosts().has(new URL(target.url).hostname.toLowerCase())) fail(403, "The target host is not on the server administrator's live scan allowlist.");
   if (b.config.profile !== "passive" && b.config.profile !== "baseline") fail(400, "Automated runs currently support passive and baseline profiles only.");
@@ -113,14 +131,14 @@ async function executeAutomatedScan(id: string) {
         assessorId: project.ownerId, now: new Date().toISOString(), raw: out.raw, fileName: `automated-${tool}`,
       });
       const real = <T extends { dataOrigin: string }>(items: T[]) => items.map((item) => ({ ...item, dataOrigin: "real" as const }));
-      await persistBundle({
+      const saved = await persistBundle({
         scan: bundle.scan,
         results: [{ ...bundle.result, scanId: id, dataOrigin: "real", summary: bundle.result.summary.replace(/^Imported /, "Automated ") }],
         hosts: real(bundle.hosts).map((h) => ({ ...h, scanId: id })), ports: real(bundle.ports), dns: [], endpoints: real(bundle.endpoints),
         findings: real(bundle.findings).map((f) => ({ ...f, scanId: id })), evidence: real(bundle.evidence),
       }, false);
-      findings += bundle.findings.length;
-      await log(row.createdBy, "tool_output_captured", "scan", id, row.code, `${tool} produced ${bundle.findings.length} pending finding(s); ${bundle.skipped.length} out-of-scope item(s) discarded`);
+      findings += saved.newFindings;
+      await log(row.createdBy, "tool_output_captured", "scan", id, row.code, `${tool} produced ${saved.newFindings} new finding(s), ${saved.repeatedFindings} previously recorded; ${bundle.skipped.length} out-of-scope item(s) discarded`);
     }
     if (aiConfigured()) {
       await prisma.scan.update({ where: { id }, data: { stage: "Generating advisory AI analysis", progress: 90 } });
@@ -164,6 +182,7 @@ async function analyzeAutomatedScan(scanId: string, requestedBy: string) {
 router.post("/scans/simulate", requirePermission("run_demo_scans"), async (req, res) => {
   const b = parse(z.object({ name: z.string().trim().min(1).max(160), projectId: z.string(), targetId: z.string(), config: scanConfig }), req.body);
   const target = await authorizedTarget(b.targetId);
+  await requireReviewComplete(target.id);
   if (target.projectId !== b.projectId) fail(400, "Target does not belong to this project.");
   const config: ScanConfig = { ...b.config, categories: b.config.categories.filter((c) => target.scope.allowedCategories.includes(c)) };
   if (!config.categories.length) fail(400, "None of the selected categories are permitted by the target's scope.");
@@ -174,10 +193,10 @@ router.post("/scans/simulate", requirePermission("run_demo_scans"), async (req, 
     status: "completed" as const, progress: 100, stage: "Simulation complete", config, createdBy: me(req).id, createdAt: now, startedAt: now, completedAt: now, dataOrigin: "simulated" as const,
   };
   const out = generateSimulation(scan, target, await nextFindingIndex(), project.ownerId, now);
-  await persistBundle({ scan, results: out.results, hosts: out.hosts, ports: out.ports, dns: out.dns, endpoints: out.endpoints, findings: out.findings, evidence: out.evidence });
-  await log(me(req).id, "demo_scan_completed", "scan", scan.id, scan.code, `Demo simulation produced ${out.findings.length} SIMULATED finding(s) awaiting human verification`);
-  await notify({ title: "Demo simulation finished", message: `${scan.code}: ${out.findings.length} simulated findings require verification.`, tone: "info", link: `/scans/${scan.id}` }, "scanEvents");
-  res.status(201).json({ scan, findingCount: out.findings.length });
+  const saved = await persistBundle({ scan, results: out.results, hosts: out.hosts, ports: out.ports, dns: out.dns, endpoints: out.endpoints, findings: out.findings, evidence: out.evidence });
+  await log(me(req).id, "demo_scan_completed", "scan", scan.id, scan.code, `Demo simulation produced ${saved.newFindings} new finding(s), ${saved.repeatedFindings} previously recorded`);
+  await notify({ title: "Demo simulation finished", message: `${scan.code}: ${saved.newFindings} new finding(s) require verification.`, tone: "info", link: `/scans/${scan.id}` }, "scanEvents");
+  res.status(201).json({ scan, findingCount: saved.newFindings });
 });
 
 /** Removes every SIMULATED record and anything attached to it. Real scans, findings and evidence are untouched. */
@@ -215,6 +234,7 @@ router.post("/simulated-data/reset", requirePermission("run_demo_scans"), async 
 router.post("/imports", requirePermission("run_demo_scans"), async (req, res) => {
   const b = parse(z.object({ targetId: z.string(), format: z.enum(["nmap_xml", "zap_json"]), raw: z.string().min(1).max(MAX_IMPORT_BYTES), fileName: z.string().trim().min(1).max(200) }), req.body);
   const target = await authorizedTarget(b.targetId);
+  await requireReviewComplete(target.id);
   let parsed;
   try {
     parsed = b.format === "nmap_xml" ? parseNmapXmlServer(b.raw) : parseZapJson(b.raw);
@@ -228,15 +248,20 @@ router.post("/imports", requirePermission("run_demo_scans"), async (req, res) =>
     createdBy: me(req).id, assessorId: project.ownerId, now: new Date().toISOString(), raw: b.raw, fileName: b.fileName.replace(/[^\w.\- ]/g, "_"),
   });
   if (bundle.hosts.length + bundle.findings.length + bundle.endpoints.length === 0) fail(400, `Nothing in scope to import (${bundle.skipped.length} item(s) skipped by scope).`);
-  await persistBundle({ scan: bundle.scan, results: [bundle.result], hosts: bundle.hosts, ports: bundle.ports, dns: [], endpoints: bundle.endpoints, findings: bundle.findings, evidence: bundle.evidence });
+  const saved = await persistBundle({ scan: bundle.scan, results: [bundle.result], hosts: bundle.hosts, ports: bundle.ports, dns: [], endpoints: bundle.endpoints, findings: bundle.findings, evidence: bundle.evidence });
   await prisma.reconRun.create({ data: { id: newId("rcn"), targetId: target.id, tool: bundle.result.tool, label: `Imported ${b.fileName} (${bundle.scan.code})`, recordsAdded: bundle.hosts.length + bundle.ports.length + bundle.endpoints.length, ranAt: new Date(), dataOrigin: "imported" } });
   await prisma.integration.update({ where: { id: bundle.result.tool }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
-  await log(me(req).id, "tool_output_imported", "scan", scanId, bundle.scan.code, `Imported ${b.fileName} for ${target.name}: ${bundle.findings.length} finding(s) pending verification, ${bundle.skipped.length} out-of-scope item(s) skipped`);
-  await notify({ title: "Tool output imported", message: `${bundle.scan.code}: ${bundle.findings.length} finding(s) await verification.`, tone: "info", link: `/scans/${scanId}` }, "scanEvents");
-  res.status(201).json({ scanId, scanCode: bundle.scan.code, findings: bundle.findings.length, skipped: bundle.skipped });
+  await log(me(req).id, "tool_output_imported", "scan", scanId, bundle.scan.code, `Imported ${b.fileName} for ${target.name}: ${saved.newFindings} new finding(s), ${saved.repeatedFindings} previously recorded, ${bundle.skipped.length} out-of-scope item(s) skipped`);
+  await notify({ title: "Tool output imported", message: `${bundle.scan.code}: ${saved.newFindings} new finding(s) await verification.`, tone: "info", link: `/scans/${scanId}` }, "scanEvents");
+  res.status(201).json({ scanId, scanCode: bundle.scan.code, findings: saved.newFindings, skipped: bundle.skipped });
 });
 
 /* -------------------------------- Findings -------------------------------- */
+router.get("/findings/:id/alias", async (req, res) => {
+  const alias = (await prisma.findingAlias.findUnique({ where: { oldId: param(req) } })) ?? fail(404, "Finding alias not found");
+  res.json({ canonicalId: alias.canonicalId });
+});
+
 router.post("/findings/manual", requirePermission("verify_findings"), async (req, res) => {
   const b = parse(z.object({
     targetId: z.string(), title: z.string().trim().min(5).max(160), category: categoryEnum, severity: severityEnum, affectedAsset: z.string().trim().min(1).max(500),

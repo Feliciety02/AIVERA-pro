@@ -188,6 +188,9 @@ function UserMenu() {
 
 export function Header() {
   const setMobileNav = useUIStore((s) => s.setMobileNav);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  // One menu button for every screen size: wide screens fold the sidebar, narrow screens open the drawer.
+  const onMenu = () => (window.matchMedia("(min-width: 1024px)").matches ? toggleSidebar() : setMobileNav(true));
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
 
   const showDemoNotices = useUIStore((s) => s.showDemoNotices) && !IS_API;
@@ -207,7 +210,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 bg-background/85 px-4 backdrop-blur-md print:hidden lg:px-6">
-      <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Open navigation" onClick={() => setMobileNav(true)}>
+      <Button variant="ghost" size="icon-sm" aria-label="Main menu" onClick={onMenu}>
         <Menu />
       </Button>
       <Breadcrumbs />

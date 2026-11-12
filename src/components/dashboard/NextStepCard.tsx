@@ -4,6 +4,8 @@ import { ArrowRight, Check, FileText, Globe, ScanLine, ShieldAlert, Wrench, type
 import { Button } from "@/components/ui/button";
 import { useDataStore } from "@/stores/dataStore";
 import { cn } from "@/lib/utils";
+import { QuickScanCard } from "@/components/security/QuickScanCard";
+import type { Target } from "@/types";
 
 interface Step {
   key: string;
@@ -20,7 +22,7 @@ interface Step {
  * "What to do next": shows where the assessment stands and one button for the next step.
  * Only real results count; simulated practice data is ignored.
  */
-export function NextStepCard() {
+export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
   const { targets, scans, findings, remediation, reports } = useDataStore(
     useShallow((s) => ({ targets: s.targets, scans: s.scans, findings: s.findings, remediation: s.remediation, reports: s.reports })),
   );
@@ -112,7 +114,13 @@ export function NextStepCard() {
         ))}
       </ol>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+      {step?.key === "scan" && scanTarget ? (
+        // The scan step is the one-click scan itself, so it isn't shown twice.
+        <div className="mt-4">
+          <QuickScanCard target={scanTarget} showTargetName embedded eyebrow={`Next step · ${current + 1} of ${steps.length}`} />
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
             {step ? <step.icon className="size-5" aria-hidden /> : <Check className="size-5" aria-hidden />}
@@ -130,7 +138,8 @@ export function NextStepCard() {
             {step ? step.action.label : "View reports"} <ArrowRight />
           </Link>
         </Button>
-      </div>
+        </div>
+      )}
     </section>
   );
 }

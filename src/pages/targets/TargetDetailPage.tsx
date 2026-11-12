@@ -1,9 +1,9 @@
 import * as React from "react";
 import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { Ban, CircleCheck, FileUp, Globe, Loader2, Pencil, Radar, ShieldCheck, ShieldOff, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { Ban, CircleCheck, FileUp, Globe, Loader2, Pencil, Radar, ShieldCheck, ShieldOff, ShieldAlert, SlidersHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,11 @@ import { can } from "@/lib/permissions";
 import { targetService } from "@/services";
 import { ToolImportDialog } from "@/components/forms/ToolImportDialog";
 import { QuickScanCard } from "@/components/security/QuickScanCard";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import type { TargetScope } from "@/types";
 
 export default function TargetDetailPage() {
+  const navigate = useNavigate();
   const { targetId } = useParams();
   const user = useCurrentUser();
   const canManage = can(user?.role, "manage_targets");
@@ -40,6 +42,7 @@ export default function TargetDetailPage() {
   const [authChecked, setAuthChecked] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
 
   if (!target)
     return (
@@ -108,9 +111,26 @@ export default function TargetDetailPage() {
                   <FileUp /> Import tool output
                 </Button>
               )}
+              <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+                <Trash2 /> Delete target
+              </Button>
             </>
           )
         }
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete ${target.name}?`}
+        description={`This removes the target, ${scans.length} scan(s), ${findings.length} finding(s), their evidence and fix tasks. You can register the website again for a fresh assessment. This cannot be undone.`}
+        confirmLabel="Delete target and history"
+        destructive
+        onConfirm={async () => {
+          await targetService.delete(target.id);
+          toast.success("Target deleted. You can register it again to start fresh.");
+          navigate("/targets");
+        }}
       />
 
       {!target.projectId && <AddToProject targetId={target.id} canManage={canManage} />}

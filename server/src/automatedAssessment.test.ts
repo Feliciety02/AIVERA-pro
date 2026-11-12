@@ -37,7 +37,7 @@ test("path-limited context does not include the rest of the site", () => {
   assert.equal(included[0]!.test("https://lab.test/admin"), false);
 });
 
-import { toolPermitted, urlHostInScope } from "@/features/scanPermissions";
+import { nmapPortsInScope, toolPermitted, urlHostInScope } from "@/features/scanPermissions";
 
 test("scope host check accepts host:port entries and rejects other ports and hosts", () => {
   assert.equal(urlHostInScope("http://127.0.0.1:8000/", ["127.0.0.1:8000"]), true);
@@ -53,4 +53,11 @@ test("each live tool needs its own scope permission", () => {
   assert.equal(toolPermitted("nmap", ["Passive reconnaissance"]), false);
   assert.equal(toolPermitted("owasp_zap", ["automated web scanning (rate-limited)"]), true);
   assert.equal(toolPermitted("owasp_zap", ["Manual verification of findings"]), false);
+});
+
+test("Nmap only probes explicitly approved ports", () => {
+  assert.deepEqual(nmapPortsInScope("http://lab.test:3000", ["lab.test:3000"]), [3000]);
+  assert.deepEqual(nmapPortsInScope("https://lab.test", ["lab.test:443"]), [443]);
+  assert.deepEqual(nmapPortsInScope("http://lab.test:3000", ["lab.test"]), [80, 443, 3000]);
+  assert.deepEqual(nmapPortsInScope("http://lab.test:3000", ["other.test:3000"]), []);
 });
