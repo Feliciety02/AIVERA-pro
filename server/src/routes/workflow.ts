@@ -101,14 +101,27 @@ const reportBody = z.object({
   status: z.enum(["draft", "final"]),
 });
 
+async function validateReportSelection(b: Pick<z.infer<typeof reportBody>, "projectId" | "targetIds" | "findingIds">) {
+  const targetIds = [...new Set(b.targetIds)];
+  const findingIds = [...new Set(b.findingIds)];
+  if (targetIds.length !== b.targetIds.length || findingIds.length !== b.findingIds.length) fail(400, "Duplicate report target or finding IDs.");
+  const [project, targets, findings] = await Promise.all([
+    prisma.project.findUnique({ where: { id: b.projectId }, select: { id: true } }),
+    prisma.target.findMany({ where: { id: { in: targetIds }, projectId: b.projectId }, select: { id: true } }),
+    prisma.finding.findMany({ where: { id: { in: findingIds }, projectId: b.projectId, targetId: { in: targetIds }, verificationStatus: "confirmed" }, select: { id: true } }),
+  ]);
+  if (!project) fail(400, "Report project does not exist.");
+  if (targets.length !== targetIds.length) fail(400, "Every report target must belong to the selected project.");
+  if (findings.length !== findingIds.length) fail(400, "Every report finding must be confirmed and belong to the selected project and targets.");
+}
+
 router.post("/reports", requirePermission("generate_reports"), async (req, res) => {
   const b = parse(reportBody, req.body);
-  // Only human-confirmed findings may be listed as verified.
-  const confirmed = await prisma.finding.findMany({ where: { id: { in: b.findingIds }, verificationStatus: "confirmed" }, select: { id: true } });
+  await validateReportSelection(b);
   const now = new Date();
   const code = nextCode("RPT", (await prisma.report.findMany({ select: { code: true } })).map((r) => r.code));
   const r = await prisma.report.create({
-    data: { ...b, id: newId("rpt"), code, findingIds: confirmed.map((f) => f.id), periodStart: new Date(b.periodStart), periodEnd: new Date(b.periodEnd), createdBy: me(req).id, createdAt: now, updatedAt: now },
+    data: { ...b, id: newId("rpt"), code, periodStart: new Date(b.periodStart), periodEnd: new Date(b.periodEnd), createdBy: me(req).id, createdAt: now, updatedAt: now },
   });
   await log(me(req).id, "report_generated", "report", r.id, r.code, `Generated report "${r.title}"`);
   await notify({ title: "Report generated", message: `${r.code} ${r.title}`, tone: "success", link: `/reports/${r.id}` }, "reportReady");
@@ -117,8 +130,14 @@ router.post("/reports", requirePermission("generate_reports"), async (req, res) 
 
 router.patch("/reports/:id", requirePermission("generate_reports"), async (req, res) => {
   const b = parse(reportBody.partial(), req.body);
+  const current = (await prisma.report.findUnique({ where: { id: param(req) } })) ?? fail(404, "Report not found");
+  await validateReportSelection({
+    projectId: b.projectId ?? current.projectId,
+    targetIds: b.targetIds ?? (current.targetIds as string[]),
+    findingIds: b.findingIds ?? (current.findingIds as string[]),
+  });
   const r = await prisma.report.update({
-    where: { id: param(req) },
+    where: { id: current.id },
     data: { ...b, periodStart: b.periodStart ? new Date(b.periodStart) : undefined, periodEnd: b.periodEnd ? new Date(b.periodEnd) : undefined, updatedAt: new Date() },
   });
   res.json(M.toReport(r));

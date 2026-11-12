@@ -9,7 +9,7 @@ import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { seedDatabase } from "../seedData.ts";
 import { detectScope } from "../scopeDiscovery.ts";
-import { aiConfigured, aiProviderChain } from "../ai/gemini.ts";
+import { aiConfigured, aiProviderStatus } from "../ai/gemini.ts";
 
 export const router = Router();
 
@@ -113,7 +113,7 @@ router.get("/bootstrap", async (req, res) => {
     integrations: integrations.map(M.toIntegration).map((i) =>
       i.id === "ai_service"
         ? aiConfigured()
-          ? { ...i, name: "AI Analysis Service", status: "connected" as const, integrationType: `Server-side AI, tried in order: ${aiProviderChain().join(" → ")}`, futureEndpoint: "POST /api/ai/analyses (live)" }
+          ? { ...i, name: "AI Analysis Service", status: "connected" as const, integrationType: `Server-side AI, tried in order: ${aiProviderStatus().map((p) => (p.resting ? `${p.name} (busy, retried in ${p.secondsLeft}s)` : p.name)).join(" → ")}`, futureEndpoint: "POST /api/ai/analyses (live)" }
           : { ...i, status: "demo_adapter" as const, integrationType: "Demo adapter, set GEMINI_API_KEY in server/.env to enable Gemini" }
         : i,
     ),
@@ -262,9 +262,52 @@ router.patch("/targets/:id", requirePermission("manage_targets"), async (req, re
   res.json(M.toTarget(t));
 });
 
+/** Remove a target and its assessment history so the project can start fresh. */
+router.delete("/targets/:id", requirePermission("manage_targets"), async (req, res) => {
+  const target = (await prisma.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
+  const active = await prisma.scan.count({ where: { targetId: target.id, status: { in: ["queued", "running", "paused"] } } });
+  if (active) fail(409, "Wait for the active scan to finish before deleting this target.");
+  await prisma.$transaction(async (tx) => {
+    const [scans, findings, hosts, reports] = await Promise.all([
+      tx.scan.findMany({ where: { targetId: target.id }, select: { id: true } }),
+      tx.finding.findMany({ where: { targetId: target.id }, select: { id: true } }),
+      tx.host.findMany({ where: { targetId: target.id }, select: { id: true } }),
+      target.projectId ? tx.report.findMany({ where: { projectId: target.projectId } }) : Promise.resolve([]),
+    ]);
+    const scanIds = scans.map((s) => s.id);
+    const findingIds = findings.map((f) => f.id);
+    const hostIds = hosts.map((h) => h.id);
+    const tasks = await tx.remediationTask.findMany({ where: { findingId: { in: findingIds } }, select: { id: true } });
+    await tx.remediationTask.deleteMany({ where: { id: { in: tasks.map((t) => t.id) } } });
+    await tx.verification.deleteMany({ where: { findingId: { in: findingIds } } });
+    await tx.risk.deleteMany({ where: { findingId: { in: findingIds } } });
+    await tx.aIAnalysis.deleteMany({ where: { OR: [{ targetId: target.id }, { findingId: { in: findingIds } }, { scanId: { in: scanIds } }] } });
+    await tx.findingAlias.deleteMany({ where: { canonicalId: { in: findingIds } } });
+    await tx.evidence.deleteMany({ where: { findingId: { in: findingIds } } });
+    await tx.finding.deleteMany({ where: { targetId: target.id } });
+    await tx.port.deleteMany({ where: { hostId: { in: hostIds } } });
+    await tx.host.deleteMany({ where: { targetId: target.id } });
+    await tx.dnsRecord.deleteMany({ where: { targetId: target.id } });
+    await tx.endpoint.deleteMany({ where: { targetId: target.id } });
+    await tx.reconRun.deleteMany({ where: { targetId: target.id } });
+    await tx.scanResult.deleteMany({ where: { scanId: { in: scanIds } } });
+    await tx.scan.deleteMany({ where: { targetId: target.id } });
+    await tx.notification.deleteMany({ where: { link: { in: [`/targets/${target.id}`, ...scanIds.map((id) => `/scans/${id}`), ...findingIds.map((id) => `/findings/${id}`)] } } });
+    for (const report of reports) {
+      const targetIds = (report.targetIds as string[]).filter((id) => id !== target.id);
+      if (targetIds.length === (report.targetIds as string[]).length) continue;
+      if (!targetIds.length) await tx.report.delete({ where: { id: report.id } });
+      else await tx.report.update({ where: { id: report.id }, data: { targetIds, findingIds: (report.findingIds as string[]).filter((id) => !findingIds.includes(id)), updatedAt: new Date() } });
+    }
+    await tx.target.delete({ where: { id: target.id } });
+  });
+  await log(me(req).id, "target_updated", "target", target.id, target.name, `Deleted target ${target.name} and its assessment records`);
+  res.json({ ok: true });
+});
+
 // Automatic scope detection: DNS lookup + robots.txt + sitemap.xml, only after permission is confirmed.
 router.post("/targets/detect-scope", requirePermission("manage_targets"), async (req, res) => {
-  const b = parse(z.object({ url: targetBody.shape.url, authorizationConfirmed: z.literal(true, { errorMap: () => ({ message: "Confirm you have permission to test this website first." }) }) }), req.body);
+  const b = parse(z.object({ url: targetBody.shape.url, authorizationConfirmed: z.literal(true, { error: "Confirm you have permission to test this website first." }) }), req.body);
   const result = await detectScope(b.url);
   await log(me(req).id, "scope_detected", "target", undefined, result.host, `Detected scope for ${result.host}: DNS ${result.dns?.status}, robots.txt ${result.robots?.status}, sitemap ${result.sitemap?.status}`);
   res.json(result);

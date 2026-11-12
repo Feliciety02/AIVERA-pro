@@ -11,10 +11,21 @@ import { api } from "./http";
 type Bootstrap = Omit<DataState, "seededAt"> & { me: User };
 
 let inflight: Promise<void> | null = null;
+let queued: Promise<void> | null = null;
 
 export function refresh(): Promise<void> {
-  // Coalesce concurrent refreshes (e.g. several quick mutations).
-  inflight ??= api<Bootstrap>("/bootstrap", { silent: true })
+  // A refresh already in flight may have started before the latest save, so its answer
+  // could be stale. Queue one more refresh after it instead of reusing it.
+  if (inflight) {
+    queued ??= inflight
+      .catch(() => undefined)
+      .then(() => {
+        queued = null;
+        return refresh();
+      });
+    return queued;
+  }
+  inflight = api<Bootstrap>("/bootstrap", { silent: true })
     .then(({ me, ...data }) => {
       useDataStore.setState({ ...data, seededAt: new Date().toISOString() });
       useSessionStore.getState().signIn(me.id);

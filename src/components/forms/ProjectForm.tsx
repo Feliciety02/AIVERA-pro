@@ -19,7 +19,7 @@ export const projectSchema = z
   .object({
     name: z.string().trim().min(3, "Project name must be at least 3 characters").max(120, "Keep the name under 120 characters"),
     description: z.string().trim().min(10, "Describe the engagement in at least 10 characters").max(600),
-    assessmentType: z.enum(assessmentTypes, { errorMap: () => ({ message: "Select an assessment type" }) }),
+    assessmentType: z.enum(assessmentTypes, { error: "Select an assessment type" }),
     ownerId: z.string().min(1, "Select a project owner"),
     memberIds: z.array(z.string()),
     status: z.enum(statuses),
