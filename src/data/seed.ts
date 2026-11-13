@@ -42,7 +42,9 @@ const SETUP_DATE = "2026-11-12T00:00:00Z";
 // Rename them on the Users page; passwords come from SEED_DEMO_PASSWORD in server/.env.
 export const seedUsers: User[] = [
   { id: "usr-admin", name: "AIVERA Administrator", email: "admin@aivera.local", role: "administrator", title: "Platform Administrator", status: "active", assignedProjectIds: ["prj-umerch"], createdAt: SETUP_DATE, lastActiveAt: SETUP_DATE },
+  { id: "usr-lead", name: "UMERCH Security Lead", email: "lead@aivera.local", role: "lead", title: "Security Lead", status: "active", assignedProjectIds: ["prj-umerch"], createdAt: SETUP_DATE, lastActiveAt: SETUP_DATE },
   { id: "usr-assessor", name: "UMERCH Security Assessor", email: "assessor@aivera.local", role: "assessor", title: "Security Assessor", status: "active", assignedProjectIds: ["prj-umerch"], createdAt: SETUP_DATE, lastActiveAt: SETUP_DATE },
+  { id: "usr-developer", name: "UMERCH Developer", email: "developer@aivera.local", role: "remediation_owner", title: "Remediation Owner", status: "active", assignedProjectIds: ["prj-umerch"], createdAt: SETUP_DATE, lastActiveAt: SETUP_DATE },
   { id: "usr-viewer", name: "UMERCH Stakeholder", email: "viewer@aivera.local", role: "viewer", title: "Project Stakeholder", status: "active", assignedProjectIds: ["prj-umerch"], createdAt: SETUP_DATE, lastActiveAt: SETUP_DATE },
 ];
 
@@ -51,7 +53,7 @@ export const seedProjects: Project[] = [
   {
     id: "prj-umerch", code: "AIV-2026-001", name: "UMERCH3.0 Security Assessment",
     description: "Security assessment of UMERCH3.0, the UM Merchandise Management System (Laravel + React), running locally for testing.",
-    assessmentType: "web_application", ownerId: "usr-assessor", memberIds: ["usr-admin", "usr-assessor", "usr-viewer"], status: "planning",
+    assessmentType: "web_application", ownerId: "usr-assessor", leadId: "usr-lead", remediationOwnerId: "usr-developer", memberIds: ["usr-admin", "usr-lead", "usr-assessor", "usr-developer", "usr-viewer"], status: "planning",
     startDate: SETUP_DATE, dueDate: "2026-12-12T00:00:00Z",
     objectives: "Check UMERCH3.0's login and OTP verification, customer and admin access control, product and inventory pages, order handling, exposed files and configuration (for example debug routes), and security headers.",
     notes: "Local copy only (http://127.0.0.1:8000). Do not test the university's live store without written permission from ERIAO.",

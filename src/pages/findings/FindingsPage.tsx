@@ -75,7 +75,7 @@ export default function FindingsPage() {
     );
   }, [findings, params, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const assessors = Object.values(lookups.users).filter((u) => u.role !== "viewer" && u.status === "active");
+  const assessors = Object.values(lookups.users).filter((u) => can(u.role, "verify_findings") && u.status === "active");
 
   const columns = React.useMemo<ColumnDef<VulnerabilityFinding, unknown>[]>(
     () => [

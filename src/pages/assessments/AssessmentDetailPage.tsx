@@ -106,7 +106,7 @@ export default function AssessmentDetailPage() {
     );
 
   const related = findings.filter((f) => f.projectId === projectId && f.category === meta.id);
-  const assessors = Object.values(lookups.users).filter((u) => u.role !== "viewer");
+  const assessors = Object.values(lookups.users).filter((u) => can(u.role, "verify_findings"));
 
   return (
     <ContentContainer>

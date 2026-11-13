@@ -1,15 +1,19 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { ApplicationSettings, AssessmentCategoryId } from "@/types";
+import type { ApplicationSettings, AssessmentCategoryId, UserRole } from "@/types";
 import { CATEGORIES } from "@/lib/constants";
-import { newId, nextCode, prisma } from "../db.ts";
+import { ROLE_ORDER } from "@/lib/permissions";
+import { newId, nextCode, prisma, retryOnDuplicateCode } from "../db.ts";
+import type { Prisma } from "../../prisma/generated/prisma/client.ts";
 import { can, createSession, destroySession, hashPassword, loginThrottle, requireAuth, requirePermission, verifyPassword } from "../auth.ts";
 import { log, notify } from "../audit.ts";
 import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { seedDatabase } from "../seedData.ts";
 import { detectScope } from "../scopeDiscovery.ts";
+import { verifyChain } from "../auditChain.ts";
 import { aiConfigured, aiProviderStatus } from "../ai/gemini.ts";
+import { assertProjectAccess, handOverWork, pickLeadForNewProject, projectLeads, remindOverdueFixes, visibleProjectIds } from "../workflowRules.ts";
 
 export const router = Router();
 
@@ -77,8 +81,9 @@ router.get("/auth/me", (req, res) => {
 /** Everything the SPA needs, filtered by role. The SPA keeps it as a read cache. */
 router.get("/bootstrap", async (req, res) => {
   const user = me(req);
-  await raiseOverdueNotifications();
-  const [users, projects, targets, assessments, scans, scanResults, hosts, ports, dnsRecords, endpoints, reconRuns, findings, evidence, verifications, aiAnalyses, risks, remediation, reports, activity, notifications, integrations, settings] =
+  await remindOverdueFixes();
+  const visible = await visibleProjectIds(user);
+  const [users, allProjects, allTargets, allAssessments, allScans, allScanResults, allHosts, allPorts, allDns, allEndpoints, allRecon, allFindings, allEvidence, allVerifications, allAnalyses, allRisks, allRemediation, allReports, activity, notifications, integrations, settings] =
     await Promise.all([
       prisma.user.findMany(), prisma.project.findMany({ include: { members: true }, orderBy: { updatedAt: "desc" } }), prisma.target.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.assessment.findMany({ include: { checklist: true } }), prisma.scan.findMany({ orderBy: { createdAt: "desc" } }), prisma.scanResult.findMany({ orderBy: { recordedAt: "desc" } }),
@@ -86,8 +91,35 @@ router.get("/bootstrap", async (req, res) => {
       prisma.finding.findMany({ orderBy: { discoveredAt: "desc" } }), prisma.evidence.findMany(), prisma.verification.findMany({ orderBy: { decidedAt: "desc" } }),
       prisma.aIAnalysis.findMany({ orderBy: { generatedAt: "desc" } }), prisma.risk.findMany(), prisma.remediationTask.findMany({ include: { history: true }, orderBy: { createdAt: "desc" } }),
       prisma.report.findMany({ orderBy: { createdAt: "desc" } }), prisma.activityLog.findMany({ orderBy: { timestamp: "desc" }, take: 500 }),
-      prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 100 }), prisma.integration.findMany(), prisma.appSetting.findUnique({ where: { id: "app" } }),
+      prisma.notification.findMany({ where: { OR: [{ userId: null }, { userId: user.id }] }, orderBy: { createdAt: "desc" }, take: 100 }), prisma.integration.findMany(), prisma.appSetting.findUnique({ where: { id: "app" } }),
     ]);
+  // Each person only receives the projects they work on (administrators see everything).
+  // A developer sees only their own fix tasks and what those tasks point at.
+  const inProject = (projectId: string | null) => visible === null || (projectId !== null && visible.has(projectId));
+  const developer = !can(user.role, "verify_findings") && can(user.role, "work_remediation");
+  const remediation = allRemediation.filter((t) => !developer || t.ownerId === user.id);
+  const fixFindingIds = new Set(remediation.map((t) => t.findingId));
+  const findings = allFindings.filter((f) => inProject(f.projectId) && (!developer || fixFindingIds.has(f.id)));
+  const findingIds = new Set(findings.map((f) => f.id));
+  const projects = allProjects.filter((p) => inProject(p.id));
+  const targets = allTargets.filter((t) => (t.projectId === null ? can(user.role, "manage_targets") : inProject(t.projectId)));
+  const targetIds = new Set(targets.map((t) => t.id));
+  const scans = allScans.filter((s) => inProject(s.projectId) && !developer);
+  const scanIds = new Set(scans.map((s) => s.id));
+  const hosts = allHosts.filter((h) => targetIds.has(h.targetId));
+  const hostIds = new Set(hosts.map((h) => h.id));
+  const viewerOnly = !can(user.role, "generate_reports");
+  const assessments = allAssessments.filter((a) => inProject(a.projectId));
+  const scanResults = allScanResults.filter((r) => scanIds.has(r.scanId));
+  const ports = allPorts.filter((p) => hostIds.has(p.hostId));
+  const dnsRecords = allDns.filter((d) => targetIds.has(d.targetId));
+  const endpoints = allEndpoints.filter((e) => targetIds.has(e.targetId));
+  const reconRuns = allRecon.filter((r) => targetIds.has(r.targetId));
+  const evidence = allEvidence.filter((e) => findingIds.has(e.findingId));
+  const verifications = allVerifications.filter((v) => findingIds.has(v.findingId));
+  const aiAnalyses = allAnalyses.filter((a) => inProject(a.projectId) && (!a.findingId || findingIds.has(a.findingId)));
+  const risks = allRisks.filter((r) => findingIds.has(r.findingId));
+  const reports = allReports.filter((r) => inProject(r.projectId) && (!viewerOnly || r.status === "final"));
   res.json({
     me: M.toUser(user),
     users: users.map(M.toUser),
@@ -107,7 +139,7 @@ router.get("/bootstrap", async (req, res) => {
     aiAnalyses: can(user.role, "use_ai") ? aiAnalyses.map(M.toAnalysis) : [],
     risks: risks.map(M.toRisk),
     remediation: remediation.map(M.toTask),
-    reports: reports.filter((r) => user.role !== "viewer" || r.status === "final").map(M.toReport),
+    reports: reports.map(M.toReport),
     activity: can(user.role, "view_activity") ? activity.map(M.toActivity) : [],
     notifications: notifications.map(M.toNotification),
     integrations: integrations.map(M.toIntegration).map((i) =>
@@ -121,16 +153,6 @@ router.get("/bootstrap", async (req, res) => {
   });
 });
 
-async function raiseOverdueNotifications() {
-  const tasks = await prisma.remediationTask.findMany({ where: { status: { notIn: ["resolved", "accepted_risk"] }, dueDate: { lt: new Date() } } });
-  for (const t of tasks) {
-    const link = `/remediation?task=${t.id}`;
-    if (await prisma.notification.findFirst({ where: { link, title: "Remediation overdue" } })) continue;
-    const days = Math.max(1, Math.floor((Date.now() - t.dueDate.getTime()) / 86400_000));
-    await notify({ title: "Remediation overdue", message: `${t.code} (${t.title}) is ${days} day(s) past its due date.`, tone: "critical", link }, "remediationDue");
-  }
-}
-
 /* -------------------------------- Projects -------------------------------- */
 const statuses = ["draft", "planning", "in_progress", "under_review", "completed", "archived"] as const;
 const projectBody = z.object({
@@ -138,6 +160,8 @@ const projectBody = z.object({
   description: z.string().trim().min(10).max(600),
   assessmentType: z.enum(["web_application", "api", "external_perimeter", "authenticated_webapp", "retest"]),
   ownerId: z.string().min(1),
+  leadId: z.string().min(1).nullish(),
+  remediationOwnerId: z.string().min(1).nullish(),
   memberIds: z.array(z.string()).max(50),
   status: z.enum(statuses),
   startDate: z.string().datetime(),
@@ -150,17 +174,22 @@ router.post("/projects", requirePermission("manage_projects"), async (req, res) 
   const b = parse(projectBody, req.body);
   if (b.dueDate < b.startDate) fail(400, "Completion date must be on or after the start date.");
   const { memberIds, ...rest } = b;
-  const p = await prisma.project.create({
-    data: { ...rest, id: newId("prj"), code: await nextProjectCode(), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", members: { create: [...new Set([...memberIds, b.ownerId])].map((userId) => ({ userId })) } },
+  // A lead who creates a project leads it unless they named someone else.
+  if (rest.leadId === undefined) rest.leadId = me(req).role === "lead" ? me(req).id : await pickLeadForNewProject();
+  await checkTeamRoles(rest.leadId, rest.remediationOwnerId);
+  const p = await inTransactionWithCodeRetry(async (tx) => tx.project.create({
+    data: { ...rest, id: newId("prj"), code: await nextProjectCode(tx), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", members: { create: [...new Set([...memberIds, b.ownerId, ...(rest.leadId ? [rest.leadId] : []), ...(rest.remediationOwnerId ? [rest.remediationOwnerId] : [])])].map((userId) => ({ userId })) } },
     include: { members: true },
-  });
+  }));
   await log(me(req).id, "project_created", "project", p.id, p.code, `Created project ${p.name}`);
   res.status(201).json(M.toProject(p));
 });
 
 router.patch("/projects/:id", requirePermission("manage_projects"), async (req, res) => {
   const b = parse(projectBody.partial(), req.body);
+  await assertProjectAccess(me(req), param(req));
   const { memberIds, ...rest } = b;
+  await checkTeamRoles(rest.leadId, rest.remediationOwnerId);
   const p = await prisma.project.update({
     where: { id: param(req) },
     data: {
@@ -174,6 +203,7 @@ router.patch("/projects/:id", requirePermission("manage_projects"), async (req, 
 });
 
 router.post("/projects/:id/archive", requirePermission("manage_projects"), async (req, res) => {
+  await assertProjectAccess(me(req), param(req));
   const cur = (await prisma.project.findUnique({ where: { id: param(req) } })) ?? fail(404, "Project not found");
   if (cur.status === "archived") return res.json({ ok: true });
   await prisma.project.update({ where: { id: cur.id }, data: { status: "archived", statusBeforeArchive: cur.status } });
@@ -182,6 +212,7 @@ router.post("/projects/:id/archive", requirePermission("manage_projects"), async
 });
 
 router.post("/projects/:id/restore", requirePermission("manage_projects"), async (req, res) => {
+  await assertProjectAccess(me(req), param(req));
   const cur = (await prisma.project.findUnique({ where: { id: param(req) } })) ?? fail(404, "Project not found");
   await prisma.project.update({ where: { id: cur.id }, data: { status: cur.statusBeforeArchive ?? "planning", statusBeforeArchive: null } });
   await log(me(req).id, "project_restored", "project", cur.id, cur.code, `Restored project ${cur.name}`);
@@ -222,35 +253,63 @@ async function nextAuthReference() {
   return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
 
-async function nextProjectCode() {
+type Tx = Prisma.TransactionClient;
+
+async function nextProjectCode(db: Tx | typeof prisma = prisma) {
   const prefix = `AIV-${new Date().getFullYear()}`;
-  const codes = (await prisma.project.findMany({ where: { code: { startsWith: prefix } }, select: { code: true } })).map((p) => p.code);
+  const codes = (await db.project.findMany({ where: { code: { startsWith: prefix } }, select: { code: true } })).map((p) => p.code);
   return nextCode(prefix, codes, 3);
+}
+
+/**
+ * Runs `fn` in one transaction. Project codes are read then inserted, so two saves at the same
+ * moment can pick the same code; the unique index rejects the second one and it simply retries
+ * with a fresh code. Nothing half-saved is left behind, because each attempt rolls back fully.
+ */
+function inTransactionWithCodeRetry<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return retryOnDuplicateCode(() => prisma.$transaction(fn));
 }
 
 /**
  * Every website needs a project before it can be scanned. When none was chosen, AIVERA makes
  * one just for this website instead of guessing, so an unrelated site is never filed under
- * another system's assessment.
+ * another system's assessment. Runs inside the caller's transaction.
  */
-async function createProjectForTarget(name: string, url: string, userId: string) {
+async function createProjectForTarget(tx: Tx, name: string, url: string, userId: string, leadId: string | null) {
   const start = new Date();
-  const p = await prisma.project.create({
+  return tx.project.create({
     data: {
-      id: newId("prj"), code: await nextProjectCode(), name: `${name} Security Assessment`,
+      id: newId("prj"), code: await nextProjectCode(tx), name: `${name} Security Assessment`,
       description: `Security assessment of ${url}, created automatically when the website was added.`,
       assessmentType: "web_application", ownerId: userId, status: "planning",
       startDate: start, dueDate: new Date(start.getTime() + 30 * 86400_000),
       objectives: `Find, verify and fix security weaknesses in ${name} within the approved scope.`, notes: "",
-      dataOrigin: "user_created", members: { create: [{ userId }] },
+      leadId, dataOrigin: "user_created", members: { create: [...new Set([userId, ...(leadId ? [leadId] : [])])].map((id) => ({ userId: id })) },
     },
   });
-  await log(userId, "project_created", "project", p.id, p.code, `Created project ${p.name} for the website ${name}`);
-  return p;
 }
 
-async function checkProject(projectId: string | null | undefined) {
+async function checkProject(user: { id: string; role: string }, projectId: string | null | undefined) {
   if (projectId && !(await prisma.project.findUnique({ where: { id: projectId } }))) fail(400, "Selected project does not exist.");
+  await assertProjectAccess(user, projectId);
+}
+
+/** The lead must be able to approve, and the remediation owner must be able to work on fixes. */
+async function checkTeamRoles(leadId?: string | null, remediationOwnerId?: string | null) {
+  if (leadId) {
+    const u = await prisma.user.findUnique({ where: { id: leadId } });
+    if (!u || !can(u.role, "signoff_findings")) fail(400, "The project lead must be a Security Lead or an administrator.");
+  }
+  if (remediationOwnerId) {
+    const u = await prisma.user.findUnique({ where: { id: remediationOwnerId } });
+    if (!u || !can(u.role, "work_remediation")) fail(400, "The remediation owner must be someone who can work on fixes.");
+  }
+}
+
+/** Only a lead records that the owner gave permission; anyone else's website waits for a lead. */
+async function askLeadToAuthorize(user: { id: string; name: string }, t: { id: string; name: string; projectId: string | null }) {
+  const leads = t.projectId ? await projectLeads(t.projectId, [user.id]) : [];
+  await notify({ title: "Website waiting for authorization", message: `${user.name} added ${t.name}. Check the owner's permission and mark it authorized before anyone scans it.`, tone: "warning", link: `/targets/${t.id}` }, undefined, leads.length ? leads : undefined);
 }
 
 function hostCovered(url: string, hosts: string[]) {
@@ -262,21 +321,34 @@ router.post("/targets", requirePermission("manage_targets"), async (req, res) =>
   const b = parse(targetBody, req.body);
   if (!b.authorizationConfirmed) fail(400, "You must confirm that this application is authorized for security assessment.");
   if (!hostCovered(b.url, b.scope.inScopeHosts)) fail(400, "The application URL's host must be listed as an in-scope host.");
-  await checkProject(b.projectId);
+  await checkProject(me(req), b.projectId);
+  const needsLead = b.authorizationStatus === "authorized" && !can(me(req).role, "authorize_targets");
+  if (needsLead) b.authorizationStatus = "pending";
   const { scope, ...rest } = b;
   const authorizationReference = rest.authorizationReference || (await nextAuthReference());
   const now = new Date();
   // Saving does not contact the URL (scope detection is a separate, explicit request).
-  const projectId = rest.projectId || (await createProjectForTarget(rest.name, rest.url, me(req).id)).id;
-  const t = await prisma.target.create({ data: { ...rest, projectId, authorizationReference, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
-  await log(me(req).id, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (details saved, no scan started)`);
+  const userId = me(req).id;
+  const leadForNew = can(me(req).role, "signoff_findings") ? userId : await pickLeadForNewProject();
+  // The automatic project and the website are saved together or not at all.
+  const { t, project } = await inTransactionWithCodeRetry(async (tx) => {
+    const project = rest.projectId ? null : await createProjectForTarget(tx, rest.name, rest.url, userId, leadForNew);
+    const t = await tx.target.create({ data: { ...rest, projectId: rest.projectId || project!.id, authorizationReference, ...M.scopeColumns(scope), id: newId("tgt"), authorizationConfirmedBy: userId, authorizationConfirmedAt: now, dataOrigin: "user_created" } });
+    return { t, project };
+  });
+  if (project) await log(userId, "project_created", "project", project.id, project.code, `Created project ${project.name} for the website ${t.name}`);
+  await log(userId, "target_registered", "target", t.id, t.name, `Registered target ${t.name} (details saved, no scan started)${needsLead ? "; waiting for a lead to authorize it" : ""}`);
+  if (needsLead) await askLeadToAuthorize(me(req), t);
   res.status(201).json(M.toTarget(t));
 });
 
 router.patch("/targets/:id", requirePermission("manage_targets"), async (req, res) => {
   const b = parse(targetBody.partial(), req.body);
   const cur = (await prisma.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
-  await checkProject(b.projectId);
+  await assertProjectAccess(me(req), cur.projectId);
+  await checkProject(me(req), b.projectId);
+  if (b.authorizationStatus === "authorized" && cur.authorizationStatus !== "authorized" && !can(me(req).role, "authorize_targets"))
+    fail(403, "Only a Security Lead can mark a website as authorized.");
   if (b.authorizationReference === "") b.authorizationReference = cur.authorizationReference || (await nextAuthReference());
   const { scope, ...rest } = b;
   const confirmedNow = b.authorizationConfirmed && !cur.authorizationConfirmed;
@@ -290,16 +362,24 @@ router.patch("/targets/:id", requirePermission("manage_targets"), async (req, re
 
 /** One click for a website saved without a project: give it its own. */
 router.post("/targets/:id/own-project", requirePermission("manage_targets"), async (req, res) => {
-  const cur = (await prisma.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
-  if (cur.projectId) fail(409, "This website is already in a project.");
-  const p = await createProjectForTarget(cur.name, cur.url, me(req).id);
-  await prisma.target.update({ where: { id: cur.id }, data: { projectId: p.id } });
+  const userId = me(req).id;
+  const leadForNew = can(me(req).role, "signoff_findings") ? userId : await pickLeadForNewProject();
+  const p = await inTransactionWithCodeRetry(async (tx) => {
+    // Checked inside the transaction so two clicks can't make two projects.
+    const cur = (await tx.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
+    if (cur.projectId) fail(409, "This website is already in a project.");
+    const project = await createProjectForTarget(tx, cur.name, cur.url, userId, leadForNew);
+    await tx.target.update({ where: { id: cur.id }, data: { projectId: project.id } });
+    return { ...project, targetName: cur.name, targetId: cur.id };
+  });
+  await log(userId, "project_created", "project", p.id, p.code, `Created project ${p.name} for the website ${p.targetName}`);
   res.json({ projectId: p.id, code: p.code });
 });
 
 /** Remove a target and its assessment history so the project can start fresh. */
 router.delete("/targets/:id", requirePermission("manage_targets"), async (req, res) => {
   const target = (await prisma.target.findUnique({ where: { id: param(req) } })) ?? fail(404, "Target not found");
+  await assertProjectAccess(me(req), target.projectId);
   const active = await prisma.scan.count({ where: { targetId: target.id, status: { in: ["queued", "running", "paused"] } } });
   if (active) fail(409, "Wait for the active scan to finish before deleting this target.");
   await prisma.$transaction(async (tx) => {
@@ -350,6 +430,7 @@ router.post("/targets/detect-scope", requirePermission("manage_targets"), async 
 
 router.put("/targets/:id/scope", requirePermission("manage_targets"), async (req, res) => {
   const scope = parse(scopeBody, req.body);
+  await assertProjectAccess(me(req), (await prisma.target.findUnique({ where: { id: param(req) } }))?.projectId);
   const t = await prisma.target.update({ where: { id: param(req) }, data: M.scopeColumns(scope) });
   await log(me(req).id, "scope_updated", "target", t.id, t.name, `Updated scope: ${scope.inScopeHosts.length} host(s), ${scope.excludedPaths.length} exclusion(s)`);
   res.json(M.toTarget(t));
@@ -359,6 +440,7 @@ router.put("/targets/:id/scope", requirePermission("manage_targets"), async (req
 router.post("/assessments", requirePermission("verify_findings"), async (req, res) => {
   const { projectId, category } = parse(z.object({ projectId: z.string(), category: categoryEnum }), req.body);
   const existing = await prisma.assessment.findUnique({ where: { projectId_category: { projectId, category } }, include: { checklist: true } });
+  await assertProjectAccess(me(req), projectId);
   if (existing) return res.json(M.toAssessment(existing));
   const project = (await prisma.project.findUnique({ where: { id: projectId } })) ?? fail(404, "Project not found");
   const meta = CATEGORIES.find((c) => c.id === category)!;
@@ -389,12 +471,18 @@ router.patch("/assessments/:id/items/:itemId", requirePermission("verify_finding
 
 /* ---------------------------- Users & settings ---------------------------- */
 router.patch("/users/:id", requirePermission("manage_users"), async (req, res) => {
-  const b = parse(z.object({ role: z.enum(["administrator", "assessor", "viewer"]).optional(), status: z.enum(["active", "suspended", "invited"]).optional(), title: z.string().max(120).optional(), assignedProjectIds: z.array(z.string()).optional() }), req.body);
+  const b = parse(z.object({ role: z.enum(ROLE_ORDER as [UserRole, ...UserRole[]]).optional(), status: z.enum(["active", "suspended", "invited"]).optional(), title: z.string().max(120).optional(), assignedProjectIds: z.array(z.string()).optional() }), req.body);
   if (param(req) === me(req).id && (b.role || b.status)) fail(400, "You cannot change your own role or status.");
+  const before = (await prisma.user.findUnique({ where: { id: param(req) } })) ?? fail(404, "User not found");
   const u = await prisma.user.update({ where: { id: param(req) }, data: b });
   if (b.status && b.status !== "active") await prisma.session.deleteMany({ where: { userId: u.id } });
+  // Open work never gets stuck with someone who left or can no longer do it.
+  const gone = u.status !== "active";
+  const moved = before.status !== u.status || before.role !== u.role
+    ? await handOverWork(u.id, me(req).id, { reviews: !gone && can(u.role, "verify_findings"), fixes: !gone && can(u.role, "work_remediation"), leads: !gone && can(u.role, "signoff_findings") })
+    : 0;
   await log(me(req).id, "user_updated", "user", u.id, u.name, `Updated user ${u.name}${b.role ? ` (role → ${b.role})` : ""}${b.status ? ` (status → ${b.status})` : ""}`);
-  res.json(M.toUser(u));
+  res.json({ ...M.toUser(u), handedOver: moved });
 });
 
 const PERSONAL_SECTIONS = new Set(["appearance", "table", "notifications"]);
@@ -412,21 +500,29 @@ router.patch("/settings/:section", async (req, res) => {
 });
 
 /* ------------------------------ Notifications ----------------------------- */
+const mine = (req: Parameters<typeof me>[0]) => ({ OR: [{ userId: null }, { userId: me(req).id }] });
 router.post("/notifications/:id/read", async (req, res) => {
-  await prisma.notification.update({ where: { id: param(req) }, data: { read: true } });
+  await prisma.notification.updateMany({ where: { id: param(req), ...mine(req) }, data: { read: true } });
   res.json({ ok: true });
 });
-router.post("/notifications/read-all", async (_req, res) => {
-  await prisma.notification.updateMany({ data: { read: true } });
+router.post("/notifications/read-all", async (req, res) => {
+  await prisma.notification.updateMany({ where: mine(req), data: { read: true } });
   res.json({ ok: true });
 });
-router.delete("/notifications", async (_req, res) => {
-  await prisma.notification.deleteMany();
+router.delete("/notifications", async (req, res) => {
+  // Clears your own notifications; shared ones are cleared only by an administrator.
+  await prisma.notification.deleteMany({ where: can(me(req).role, "manage_settings") ? mine(req) : { userId: me(req).id } });
   res.json({ ok: true });
 });
-router.post("/notifications/test", async (_req, res) => {
-  await notify({ title: "Test notification", message: "Notifications are working.", tone: "info" });
+router.post("/notifications/test", async (req, res) => {
+  await notify({ title: "Test notification", message: "Notifications are working.", tone: "info" }, undefined, [me(req).id]);
   res.json({ ok: true });
+});
+
+/* ------------------------------- Audit chain ------------------------------ */
+/** Recomputes every activity entry's HMAC and reports the first break, if any. */
+router.get("/audit/verify", requirePermission("view_activity"), async (_req, res) => {
+  res.json(await verifyChain());
 });
 
 /* ---------------------------------- Admin --------------------------------- */

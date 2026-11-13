@@ -14,7 +14,7 @@ import { StatusBadge, OriginBadge, SeverityBadge, ToolBadge, ToneBadge } from "@
 import { RecentActivity, FindingRow } from "@/components/dashboard/widgets";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
-import { ASSESSMENT_STATUS, ASSESSMENT_TYPES, AUTHORIZATION_STATUS, CATEGORY_BY_ID, ENVIRONMENTS, PROJECT_STATUS, SCAN_STATUS, SEVERITIES, SEVERITY_META } from "@/lib/constants";
+import { ASSESSMENT_STATUS, ASSESSMENT_TYPES, AUTHORIZATION_STATUS, CATEGORY_BY_ID, ENVIRONMENTS, PROJECT_STATUS, REPORT_STATUS, SCAN_STATUS, SEVERITIES, SEVERITY_META } from "@/lib/constants";
 import { formatDate, formatRelative } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { percent } from "@/lib/utils";
@@ -324,7 +324,7 @@ export default function ProjectDetailPage() {
                           {r.code} · {r.findingIds.length} findings · {formatDate(r.createdAt)}
                         </span>
                       </span>
-                      <ToneBadge tone={r.status === "final" ? "primary" : "muted"}>{r.status === "final" ? "Final" : "Draft"}</ToneBadge>
+                      <StatusBadge status={r.status} map={REPORT_STATUS} />
                     </Link>
                   </li>
                 ))}

@@ -1,7 +1,7 @@
 import { FlaskConical } from "lucide-react";
 import type { ReportModel } from "@/features/reports/reportModel";
 import { riskSummary } from "@/features/reports/reportModel";
-import { CATEGORY_BY_ID, ENVIRONMENTS, REMEDIATION_STATUS, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS } from "@/lib/constants";
+import { CATEGORY_BY_ID, ENVIRONMENTS, REMEDIATION_STATUS, REPORT_STATUS, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ReportSectionKey } from "@/types";
@@ -51,7 +51,7 @@ export function ReportDocument({ model: m }: { model: ReportModel }) {
           <p className="mt-2 text-sm text-slate-300">{m.project.code} · {m.project.name}</p>
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-2 text-[11px] sm:grid-cols-4">
             <div><p className="text-slate-500">Report</p><p className="font-mono">{m.report.code}</p></div>
-            <div><p className="text-slate-500">Status</p><p>{m.report.status === "final" ? "Final" : "Draft"}</p></div>
+            <div><p className="text-slate-500">Status</p><p>{REPORT_STATUS[m.report.status].label}</p></div>
             <div><p className="text-slate-500">Period</p><p>{formatDate(m.report.periodStart)}, {formatDate(m.report.periodEnd)}</p></div>
             <div><p className="text-slate-500">Prepared by</p><p>{m.preparedBy}</p></div>
           </div>

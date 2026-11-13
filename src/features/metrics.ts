@@ -60,8 +60,8 @@ export function verificationDistribution(findings: VulnerabilityFinding[]) {
 }
 
 export function remediationDistribution(tasks: DataState["remediation"]) {
-  const order: RemediationStatus[] = ["open", "in_progress", "awaiting_retest", "resolved", "accepted_risk"];
-  const colors: Record<RemediationStatus, string> = { open: "var(--sev-medium)", in_progress: "var(--cyan)", awaiting_retest: "var(--sev-low)", resolved: "var(--primary)", accepted_risk: "var(--sev-info)" };
+  const order: RemediationStatus[] = ["open", "in_progress", "awaiting_retest", "pending_approval", "resolved", "accepted_risk"];
+  const colors: Record<RemediationStatus, string> = { open: "var(--sev-medium)", in_progress: "var(--cyan)", awaiting_retest: "var(--sev-low)", pending_approval: "var(--sev-info)", resolved: "var(--primary)", accepted_risk: "var(--sev-info)" };
   return order.map((st) => ({ key: st, name: REMEDIATION_STATUS[st].label, value: tasks.filter((t) => t.status === st).length, fill: colors[st] }));
 }
 

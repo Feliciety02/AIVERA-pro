@@ -10,7 +10,7 @@ import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/input";
-import { Progress, Tabs, TabsContent, TabsList, TabsTrigger, Hint } from "@/components/ui/misc";
+import { Progress, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/misc";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DataTable } from "@/components/shared/DataTable";
@@ -30,7 +30,7 @@ import { cn, percent } from "@/lib/utils";
 import { remediationService } from "@/services";
 import type { RemediationStatus, RemediationTask, VulnerabilityFinding } from "@/types";
 
-const ORDER: RemediationStatus[] = ["open", "in_progress", "awaiting_retest", "resolved", "accepted_risk"];
+const ORDER: RemediationStatus[] = ["open", "in_progress", "awaiting_retest", "pending_approval", "resolved", "accepted_risk"];
 const isClosed = (s: RemediationStatus) => s === "resolved" || s === "accepted_risk";
 
 function DueBadge({ task }: { task: RemediationTask }) {
@@ -43,8 +43,15 @@ function DueBadge({ task }: { task: RemediationTask }) {
 
 type Action = { kind: "status"; to: RemediationStatus; title: string; description: string; requireNote: boolean } | { kind: "retest"; result: "passed" | "failed" };
 
-function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding?: VulnerabilityFinding; canEdit: boolean }) {
+function TaskDetail({ task, finding }: { task: RemediationTask; finding?: VulnerabilityFinding }) {
   const lookups = useLookups();
+  const user = useCurrentUser();
+  // Who may do what with this fix (the server checks the same rules).
+  const isOwner = task.ownerId === user?.id;
+  const canManage = can(user?.role, "manage_remediation");
+  const canWork = isOwner || canManage;
+  const canRetest = canManage && !isOwner;
+  const canApprove = can(user?.role, "approve_remediation") && !isOwner;
   const evidence = useDataStore((s) => s.evidence);
   // `action` is kept after closing so the dialog text doesn't change during its exit animation.
   const [action, setActionState] = React.useState<Action | null>(null);
@@ -55,7 +62,6 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
   };
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const canResolve = !task.retestRequired || task.retestResult === "passed";
   const [editOpen, setEditOpen] = React.useState(false);
 
   const run = async () => {
@@ -93,32 +99,31 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
       </div>
       <p className="text-sm text-foreground/85">{task.description}</p>
 
-      {canEdit && (
+      {(canWork || canApprove) && (
         <div className="space-y-2 rounded-xl border border-border p-3" data-guide="rem-actions">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold">Workflow actions</p>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditOpen(true)}><Pencil /> Edit details</Button>
+            <p className="text-xs font-semibold">{isOwner ? "Your fix" : "Workflow actions"}</p>
+            {canManage && !isClosed(task.status) && <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditOpen(true)}><Pencil /> Edit details</Button>}
           </div>
           <div className="flex flex-wrap gap-2">
-            {task.status === "open" && <Button size="sm" onClick={() => open({ kind: "status", to: "in_progress", title: "Start work", description: "Mark the fix as in progress.", requireNote: false })}><Play /> Start work</Button>}
-            {task.status === "in_progress" && task.retestRequired && <Button size="sm" onClick={() => open({ kind: "status", to: "awaiting_retest", title: "Request retest", description: "The owner reports the fix is deployed. An assessor must retest manually.", requireNote: true })}><ClipboardCheck /> Request retest</Button>}
-            {task.status === "awaiting_retest" && (
+            {canWork && task.status === "open" && <Button size="sm" onClick={() => open({ kind: "status", to: "in_progress", title: "Start work", description: "Mark the fix as in progress.", requireNote: false })}><Play /> Start work</Button>}
+            {canWork && task.status === "in_progress" && (task.retestRequired
+              ? <Button size="sm" onClick={() => open({ kind: "status", to: "awaiting_retest", title: "Ready for retest", description: "Say what you changed and where it is deployed. The assessor who confirmed the finding is asked to retest it.", requireNote: true })}><ClipboardCheck /> Ready for retest</Button>
+              : <Button size="sm" onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. A Security Lead approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
+            {task.status === "awaiting_retest" && (canRetest ? (
               <>
-                <Button size="sm" variant="outline" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Record retest passed</Button>
-                <Button size="sm" variant="outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Record retest failed</Button>
+                <Button size="sm" variant="outline" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Retest passed</Button>
+                <Button size="sm" variant="outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Retest failed</Button>
               </>
-            )}
-            {!isClosed(task.status) && (task.status === "awaiting_retest" || (task.status === "in_progress" && !task.retestRequired)) && (
-              <Hint label={canResolve ? "Requires your manual approval." : "A passed retest is required before resolving."}>
-                <span tabIndex={0}>
-                  <Button size="sm" disabled={!canResolve} onClick={() => open({ kind: "status", to: "resolved", title: "Approve & resolve", description: "You are manually approving that this fix is complete and verified. An AI recommendation alone is never sufficient.", requireNote: true })}>
-                    <ShieldCheck /> Approve & resolve
-                  </Button>
-                </span>
-              </Hint>
-            )}
-            {!isClosed(task.status) && <Button size="sm" variant="ghost" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the system owner accepts this risk without a fix. A justification is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
-            {isClosed(task.status) && <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "open", title: "Reopen task", description: "Reopen this task (e.g. regression observed).", requireNote: true })}><RotateCcw /> Reopen</Button>}
+            ) : <p className="text-xs text-muted-foreground">Waiting for {lookups.users[task.retestAssigneeId ?? ""]?.name ?? "an assessor"} to retest.</p>)}
+            {task.status === "pending_approval" && (canApprove ? (
+              <>
+                <Button size="sm" onClick={() => open({ kind: "status", to: "resolved", title: "Approve and close", description: "You are approving that this fix is complete and checked. An AI recommendation alone is never enough.", requireNote: true })}><ShieldCheck /> Approve and close</Button>
+                <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "in_progress", title: "Send back", description: "Return the fix to its owner with what still needs doing.", requireNote: true })}><RotateCcw /> Send back</Button>
+              </>
+            ) : <p className="text-xs text-muted-foreground">Waiting for a Security Lead to approve closing it.</p>)}
+            {canApprove && !isClosed(task.status) && <Button size="sm" variant="ghost" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the system owner accepts this risk without a fix. A justification is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
+            {canApprove && isClosed(task.status) && <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "open", title: "Reopen task", description: "Reopen this task (for example, the issue came back).", requireNote: true })}><RotateCcw /> Reopen</Button>}
           </div>
         </div>
       )}
@@ -146,6 +151,7 @@ function TaskDetail({ task, finding, canEdit }: { task: RemediationTask; finding
 
       <dl className="grid grid-cols-2 gap-4">
         <KeyValue label="Owner"><UserChip user={lookups.users[task.ownerId]} /></KeyValue>
+        {task.retestAssigneeId && <KeyValue label="Retest by"><UserChip user={lookups.users[task.retestAssigneeId]} /></KeyValue>}
         <KeyValue label="Related finding">{finding ? <Link className="font-mono text-xs hover:text-primary" to={`/findings/${finding.id}`}>{finding.code}</Link> : "N/A"}</KeyValue>
         <KeyValue label="Created">{formatDate(task.createdAt)}</KeyValue>
         <KeyValue label="Due">{formatDate(task.dueDate)}</KeyValue>
@@ -248,10 +254,11 @@ export default function RemediationPage() {
         description="Turn confirmed vulnerabilities into owned, dated fixes, resolved only through manual approval and, where required, a passed retest."
         actions={canEdit && <Button size="sm" onClick={() => setPickOpen(true)}><Plus /> New task</Button>}
       />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <MiniStat label="Total tasks" value={tasks.length} />
         <MiniStat label="Open / in progress" value={tasks.filter((t) => t.status === "open" || t.status === "in_progress").length} tone="text-sev-medium" />
         <MiniStat label="Awaiting retest" value={tasks.filter((t) => t.status === "awaiting_retest").length} tone="text-sev-low" />
+        <MiniStat label="Awaiting approval" value={tasks.filter((t) => t.status === "pending_approval").length} />
         <MiniStat label="Overdue" value={overdue} tone={overdue ? "text-sev-critical" : undefined} />
         <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
           <p className="text-[11px] font-medium text-muted-foreground">Progress</p>
@@ -259,7 +266,7 @@ export default function RemediationPage() {
           <Progress value={percent(closed, tasks.length)} className="mt-1" />
         </div>
       </div>
-      <Callout icon={FlaskConical} tone="demo">A task never becomes “Resolved” because an AI recommended a fix. Resolution requires an assessor's manual approval, and a passed manual retest when retesting is required.</Callout>
+      <Callout icon={FlaskConical} tone="demo">Confirming a finding creates its fix task automatically, due by severity. The developer marks it ready, the assessor who confirmed it retests, and a Security Lead approves closing it. An AI suggestion never closes a fix.</Callout>
 
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <FilterBar active={status !== ALL || sev !== ALL || owner !== ALL || overdueOnly || !!q} onReset={() => { setStatus(ALL); setSev(ALL); setOwner(ALL); setOverdueOnly(false); setQ(""); }}>
@@ -281,7 +288,7 @@ export default function RemediationPage() {
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
         <TabsContent value="board">
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             {ORDER.map((s) => {
               const col = rows.filter((t) => t.status === s);
               return (
@@ -351,7 +358,7 @@ export default function RemediationPage() {
                 <SheetTitle>{selected.title}</SheetTitle>
                 <SheetDescription className="font-mono">{selected.code}</SheetDescription>
               </SheetHeader>
-              <TaskDetail task={selected} finding={findingById[selected.findingId]} canEdit={canEdit} />
+              <TaskDetail task={selected} finding={findingById[selected.findingId]} />
             </>
           )}
         </SheetContent>

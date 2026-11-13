@@ -92,6 +92,7 @@ export function generateSimulation(scan: Scan, target: Target, startIndex: numbe
       parameter: t.parameter,
       sourceTool: t.sourceTool,
       verificationStatus: "pending",
+      signoffStatus: "not_required",
       assignedAssessorId: assessorId,
       discoveredAt: now,
       updatedAt: now,

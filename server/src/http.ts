@@ -27,6 +27,10 @@ export const param = (req: Request, key = "id"): string => {
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ZodError) return res.status(400).json({ error: "Invalid request", issues: err.issues.map((i) => `${i.path.join(".")}: ${i.message}`) });
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+  // Body parser errors (bad JSON, body too large) are the client's fault, not a server crash.
+  const e = err as { expose?: boolean; status?: number; type?: string };
+  if (e?.expose && e.status && e.status >= 400 && e.status < 500)
+    return res.status(e.status).json({ error: e.type === "entity.parse.failed" ? "The request body is not valid JSON." : e.type === "entity.too.large" ? "The request is too large." : "Bad request." });
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
 }

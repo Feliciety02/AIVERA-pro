@@ -11,23 +11,14 @@ import type { NextFunction, Request, Response } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { User } from "../prisma/generated/prisma/client.ts";
-import type { UserRole } from "@/types";
+import { can, type Permission } from "@/lib/permissions";
 import { prisma } from "./db.ts";
 import { env } from "./env.ts";
 
 export const COOKIE = "aegis_session";
 
-export type Permission =
-  | "manage_users" | "manage_settings" | "manage_integrations" | "manage_projects" | "manage_targets" | "run_demo_scans"
-  | "verify_findings" | "manage_remediation" | "generate_reports" | "use_ai" | "view_activity";
-
-const MATRIX: Record<UserRole, Permission[]> = {
-  administrator: ["manage_users", "manage_settings", "manage_integrations", "manage_projects", "manage_targets", "run_demo_scans", "verify_findings", "manage_remediation", "generate_reports", "use_ai", "view_activity"],
-  assessor: ["manage_projects", "manage_targets", "run_demo_scans", "verify_findings", "manage_remediation", "generate_reports", "use_ai", "view_activity"],
-  viewer: [],
-};
-
-export const can = (role: string, p: Permission) => (MATRIX[role as UserRole] ?? []).includes(p);
+// One role matrix for the server and the web app (src/lib/permissions.ts).
+export { can, type Permission };
 
 export const hashPassword = (plain: string) => bcrypt.hash(plain, 12);
 export const verifyPassword = (plain: string, hash: string) => bcrypt.compare(plain, hash);

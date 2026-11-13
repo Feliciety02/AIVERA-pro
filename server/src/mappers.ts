@@ -16,7 +16,7 @@ export const toUser = (u: P.User): T.User => ({
 
 export const toProject = (p: P.Project & { members: P.ProjectMember[] }): T.Project => ({
   id: p.id, code: p.code, name: p.name, description: p.description, assessmentType: p.assessmentType as T.AssessmentType,
-  ownerId: p.ownerId, memberIds: p.members.map((m) => m.userId), status: p.status as T.ProjectStatus,
+  ownerId: p.ownerId, memberIds: p.members.map((m) => m.userId), leadId: p.leadId ?? undefined, remediationOwnerId: p.remediationOwnerId ?? undefined, status: p.status as T.ProjectStatus,
   statusBeforeArchive: (p.statusBeforeArchive ?? undefined) as T.ProjectStatus | undefined,
   startDate: req(p.startDate), dueDate: req(p.dueDate), objectives: p.objectives, notes: p.notes,
   createdAt: req(p.createdAt), updatedAt: req(p.updatedAt), dataOrigin: p.dataOrigin as T.DataOrigin,
@@ -86,12 +86,14 @@ export const toFinding = (f: P.Finding): T.VulnerabilityFinding => ({
   id: f.id, code: f.code, title: f.title, description: f.description, projectId: f.projectId, targetId: f.targetId, scanId: f.scanId ?? undefined,
   category: f.category as T.AssessmentCategoryId, severity: f.severity as T.Severity, affectedAsset: f.affectedAsset, parameter: f.parameter ?? undefined,
   sourceTool: f.sourceTool as T.FindingSource, verificationStatus: f.verificationStatus as T.VerificationStatus, assignedAssessorId: f.assignedAssessorId,
+  signoffStatus: f.signoffStatus as T.SignoffStatus, signoffBy: f.signoffBy ?? undefined, signoffAt: iso(f.signoffAt), signoffNote: f.signoffNote ?? undefined,
   discoveredAt: req(f.discoveredAt), updatedAt: req(f.updatedAt), impact: f.impact, remediation: f.remediation, cwe: f.cwe ?? undefined,
   owasp: f.owasp ?? undefined, templateKey: f.templateKey, dataOrigin: f.dataOrigin as T.DataOrigin,
 });
 
 export const findingColumns = (f: T.VulnerabilityFinding) => ({
   ...f, discoveredAt: new Date(f.discoveredAt), updatedAt: new Date(f.updatedAt), scanId: f.scanId ?? null, parameter: f.parameter ?? null, cwe: f.cwe ?? null, owasp: f.owasp ?? null,
+  signoffStatus: f.signoffStatus ?? "not_required", signoffBy: f.signoffBy ?? null, signoffAt: f.signoffAt ? new Date(f.signoffAt) : null, signoffNote: f.signoffNote ?? null,
 });
 
 export const toEvidence = (e: P.Evidence): T.Evidence => ({
@@ -128,14 +130,14 @@ export const toRisk = (r: P.Risk): T.Risk => ({
 export const toTask = (t: P.RemediationTask & { history: P.RemediationHistory[] }): T.RemediationTask => ({
   id: t.id, code: t.code, findingId: t.findingId, title: t.title, description: t.description, recommendation: t.recommendation, ownerId: t.ownerId,
   priority: t.priority as T.Severity, status: t.status as T.RemediationStatus, dueDate: req(t.dueDate), retestRequired: t.retestRequired,
-  retestResult: t.retestResult as T.RetestResult, approvedBy: t.approvedBy ?? undefined, approvedAt: iso(t.approvedAt), createdAt: req(t.createdAt), updatedAt: req(t.updatedAt),
+  retestResult: t.retestResult as T.RetestResult, retestAssigneeId: t.retestAssigneeId ?? undefined, approvedBy: t.approvedBy ?? undefined, approvedAt: iso(t.approvedAt), createdAt: req(t.createdAt), updatedAt: req(t.updatedAt),
   history: [...t.history].sort((a, b) => a.id - b.id).map((h) => ({ at: req(h.at), by: h.by, from: (h.from ?? undefined) as T.RemediationStatus | undefined, to: h.to as T.RemediationStatus, note: h.note })),
 });
 
 export const toReport = (r: P.Report): T.Report => ({
   id: r.id, code: r.code, title: r.title, projectId: r.projectId, targetIds: arr(r.targetIds), templateId: r.templateId, periodStart: req(r.periodStart),
   periodEnd: req(r.periodEnd), findingIds: arr(r.findingIds), includeUnverified: r.includeUnverified, sections: arr(r.sections), executiveSummary: r.executiveSummary,
-  status: r.status as T.ReportStatus, createdBy: r.createdBy, createdAt: req(r.createdAt), updatedAt: req(r.updatedAt), generatedFrom: "database_records",
+  status: r.status as T.ReportStatus, approvedBy: r.approvedBy ?? undefined, approvedAt: iso(r.approvedAt), reviewNote: r.reviewNote ?? undefined, createdBy: r.createdBy, createdAt: req(r.createdAt), updatedAt: req(r.updatedAt), generatedFrom: "database_records",
 });
 
 export const toActivity = (a: P.ActivityLog): T.ActivityLog => ({
@@ -144,7 +146,7 @@ export const toActivity = (a: P.ActivityLog): T.ActivityLog => ({
 });
 
 export const toNotification = (n: P.Notification): T.Notification => ({
-  id: n.id, title: n.title, message: n.message, tone: n.tone as T.Notification["tone"], createdAt: req(n.createdAt), read: n.read, link: n.link ?? undefined,
+  id: n.id, userId: n.userId ?? undefined, title: n.title, message: n.message, tone: n.tone as T.Notification["tone"], createdAt: req(n.createdAt), read: n.read, link: n.link ?? undefined,
 });
 
 export const toIntegration = (i: P.Integration): T.Integration => ({

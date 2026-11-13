@@ -515,6 +515,7 @@ export const useDataStore = create<DataStore>()(
           parameter: input.parameter || undefined,
           sourceTool: "manual",
           verificationStatus: "pending",
+          signoffStatus: "not_required",
           assignedAssessorId: currentUser(),
           discoveredAt: now,
           updatedAt: now,

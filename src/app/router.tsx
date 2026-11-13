@@ -29,6 +29,7 @@ const Remediation = React.lazy(() => import("@/pages/remediation/RemediationPage
 const Reports = React.lazy(() => import("@/pages/reports/ReportsPage"));
 const ReportNew = React.lazy(() => import("@/pages/reports/ReportWizardPage"));
 const ReportDetail = React.lazy(() => import("@/pages/reports/ReportDetailPage"));
+const MyWork = React.lazy(() => import("@/pages/work/MyWorkPage"));
 const Activity = React.lazy(() => import("@/pages/activity/ActivityPage"));
 const Users = React.lazy(() => import("@/pages/users/UsersPage"));
 const Integrations = React.lazy(() => import("@/pages/integrations/IntegrationsPage"));
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { path: "/dashboard", element: s(<Dashboard />) },
+      { path: "/my-work", element: s(<MyWork />) },
       { path: "/analytics", element: s(<Analytics />) },
       { path: "/projects", element: s(<Projects />) },
       { path: "/projects/new", element: s(<ProjectNew />) },

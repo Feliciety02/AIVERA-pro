@@ -7,6 +7,7 @@
 import type { DataState } from "@/stores/dataStore";
 import type { Evidence, Project, RemediationTask, Report, Risk, ScanTool, Severity, Target, User, VulnerabilityFinding } from "@/types";
 import { CATEGORY_BY_ID, SEVERITIES, SEVERITY_META, TOOL_META } from "@/lib/constants";
+import { can } from "@/lib/permissions";
 import { riskLevel, riskScore } from "@/lib/risk";
 
 export interface ReportModel {
@@ -80,7 +81,7 @@ export function buildReportModel(report: Report, s: ReportSource): ReportModel |
     project,
     targets,
     owner: s.users.find((u) => u.id === project.ownerId),
-    assessors: s.users.filter((u) => project.memberIds.includes(u.id) && u.role !== "viewer"),
+    assessors: s.users.filter((u) => project.memberIds.includes(u.id) && can(u.role, "verify_findings")),
     verified,
     excluded,
     unverified,

@@ -230,7 +230,8 @@ function AccountHelp({ forgot }: { forgot?: boolean }) {
       <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
       <div className="space-y-1">
         <p>
-          AIVERA has three accounts: <span className="font-mono">admin@aivera.local</span> (administrator), <span className="font-mono">assessor@aivera.local</span> (security assessor) and{" "}
+          AIVERA has one account per role: <span className="font-mono">admin@aivera.local</span> (administrator), <span className="font-mono">lead@aivera.local</span> (security lead),{" "}
+          <span className="font-mono">assessor@aivera.local</span> (security assessor), <span className="font-mono">developer@aivera.local</span> (fixes issues) and{" "}
           <span className="font-mono">viewer@aivera.local</span> (view only).
         </p>
         <p>

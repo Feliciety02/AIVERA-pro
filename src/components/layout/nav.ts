@@ -6,6 +6,7 @@ import {
   FileText,
   FolderKanban,
   Gauge,
+  Inbox,
   Plug,
   Radar,
   ScanLine,
@@ -37,6 +38,7 @@ export const NAV: NavGroup[] = [
     label: "Overview",
     items: [
       { label: "Dashboard", to: "/dashboard", icon: Gauge },
+      { label: "My work", to: "/my-work", icon: Inbox },
       { label: "Security Analytics", to: "/analytics", icon: BarChart3 },
     ],
   },
@@ -85,6 +87,7 @@ export const SIMPLE_NAV: NavGroup[] = [
     label: "Your assessment",
     items: [
       { label: "Dashboard", to: "/dashboard", icon: Gauge },
+      { label: "My work", to: "/my-work", icon: Inbox },
       { label: "Websites", to: "/targets", icon: Target },
       { label: "Scans", to: "/scans", icon: ScanLine },
       { label: "Findings", to: "/findings", icon: ShieldAlert },
@@ -103,6 +106,7 @@ export const SIMPLE_NAV: NavGroup[] = [
 
 export const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
+  "my-work": "My work",
   analytics: "Security Analytics",
   projects: "Projects",
   targets: "Target Management",

@@ -5,7 +5,7 @@
  */
 import type { ReportModel } from "@/features/reports/reportModel";
 import { riskSummary } from "@/features/reports/reportModel";
-import { CATEGORY_BY_ID, REMEDIATION_STATUS, SEVERITY_HEX, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS, ENVIRONMENTS } from "./constants";
+import { CATEGORY_BY_ID, REMEDIATION_STATUS, REPORT_STATUS, SEVERITY_HEX, SEVERITY_META, SOURCE_LABEL, TOOL_META, VERIFICATION_STATUS, ENVIRONMENTS } from "./constants";
 import { format } from "date-fns";
 
 const fmt = (d?: string) => (d ? format(new Date(d), "MMM d, yyyy") : "N/A");
@@ -75,7 +75,7 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
   y += 70;
   table(["Field", "Value"], [
     ["Report ID", m.report.code],
-    ["Status", m.report.status === "final" ? "Final" : "Draft"],
+    ["Status", REPORT_STATUS[m.report.status].label],
     ["Assessment period", `${fmt(m.report.periodStart)}, ${fmt(m.report.periodEnd)}`],
     ["Prepared by", m.preparedBy],
     ["Generated", format(new Date(), "MMM d, yyyy HH:mm")],

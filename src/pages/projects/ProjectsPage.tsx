@@ -122,7 +122,7 @@ export default function ProjectsPage() {
     [lookups.users, targets, findings, navigate, canManage],
   );
 
-  const assessors = Object.values(lookups.users).filter((u) => u.role !== "viewer");
+  const assessors = Object.values(lookups.users).filter((u) => can(u.role, "verify_findings"));
   const filtersActive = status !== ALL || owner !== ALL || type !== ALL || !!q;
 
   return (

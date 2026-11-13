@@ -19,12 +19,12 @@ import { NAV } from "@/components/layout/nav";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
 import { ROLE_META } from "@/lib/constants";
-import { can, PERMISSION_LABELS, permissionsFor, type Permission } from "@/lib/permissions";
+import { can, PERMISSION_LABELS, permissionsFor, ROLE_ORDER, type Permission } from "@/lib/permissions";
 import { formatDate, formatRelative } from "@/lib/format";
 import { userService } from "@/services";
 import type { AccountStatus, User, UserRole } from "@/types";
 
-const ROLES: UserRole[] = ["administrator", "assessor", "viewer"];
+const ROLES: UserRole[] = ROLE_ORDER;
 const STATUS_TONE: Record<AccountStatus, "primary" | "warning" | "danger"> = { active: "primary", invited: "warning", suspended: "danger" };
 
 function UserEditor({ user, onClose, isSelf }: { user: User; onClose: () => void; isSelf: boolean }) {
@@ -79,7 +79,7 @@ function UserEditor({ user, onClose, isSelf }: { user: User; onClose: () => void
         <Button
           onClick={async () => {
             await userService.update(user.id, { role, status, assignedProjectIds: assigned });
-            toast.success(`Updated ${user.name}`, { description: "Demo-only change. Real role changes require the backend." });
+            toast.success(`Updated ${user.name}`, { description: status !== "active" || role !== user.role ? "Any open work they can no longer do was handed to someone else on the project." : undefined });
             onClose();
           }}
         >
@@ -103,7 +103,7 @@ export default function UsersPage() {
     return (
       <ContentContainer>
         <PageHeader title="User Management" />
-        <Callout tone="warning">Only the Administrator demo role can manage users.</Callout>
+        <Callout tone="warning">Only an administrator can manage users.</Callout>
       </ContentContainer>
     );
 
@@ -122,11 +122,11 @@ export default function UsersPage() {
 
   return (
     <ContentContainer wide>
-      <PageHeader title="User Management" description="Manage demo accounts, roles and project assignments." />
-      <Callout tone="warning" icon={ShieldAlert} title="Frontend demonstration only">
-        Roles, route guards and permissions here are enforced only in the browser and stored in localStorage. They do not provide real authentication or authorization, the backend will enforce access control on every request.
+      <PageHeader title="User Management" description="Manage accounts, roles and project assignments." />
+      <Callout tone="info" icon={ShieldAlert} title="How roles work">
+        Highest first: Administrator, Security Lead, Security Assessor, Remediation Owner, Viewer. The server checks every request, and people only see the projects they are on. Nobody approves their own work: whoever confirms a critical finding, owns a fix or writes a report needs someone else to sign it off.
       </Callout>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <MiniStat label="Users" value={users.length} />
         {ROLES.map((r) => <MiniStat key={r} label={ROLE_META[r].label} value={users.filter((u) => u.role === r).length} />)}
       </div>
@@ -135,7 +135,7 @@ export default function UsersPage() {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <SectionCard title="Roles & permissions" description="What each demo role can do in the UI">
+        <SectionCard title="Roles & permissions" description="What each role can do">
           <Table>
             <TableHeader>
               <TableRow>

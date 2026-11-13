@@ -15,6 +15,7 @@ import { AddEvidenceForm } from "@/components/security/AddEvidenceForm";
 import { AIAnalysisPanel } from "@/components/security/AIAnalysisPanel";
 import { AINotice } from "@/components/security/AINotice";
 import { VerificationDialog } from "@/components/security/VerificationDialog";
+import { SignoffPanel } from "@/components/security/SignoffPanel";
 import { RemediationForm } from "@/components/forms/RemediationForm";
 import { RecentActivity } from "@/components/dashboard/widgets";
 import { useDataStore } from "@/stores/dataStore";
@@ -79,6 +80,12 @@ export default function FindingDetailPage() {
   const analyses = all.analyses.filter((a) => a.findingId === finding.id);
   const activity = all.activity.filter((a) => a.entityId === finding.id);
   const tasks = all.remediation.filter((r) => r.findingId === finding.id);
+  const openTask = tasks.find((t) => t.status !== "resolved" && t.status !== "accepted_risk");
+  // Once a lead signs a finding off, its decision is locked until the lead returns it.
+  const locked = finding.signoffStatus === "approved";
+  const taskAction = canRemediate && finding.verificationStatus === "confirmed" && (openTask
+    ? <Button size="sm" variant="outline" asChild><Link to={`/remediation?task=${openTask.id}`}><Wrench /> Open fix task</Link></Button>
+    : <Button size="sm" variant="outline" onClick={() => setRemOpen(true)}><Wrench /> Create task</Button>);
   const risk = all.risks.find((r) => r.findingId === finding.id);
   const target = lookups.targets[finding.targetId];
   const project = lookups.projects[finding.projectId];
@@ -172,7 +179,7 @@ export default function FindingDetailPage() {
               {history[0] ? (
                 <>
                   Last set by {lookups.users[history[0].assessorId]?.name ?? "unknown"}, {formatDateTime(history[0].decidedAt)}
-                  {canVerify && current !== "pending" && (
+                  {canVerify && !locked && current !== "pending" && (
                     <>
                       {" · "}
                       <button type="button" className="font-medium text-primary hover:underline" onClick={() => setDecision("pending")}>
@@ -194,17 +201,17 @@ export default function FindingDetailPage() {
                   size="sm"
                   variant={active ? "default" : "outline"}
                   className="min-w-24 rounded-full"
-                  disabled={!canVerify || active}
+                  disabled={!canVerify || locked || active}
                   aria-pressed={active}
                   onClick={() => setDecision(b.status)}
                 >
                   {b.label}
                 </Button>
               );
-              return canVerify ? (
+              return canVerify && !locked ? (
                 <React.Fragment key={b.status}>{button}</React.Fragment>
               ) : (
-                <Hint key={b.status} label={deniedReason(user?.role)}>
+                <Hint key={b.status} label={locked ? "Signed off by the lead. Ask the lead to return it to change the decision." : deniedReason(user?.role)}>
                   <span tabIndex={0}>{button}</span>
                 </Hint>
               );
@@ -226,6 +233,8 @@ export default function FindingDetailPage() {
         </div>
       </section>
 
+      <SignoffPanel finding={finding} history={history} />
+
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -244,7 +253,7 @@ export default function FindingDetailPage() {
             <SectionCard title="Potential impact">
               <p className="text-sm leading-relaxed">{finding.impact}</p>
             </SectionCard>
-            <SectionCard title="Remediation recommendations" actions={canRemediate && finding.verificationStatus === "confirmed" && <Button size="sm" variant="outline" onClick={() => setRemOpen(true)}><Wrench /> Create task</Button>}>
+            <SectionCard title="Remediation recommendations" actions={taskAction}>
               <p className="text-sm leading-relaxed">{finding.remediation}</p>
             </SectionCard>
           </div>
@@ -336,7 +345,7 @@ export default function FindingDetailPage() {
               <EmptyState compact title="No risk record" description="A risk record is created automatically when the finding is confirmed by an assessor." />
             )}
           </SectionCard>
-          <SectionCard title="Remediation tasks" actions={canRemediate && finding.verificationStatus === "confirmed" && <Button size="sm" onClick={() => setRemOpen(true)}><Wrench /> Create task</Button>}>
+          <SectionCard title="Remediation tasks" actions={taskAction}>
             {finding.verificationStatus !== "confirmed" && <p className="mb-3 text-[11px] text-muted-foreground">Remediation tasks can be created once the finding is confirmed.</p>}
             {tasks.length === 0 ? (
               <EmptyState compact title="No remediation tasks" />

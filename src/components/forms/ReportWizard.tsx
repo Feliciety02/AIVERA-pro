@@ -16,7 +16,7 @@ import { buildReportModel } from "@/features/reports/reportModel";
 import { useReportSource, usePdfExport } from "@/features/reports/useReport";
 import { REPORT_SECTIONS, REPORT_TEMPLATES } from "@/lib/constants";
 import { nowISO, toInputDate } from "@/lib/format";
-import { analysisService, reportService } from "@/services";
+import { IS_API, analysisService, reportService } from "@/services";
 import type { Report, ReportSectionKey } from "@/types";
 
 const STEPS = ["Project", "Targets", "Assessment period", "Verified findings", "Report sections", "Preview", "Export"];
@@ -75,7 +75,8 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
         includeUnverified,
         sections: includeUnverified ? [...new Set([...sections, "unverified_observations" as ReportSectionKey])] : sections.filter((s) => s !== "unverified_observations"),
         executiveSummary: summary,
-        status: final ? "final" : "draft",
+        // With the server, a report is always saved as a draft and a lead approves it.
+        status: final && !IS_API ? "final" : "draft",
         createdBy: userId,
         createdAt: nowISO(),
         updatedAt: nowISO(),
@@ -218,9 +219,13 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
                 <Button variant="outline" size="sm" onClick={draftSummary} disabled={drafting}>
                   {drafting ? <Loader2 className="animate-spin" /> : <Bot />} Draft summary (Sample AI, Demo Mode)
                 </Button>
-                <label className="flex items-center gap-3 text-sm">
-                  <Switch checked={final} onCheckedChange={setFinal} aria-label="Mark as final" /> Mark as final (visible to Viewers)
-                </label>
+                {IS_API ? (
+                  <p className="text-xs text-muted-foreground">Saved as a draft. Submit it from the report page and a Security Lead approves it as final.</p>
+                ) : (
+                  <label className="flex items-center gap-3 text-sm">
+                    <Switch checked={final} onCheckedChange={setFinal} aria-label="Mark as final" /> Mark as final (visible to Viewers)
+                  </label>
+                )}
               </>
             )}
             {errors[step] && <p className="text-xs text-sev-medium">{errors[step]}</p>}

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FormSection, ChoiceCard } from "./fields";
 import { ASSESSMENT_TYPES, PROJECT_STATUS } from "@/lib/constants";
+import { can } from "@/lib/permissions";
 import { toInputDate } from "@/lib/format";
 import type { AssessmentType, Project, ProjectStatus, User } from "@/types";
 
@@ -21,6 +22,8 @@ export const projectSchema = z
     description: z.string().trim().min(10, "Describe the engagement in at least 10 characters").max(600),
     assessmentType: z.enum(assessmentTypes, { error: "Select an assessment type" }),
     ownerId: z.string().min(1, "Select a project owner"),
+    leadId: z.string().optional(),
+    remediationOwnerId: z.string().optional(),
     memberIds: z.array(z.string()),
     status: z.enum(statuses),
     startDate: z.string().min(1, "Start date is required"),
@@ -33,7 +36,10 @@ export const projectSchema = z
 export type ProjectFormValues = z.infer<typeof projectSchema>;
 
 export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }: { initial?: Project; users: User[]; onSubmit: (v: ProjectFormValues) => Promise<void>; onCancel: () => void; submitLabel: string }) {
-  const assessors = users.filter((u) => u.role !== "viewer" && u.status === "active");
+  const active = users.filter((u) => u.status === "active");
+  const assessors = active.filter((u) => can(u.role, "verify_findings"));
+  const leads = active.filter((u) => can(u.role, "signoff_findings"));
+  const fixers = active.filter((u) => u.role === "remediation_owner");
   const {
     register,
     control,
@@ -48,6 +54,8 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
       description: initial?.description ?? "",
       assessmentType: initial?.assessmentType ?? "web_application",
       ownerId: initial?.ownerId ?? "",
+      leadId: initial?.leadId,
+      remediationOwnerId: initial?.remediationOwnerId,
       memberIds: initial?.memberIds ?? [],
       status: initial && initial.status !== "archived" ? initial.status : "draft",
       startDate: toInputDate(initial?.startDate),
@@ -58,10 +66,14 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
   });
   const members = watch("memberIds");
   const ownerId = watch("ownerId");
+  const leadId = watch("leadId");
+  const fixerId = watch("remediationOwnerId");
 
+  // The owner, lead and remediation owner are always on the team.
   React.useEffect(() => {
-    if (ownerId && !members.includes(ownerId)) setValue("memberIds", [...members, ownerId], { shouldDirty: true });
-  }, [ownerId, members, setValue]);
+    const missing = [ownerId, leadId, fixerId].filter((id): id is string => !!id && !members.includes(id));
+    if (missing.length) setValue("memberIds", [...members, ...missing], { shouldDirty: true });
+  }, [ownerId, leadId, fixerId, members, setValue]);
 
   const err = (k: keyof ProjectFormValues) => errors[k]?.message as string | undefined;
   const aria = (k: keyof ProjectFormValues) => ({ "aria-invalid": !!errors[k], "aria-describedby": errors[k] ? `${k}-error` : undefined });
@@ -121,7 +133,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
             </div>
           </FormSection>
 
-          <FormSection title="Ownership & team" description="The owner is accountable for the engagement. Members can be assigned findings and assessments.">
+          <FormSection title="Ownership & team" description="The lead approves the project's critical findings, fixes and reports. New findings go to the assessor on the team with the fewest open reviews, and fixes go to the remediation owner.">
             <Field id="ownerId" label="Project owner" required error={err("ownerId")}>
               <Controller
                 control={control}
@@ -142,6 +154,32 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
                 )}
               />
             </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="leadId" label="Security lead" hint="Signs off critical and high findings and approves fixes and reports.">
+                <Controller
+                  control={control}
+                  name="leadId"
+                  render={({ field }) => (
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <SelectTrigger id="leadId"><SelectValue placeholder={leads.length ? "Pick a lead" : "No leads yet"} /></SelectTrigger>
+                      <SelectContent>{leads.map((u) => <SelectItem key={u.id} value={u.id}>{u.name} · {u.title}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+              <Field id="remediationOwnerId" label="Remediation owner" hint="The developer who gets fix tasks automatically.">
+                <Controller
+                  control={control}
+                  name="remediationOwnerId"
+                  render={({ field }) => (
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <SelectTrigger id="remediationOwnerId"><SelectValue placeholder={fixers.length ? "Pick a developer" : "No developers yet"} /></SelectTrigger>
+                      <SelectContent>{fixers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name} · {u.title}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+            </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium">Assigned members</p>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -151,10 +189,10 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
                     <ChoiceCard
                       key={u.id}
                       checked={members.includes(u.id)}
-                      disabled={u.id === ownerId}
+                      disabled={u.id === ownerId || u.id === leadId || u.id === fixerId}
                       onToggle={() => setValue("memberIds", members.includes(u.id) ? members.filter((m) => m !== u.id) : [...members, u.id], { shouldDirty: true })}
                       title={u.name}
-                      description={`${u.title}${u.id === ownerId ? " · owner" : ""}`}
+                      description={`${u.title}${u.id === ownerId ? " · owner" : u.id === leadId ? " · lead" : u.id === fixerId ? " · fixes" : ""}`}
                     />
                   ))}
               </div>
