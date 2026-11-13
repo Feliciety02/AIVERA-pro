@@ -13,7 +13,7 @@ export type ISODate = string;
 export type DataOrigin = "synthetic" | "simulated" | "imported" | "user_created" | "real";
 
 /* --------------------------------- Users --------------------------------- */
-export type UserRole = "administrator" | "assessor" | "viewer";
+export type UserRole = "administrator" | "lead" | "assessor" | "remediation_owner" | "viewer";
 export type AccountStatus = "active" | "suspended" | "invited";
 
 export interface User {
@@ -40,6 +40,10 @@ export interface Project {
   assessmentType: AssessmentType;
   ownerId: ID;
   memberIds: ID[];
+  /** Security Lead who signs off findings, approves fixes and approves reports. */
+  leadId?: ID;
+  /** Default owner for fix tasks created automatically from confirmed findings. */
+  remediationOwnerId?: ID;
   status: ProjectStatus;
   /** Status before archiving, used by "Restore". */
   statusBeforeArchive?: ProjectStatus;
@@ -170,6 +174,8 @@ export interface ScanConfig {
   outputFormat: OutputFormat;
   respectExclusions: boolean;
   scopeConfirmed: boolean;
+  /** Send the target's stored test-account session (automated runs only). */
+  authenticated?: boolean;
 }
 
 export interface Scan {
@@ -286,6 +292,8 @@ export interface Evidence {
   dataOrigin: DataOrigin;
 }
 
+export type SignoffStatus = "not_required" | "pending" | "approved" | "returned";
+
 export interface VulnerabilityFinding {
   id: ID;
   code: string;
@@ -301,6 +309,11 @@ export interface VulnerabilityFinding {
   parameter?: string;
   sourceTool: FindingSource;
   verificationStatus: VerificationStatus;
+  /** Second sign-off by a Security Lead, required for confirmed critical and high findings. */
+  signoffStatus: SignoffStatus;
+  signoffBy?: ID;
+  signoffAt?: ISODate;
+  signoffNote?: string;
   assignedAssessorId: ID;
   discoveredAt: ISODate;
   updatedAt: ISODate;
@@ -386,7 +399,7 @@ export interface Risk {
 }
 
 /* ------------------------------ Remediation ------------------------------ */
-export type RemediationStatus = "open" | "in_progress" | "awaiting_retest" | "resolved" | "accepted_risk";
+export type RemediationStatus = "open" | "in_progress" | "awaiting_retest" | "pending_approval" | "resolved" | "accepted_risk";
 export type RetestResult = "not_required" | "pending" | "passed" | "failed";
 
 export interface RemediationHistoryEntry {
@@ -410,6 +423,8 @@ export interface RemediationTask {
   dueDate: ISODate;
   retestRequired: boolean;
   retestResult: RetestResult;
+  /** Assessor who should run the retest (set automatically when the fix is ready). */
+  retestAssigneeId?: ID;
   approvedBy?: ID;
   approvedAt?: ISODate;
   createdAt: ISODate;
@@ -418,7 +433,7 @@ export interface RemediationTask {
 }
 
 /* -------------------------------- Reports -------------------------------- */
-export type ReportStatus = "draft" | "final";
+export type ReportStatus = "draft" | "in_review" | "final";
 export type ReportSectionKey =
   | "cover"
   | "assessment_info"
@@ -450,6 +465,10 @@ export interface Report {
   sections: ReportSectionKey[];
   executiveSummary: string;
   status: ReportStatus;
+  /** Lead who approved the final version, and any note sent back with a returned draft. */
+  approvedBy?: ID;
+  approvedAt?: ISODate;
+  reviewNote?: string;
   createdBy: ID;
   createdAt: ISODate;
   updatedAt: ISODate;
@@ -476,6 +495,7 @@ export type ActivityType =
   | "scan_queued"
   | "tool_output_captured"
   | "scan_failed"
+  | "scan_credential_updated"
   | "recon_imported"
   | "tool_output_imported"
   | "finding_recorded"
@@ -516,6 +536,8 @@ export interface ActivityLog {
 /* ----------------------------- Notifications ----------------------------- */
 export interface Notification {
   id: ID;
+  /** Set when the notification is for one person; empty means everyone. */
+  userId?: ID;
   title: string;
   message: string;
   tone: "info" | "success" | "warning" | "critical";

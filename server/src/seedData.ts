@@ -2,6 +2,7 @@
  * Loads AIVERA's UMERCH3.0 starting data (src/data/seed.ts) into the
  * database. Used by `npm run db:seed` and by the admin reset route.
  */
+import { resetAnchor, sealPending } from "./auditChain.ts";
 import * as seed from "@/data/seed";
 import { prisma } from "./db.ts";
 import { env } from "./env.ts";
@@ -15,7 +16,7 @@ export async function seedDatabase() {
   const passwordHash = await hashPassword(env.seedPassword);
 
   await prisma.$transaction([
-    prisma.session.deleteMany(), prisma.projectMember.deleteMany(), prisma.checklistItem.deleteMany(), prisma.assessment.deleteMany(),
+    prisma.session.deleteMany(), prisma.scanCredential.deleteMany(), prisma.projectMember.deleteMany(), prisma.checklistItem.deleteMany(), prisma.assessment.deleteMany(),
     prisma.remediationHistory.deleteMany(), prisma.remediationTask.deleteMany(), prisma.verification.deleteMany(), prisma.evidence.deleteMany(),
     prisma.risk.deleteMany(), prisma.aIAnalysis.deleteMany(), prisma.finding.deleteMany(), prisma.port.deleteMany(), prisma.host.deleteMany(),
     prisma.dnsRecord.deleteMany(), prisma.endpoint.deleteMany(), prisma.reconRun.deleteMany(), prisma.scanResult.deleteMany(), prisma.scan.deleteMany(),
@@ -71,6 +72,9 @@ export async function seedDatabase() {
     data: seed.seedReports.map(({ generatedFrom: _g, ...r }) => ({ ...r, periodStart: d(r.periodStart), periodEnd: d(r.periodEnd), createdAt: d(r.createdAt), updatedAt: d(r.updatedAt) })),
   });
   await prisma.activityLog.createMany({ data: seed.seedActivity.map((a) => ({ ...a, entityId: a.entityId ?? null, timestamp: d(a.timestamp) })) });
+  // The log was cleared on purpose by this reset, so the chain starts again from the beginning.
+  resetAnchor();
+  await sealPending();
   await prisma.notification.createMany({ data: seed.seedNotifications.map((n) => ({ ...n, link: n.link ?? null, createdAt: d(n.createdAt) })) });
   await prisma.integration.createMany({ data: seed.seedIntegrations.map((i) => ({ ...i, lastUsedAt: i.lastUsedAt ? d(i.lastUsedAt) : null })) });
   await prisma.appSetting.create({ data: { id: "app", value: seed.defaultSettings as object } });

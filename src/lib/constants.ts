@@ -8,6 +8,8 @@ import type {
   MitigationStatus,
   ProjectStatus,
   RemediationStatus,
+  ReportStatus,
+  SignoffStatus,
   ReportSectionKey,
   ScanProfile,
   ScanStatus,
@@ -94,8 +96,25 @@ export const REMEDIATION_STATUS: Record<RemediationStatus, StatusMeta> = {
   open: { label: "Open", tone: "warning" },
   in_progress: { label: "In Progress", tone: "cyan" },
   awaiting_retest: { label: "Awaiting Retest", tone: "info" },
+  pending_approval: { label: "Awaiting Approval", tone: "info" },
   resolved: { label: "Resolved", tone: "primary" },
   accepted_risk: { label: "Accepted Risk", tone: "neutral" },
+};
+
+/** Days to fix a confirmed finding, by severity. Used for automatic fix tasks. */
+export const REMEDIATION_SLA_DAYS: Record<Severity, number> = { critical: 7, high: 14, medium: 30, low: 90, info: 180 };
+
+export const REPORT_STATUS: Record<ReportStatus, StatusMeta> = {
+  draft: { label: "Draft", tone: "muted" },
+  in_review: { label: "In Review", tone: "warning" },
+  final: { label: "Final", tone: "primary" },
+};
+
+export const SIGNOFF_STATUS: Record<SignoffStatus, StatusMeta> = {
+  not_required: { label: "Not required", tone: "muted" },
+  pending: { label: "Awaiting lead sign-off", tone: "warning" },
+  approved: { label: "Signed off", tone: "primary" },
+  returned: { label: "Returned by lead", tone: "danger" },
 };
 
 export const AUTHORIZATION_STATUS: Record<AuthorizationStatus, StatusMeta> = {
@@ -152,15 +171,17 @@ export const ENVIRONMENTS: Record<TargetEnvironment, string> = {
 };
 
 export const ROLE_META: Record<UserRole, { label: string; description: string; tone: Tone }> = {
-  administrator: { label: "Administrator", description: "Manages users, settings, integrations and all projects.", tone: "primary" },
-  assessor: { label: "Security Assessor", description: "Runs assigned assessments, reviews evidence and verifies findings.", tone: "cyan" },
-  viewer: { label: "Viewer", description: "Views permitted projects, dashboards and finalized reports.", tone: "neutral" },
+  administrator: { label: "Administrator", description: "Runs the platform: users, roles, settings and integrations. Sees every project and can step in anywhere.", tone: "primary" },
+  lead: { label: "Security Lead", description: "Owns projects and approvals: confirms website permission, signs off critical and high findings, approves closing fixes and final reports.", tone: "danger" },
+  assessor: { label: "Security Assessor", description: "Does the testing in their projects: scans, verifies findings, retests fixes and drafts reports.", tone: "cyan" },
+  remediation_owner: { label: "Remediation Owner", description: "The developer who fixes issues: sees their assigned fixes with the evidence and marks them ready for retest.", tone: "warning" },
+  viewer: { label: "Viewer", description: "Reads dashboards and approved reports for the projects they belong to.", tone: "neutral" },
 };
 
 export const SCAN_PROFILES: Record<ScanProfile, { label: string; description: string }> = {
   passive: { label: "Passive", description: "Observe responses only. No active probing payloads." },
   baseline: { label: "Baseline", description: "Low-impact checks suitable for shared environments." },
-  standard: { label: "Standard", description: "Balanced coverage within the declared scope and rate limits." },
+  standard: { label: "Standard", description: "Active checks with attack payloads. Automated runs allow it only on a copy running on this machine." },
   thorough: { label: "Thorough", description: "Deeper coverage for isolated lab environments only." },
 };
 
@@ -413,6 +434,7 @@ export const ALLOWED_ACTIVITY_OPTIONS = [
   "Port and service discovery",
   "Automated web scanning (rate-limited)",
   "Authenticated testing with provided test accounts",
+  "Active scanning (local lab copy only)",
   "Manual verification of findings",
   "Security header review",
 ];

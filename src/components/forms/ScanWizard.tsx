@@ -11,12 +11,15 @@ import { EmptyState } from "@/components/shared/states";
 import { StatusBadge, ToneBadge, ToolBadge } from "@/components/security/badges";
 import { ChoiceCard, Field, Steps } from "./fields";
 import { AUTHORIZATION_STATUS, CATEGORIES, ENVIRONMENTS, SCAN_PROFILES, TOOL_META } from "@/lib/constants";
-import { TOOL_ACTIVITY, toolPermitted, type LiveTool } from "@/features/scanPermissions";
-import { IS_API } from "@/services";
+import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, toolPermitted, type LiveTool } from "@/features/scanPermissions";
+import { IS_API, automationService, type ScanCredentialStatus } from "@/services";
 import type { ApplicationSettings, AssessmentCategoryId, OutputFormat, Project, ScanConfig, ScanProfile, ScanTool, Target } from "@/types";
 
 const STEPS = ["Select Project", "Select Target", "Confirm Scope", "Select Tools", "Configure", "Review & Confirm"];
 const TOOL_ICONS: Record<ScanTool, typeof Network> = { nmap: Network, owasp_zap: ScanSearch, dns_utils: Globe, http_inspector: Radar };
+/** Tools the AIVERA server can really run. */
+const LIVE_TOOLS: LiveTool[] = ["nmap", "owasp_zap", "http_inspector"];
+const isLive = (t: ScanTool): t is LiveTool => (LIVE_TOOLS as ScanTool[]).includes(t);
 
 export interface ScanWizardResult {
   name: string;
@@ -53,8 +56,10 @@ export function ScanWizard({
   const [projectId, setProjectId] = React.useState(initialProjectId ?? "");
   const [targetId, setTargetId] = React.useState(initialTargetId ?? "");
   const [scopeConfirmed, setScopeConfirmed] = React.useState(false);
-  // The full app can only run Nmap and OWASP ZAP, so those are the defaults there.
+  // The full app only offers tools the server can run; picking a website narrows them to its scope.
   const [tools, setTools] = React.useState<ScanTool[]>(IS_API ? ["nmap", "owasp_zap"] : ["owasp_zap", "http_inspector"]);
+  const [authenticated, setAuthenticated] = React.useState(false);
+  const [credential, setCredential] = React.useState<ScanCredentialStatus>({ configured: false });
   const [categories, setCategories] = React.useState<AssessmentCategoryId[]>(defaults.categories);
   const [profile, setProfile] = React.useState<ScanProfile>(defaults.profile);
   const [timeLimit, setTimeLimit] = React.useState(defaults.timeLimitMinutes);
@@ -76,17 +81,27 @@ export function ScanWizard({
   const authorized = !!target && target.authorizationStatus === "authorized" && target.authorizationConfirmed;
   const effectiveCategories = categories.filter((c) => target?.scope.allowedCategories.includes(c));
   // Why the automated run can't start yet, each with a one-click fix where possible.
-  const liveTools = tools.filter((t): t is LiveTool => t === "nmap" || t === "owasp_zap");
-  const unsupportedTools = tools.filter((t) => t !== "nmap" && t !== "owasp_zap");
+  const liveTools = tools.filter(isLive);
+  const unsupportedTools = tools.filter((t) => !isLive(t));
+  const localCopy = !!target && isLoopbackUrl(target.url);
   const liveBlockers: { text: string; fix?: { label: string; run: () => void } }[] = [];
   if (!IS_API) liveBlockers.push({ text: "Automated runs need the full app with the AIVERA server (npm run dev:full). Demo mode runs only in this browser." });
   else if (!liveAvailable) liveBlockers.push({ text: "Live scanning is turned off on the AIVERA server (AIVERA_LIVE_SCANS_ENABLED and AIVERA_ALLOWED_SCAN_HOSTS in server/.env)." });
   if (unsupportedTools.length)
     liveBlockers.push({
-      text: `Automated runs only use Nmap and OWASP ZAP. Not supported: ${unsupportedTools.map((t) => TOOL_META[t].label).join(", ")}.`,
-      fix: { label: "Use Nmap and ZAP only", run: () => setTools(liveTools.length ? liveTools : ["nmap", "owasp_zap"]) },
+      text: `Automated runs can't use ${unsupportedTools.map((t) => TOOL_META[t].label).join(", ")} yet.`,
+      fix: { label: "Remove it", run: () => setTools(liveTools.length ? liveTools : ["owasp_zap"]) },
     });
-  if (profile !== "passive" && profile !== "baseline") liveBlockers.push({ text: `The ${SCAN_PROFILES[profile].label} profile isn't available for automated runs.`, fix: { label: "Switch to Baseline", run: () => setProfile("baseline") } });
+  if (profile === "thorough") liveBlockers.push({ text: "The Thorough profile isn't available for automated runs.", fix: { label: "Switch to Baseline", run: () => setProfile("baseline") } });
+  if (profile === "standard" && target) {
+    if (!localCopy) liveBlockers.push({ text: "Standard sends attack payloads, so it only runs against a copy on this machine (127.0.0.1 or localhost), never a hosted site.", fix: { label: "Switch to Baseline", run: () => setProfile("baseline") } });
+    else if (!hasActivity(ACTIVE_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: `Standard needs "${ACTIVE_SCAN_ACTIVITY}" allowed in the website's scope.`, fix: { label: "Switch to Baseline", run: () => setProfile("baseline") } });
+    if (!tools.includes("owasp_zap")) liveBlockers.push({ text: "Standard needs OWASP ZAP.", fix: { label: "Add ZAP", run: () => setTools([...tools, "owasp_zap"]) } });
+  }
+  if (authenticated && target) {
+    if (!hasActivity(AUTH_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: `Signed-in scans need "${AUTH_SCAN_ACTIVITY}" allowed in the website's scope.`, fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
+    else if (!credential.configured) liveBlockers.push({ text: "No test-account session is saved for this website. Add one on the website's page under Automation.", fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
+  }
   for (const t of liveTools)
     if (target && !toolPermitted(t, target.scope.allowedActivities)) liveBlockers.push({ text: `The target's scope doesn't allow "${TOOL_ACTIVITY[t]}", which ${TOOL_META[t].label} needs. Edit the target's scope to allow it.` });
   const liveConfigValid = liveBlockers.length === 0;
@@ -100,6 +115,14 @@ export function ScanWizard({
   React.useEffect(() => {
     if (target && !name) setName(`${target.name} assessment`);
   }, [target, name]);
+  React.useEffect(() => {
+    if (!IS_API || !target) return;
+    // Offer exactly the server tools this website's scope allows.
+    const allowed = LIVE_TOOLS.filter((t) => toolPermitted(t, target.scope.allowedActivities));
+    if (allowed.length) setTools(allowed);
+    setAuthenticated(false);
+    void automationService.credential(target.id).then(setCredential).catch(() => setCredential({ configured: false }));
+  }, [target?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const errors: Record<number, string | null> = {
     0: projectId ? null : "Select a project to continue.",
@@ -117,7 +140,7 @@ export function ScanWizard({
     name: name.trim(),
     projectId,
     targetId,
-    config: { tools, categories: effectiveCategories, profile, timeLimitMinutes: timeLimit, requestsPerSecond: rps, maxConcurrency: concurrency, outputFormat: format, respectExclusions: true, scopeConfirmed },
+    config: { tools, categories: effectiveCategories, profile, timeLimitMinutes: timeLimit, requestsPerSecond: rps, maxConcurrency: concurrency, outputFormat: format, respectExclusions: true, scopeConfirmed, ...(IS_API && authenticated ? { authenticated: true } : {}) },
   };
 
   return (
@@ -198,7 +221,7 @@ export function ScanWizard({
                 {(Object.keys(TOOL_META) as ScanTool[]).map((t) => {
                   const Icon = TOOL_ICONS[t];
                   // In the full app only tools the server can really run are offered.
-                  const runnable = !IS_API || t === "nmap" || t === "owasp_zap";
+                  const runnable = !IS_API || isLive(t);
                   return (
                     <ChoiceCard
                       key={t}
@@ -207,7 +230,7 @@ export function ScanWizard({
                       onToggle={() => setTools(toggle(tools, t))}
                       icon={<Icon className="mt-0.5 size-4 shrink-0 text-cyan" />}
                       title={TOOL_META[t].label}
-                      description={runnable ? TOOL_META[t].description : "Not available for real scans yet. Nmap and OWASP ZAP cover these checks."}
+                      description={runnable ? TOOL_META[t].description : "Not available for real scans yet."}
                       badge={<ToneBadge tone="muted">{TOOL_META[t].kind}</ToneBadge>}
                     />
                   );
@@ -238,8 +261,8 @@ export function ScanWizard({
                     <SelectTrigger id="profile"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {(Object.keys(SCAN_PROFILES) as ScanProfile[]).map((p) => (
-                        <SelectItem key={p} value={p} disabled={p === "thorough" && target.environment !== "lab"}>
-                          {SCAN_PROFILES[p].label}{p === "thorough" && target.environment !== "lab" ? " (lab only)" : ""}
+                        <SelectItem key={p} value={p} disabled={(p === "thorough" && target.environment !== "lab") || (IS_API && p === "standard" && !localCopy)}>
+                          {SCAN_PROFILES[p].label}{p === "thorough" && target.environment !== "lab" ? " (lab only)" : IS_API && p === "standard" ? (localCopy ? " (active)" : " (local copy only)") : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -263,6 +286,18 @@ export function ScanWizard({
                     <SelectContent>{(["json", "xml", "html"] as OutputFormat[]).map((f) => <SelectItem key={f} value={f}>{f.toUpperCase()}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
+                {IS_API && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium">Sign-in</p>
+                    <label className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-xs">
+                      <Checkbox checked={authenticated} onCheckedChange={(v) => setAuthenticated(v === true)} className="mt-0.5" />
+                      <span>
+                        Scan as the test account
+                        <span className="block text-muted-foreground">{credential.configured ? `Uses the saved ${credential.headerName} session${credential.label ? ` (${credential.label})` : ""}.` : "No session saved yet."}</span>
+                      </span>
+                    </label>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium">Scope restrictions</p>
                   <p className="flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-primary">
@@ -282,14 +317,14 @@ export function ScanWizard({
                 <KeyValue label="Target">{target.name}<span className="block font-mono text-[11px] text-muted-foreground">{target.url}</span></KeyValue>
                 <KeyValue label="Tools"><span className="flex flex-wrap gap-1">{tools.map((t) => <ToolBadge key={t} tool={t} />)}</span></KeyValue>
                 <KeyValue label="Categories">{effectiveCategories.map((c) => CATEGORIES.find((x) => x.id === c)?.short).join(", ")}</KeyValue>
-                <KeyValue label="Profile">{SCAN_PROFILES[profile].label}</KeyValue>
+                <KeyValue label="Profile">{SCAN_PROFILES[profile].label}{IS_API && authenticated ? ", signed in" : ""}</KeyValue>
                 <KeyValue label="Limits">{rps} req/s · {timeLimit} min · concurrency {concurrency}</KeyValue>
                 <KeyValue label="Output">{format.toUpperCase()}</KeyValue>
                 <KeyValue label="Scope">{target.scope.inScopeHosts.length} host(s), {target.scope.excludedPaths.length} exclusion(s), confirmed</KeyValue>
               </dl>
               {liveConfigValid ? (
                 <Callout tone="info" icon={ShieldCheck} title="Ready for an automated assessment">
-                  {liveTools.map((t) => TOOL_META[t].label).join(" and ")} will run against {target.name} inside its approved scope. ZAP explores for about a minute and only runs passive checks. Results arrive as Pending Verification.
+                  {liveTools.map((t) => TOOL_META[t].label).join(" and ")} will run against {target.name} inside its approved scope. {profile === "standard" ? "ZAP explores, then runs active checks with attack payloads against this local copy." : "ZAP explores for about a minute and only runs passive checks."}{authenticated ? " Requests carry the saved test-account session." : ""} Each tool runs in a separate worker process. Results arrive as Pending Verification.
                 </Callout>
               ) : (
                 <Callout tone="warning" icon={TriangleAlert} title="Start Automated Assessment is not available yet">

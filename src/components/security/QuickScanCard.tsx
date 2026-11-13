@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/hooks";
 import { can } from "@/lib/permissions";
 import type { Target } from "@/types";
 
-const TOOL_NAME: Record<LiveTool, string> = { nmap: "Nmap", owasp_zap: "OWASP ZAP" };
+const TOOL_NAME: Record<LiveTool, string> = { nmap: "Nmap", owasp_zap: "OWASP ZAP", http_inspector: "the header and TLS check" };
 
 /**
  * One-click scan for non-technical users: safe defaults (Nmap + ZAP passive, baseline profile,
@@ -23,7 +23,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   const navigate = useNavigate();
   const user = useCurrentUser();
   const canRun = can(user?.role, "run_demo_scans");
-  const tools = (["nmap", "owasp_zap"] as const).filter((t) => toolPermitted(t, target.scope.allowedActivities));
+  const tools = (["nmap", "owasp_zap", "http_inspector"] as const).filter((t) => toolPermitted(t, target.scope.allowedActivities));
   const [liveAvailable, setLiveAvailable] = React.useState(false);
   React.useEffect(() => {
     if (IS_API) void scanService.automatedCapabilities().then((c) => setLiveAvailable(c.enabled)).catch(() => setLiveAvailable(false));
@@ -90,7 +90,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
             {eyebrow && <p className="text-xs font-medium text-primary">{eyebrow}</p>}
             <h2 className="text-lg font-semibold tracking-tight">{showTargetName ? `Scan ${target.name}` : "Scan this website"}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Runs {tools.length ? tools.map((t) => TOOL_NAME[t]).join(" and ") : "the security tools"} only inside the approved scope, with gentle settings. It takes about two minutes. Then AI explains
+              Runs {tools.length ? tools.map((t) => TOOL_NAME[t]).join(", ").replace(/, ([^,]*)$/, " and $1") : "the security tools"} only inside the approved scope, with gentle settings. It takes about two minutes. Then AI explains
               what was found, and every result waits for your review.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">

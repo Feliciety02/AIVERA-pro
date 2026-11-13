@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/shared/states";
 import { Sidebar, MobileSidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { TourHost } from "./TourHost";
+import { LiveUpdates } from "./LiveUpdates";
 
 export function AppShell() {
   const userId = useSessionStore((s) => s.userId);
@@ -40,6 +41,7 @@ export function AppShell() {
           </ErrorBoundary>
         </main>
         <TourHost />
+        <LiveUpdates />
       </div>
     </div>
   );

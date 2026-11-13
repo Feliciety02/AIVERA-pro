@@ -3,18 +3,32 @@
  * the in-scope host list. Shared by the server (enforcement) and the UI (what to offer),
  * so the two can never disagree.
  */
-export type LiveTool = "nmap" | "owasp_zap";
+export type LiveTool = "nmap" | "owasp_zap" | "http_inspector";
 
 /** Allowed activity (from ALLOWED_ACTIVITY_OPTIONS) that must be ticked in the scope for each tool. */
 export const TOOL_ACTIVITY: Record<LiveTool, string> = {
   nmap: "Port and service discovery",
   owasp_zap: "Automated web scanning (rate-limited)",
+  http_inspector: "Security header review",
 };
+
+/** Needed (with ZAP) for the active profile, which sends attack payloads. Loopback hosts only. */
+export const ACTIVE_SCAN_ACTIVITY = "Active scanning (local lab copy only)";
+/** Needed for scans that send a stored test-account session. */
+export const AUTH_SCAN_ACTIVITY = "Authenticated testing with provided test accounts";
+
+export const hasActivity = (activity: string, allowedActivities: string[]) => allowedActivities.some((a) => norm(a) === norm(activity));
+
+/** Active payloads only ever go to a copy running on this machine, never to a hosted site. */
+export function isLoopbackUrl(url: string): boolean {
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return host === "localhost" || host === "::1" || /^127(?:\.\d{1,3}){3}$/.test(host);
+}
 
 const norm = (s: string) => s.trim().toLowerCase();
 
 export function toolPermitted(tool: LiveTool, allowedActivities: string[]): boolean {
-  return allowedActivities.some((a) => norm(a) === norm(TOOL_ACTIVITY[tool]));
+  return hasActivity(TOOL_ACTIVITY[tool], allowedActivities);
 }
 
 /**

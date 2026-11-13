@@ -8,6 +8,7 @@
  *
  * In neither mode does the browser contact a target, run a scanner or call a model.
  */
+import { toast } from "sonner";
 import type { AIAnalysis, ApplicationSettings, ID, Project, RemediationStatus, RemediationTask, Report, Scan, ScopeDetection, Target, TargetScope, User, VerificationStatus } from "@/types";
 import { detectFromAddress } from "@/features/scopeDetection";
 import { useDataStore, type DataActions, type ManualFindingInput } from "@/stores/dataStore";
@@ -29,7 +30,9 @@ type Args<K extends keyof DataActions> = Parameters<DataActions[K]>;
 /** Runs an API call, then refreshes the cache from the database. */
 async function mutate<T>(path: string, body?: unknown, method?: string): Promise<T> {
   const res = await api<T>(path, { body: body ?? {}, method });
-  await refresh();
+  // The change is already saved at this point. If reloading the data fails, say so instead of
+  // reporting the save itself as failed.
+  await refresh().catch(() => toast.warning("Saved, but the page couldn't refresh. Reload to see the latest data."));
   return res;
 }
 
@@ -94,6 +97,7 @@ export const targetService = {
   },
   /** Gives a website saved without a project a project of its own (full app). */
   async createOwnProject(id: ID): Promise<{ projectId: ID; code: string }> {
+    if (!IS_API) throw new Error("Creating a project for a website needs the full app with the AIVERA server.");
     return mutate(`/targets/${id}/own-project`);
   },
   async update(id: ID, patch: Args<"updateTarget">[1]) {
@@ -205,6 +209,45 @@ export const verificationService = {
   },
 };
 
+export interface AuditVerification {
+  intact: boolean;
+  checked: number;
+  unsealed: number;
+  problem?: string;
+  firstBadSeq?: number;
+  head?: { seq: number; hash: string };
+  verifiedAt: string;
+}
+
+/** Tamper-evident activity log (full app only). */
+export const auditService = {
+  verify(): Promise<AuditVerification> {
+    if (!IS_API) return Promise.reject(new Error("Log verification needs the full app with the AIVERA server."));
+    return api<AuditVerification>("/audit/verify");
+  },
+};
+
+/** The stored test-account session is write-only: only its header name and label come back. */
+export interface ScanCredentialStatus { configured: boolean; headerName?: string; label?: string; updatedAt?: string }
+
+const needsServer = () => Promise.reject(new Error("This needs the full app with the AIVERA server."));
+
+/** Signed-in scan sessions (full app only). */
+export const automationService = {
+  credential(targetId: ID): Promise<ScanCredentialStatus> {
+    if (!IS_API) return Promise.resolve({ configured: false });
+    return api<ScanCredentialStatus>(`/targets/${targetId}/scan-credential`, { silent: true });
+  },
+  saveCredential(targetId: ID, body: { headerName: string; value: string; label: string }): Promise<ScanCredentialStatus> {
+    if (!IS_API) return needsServer();
+    return mutate<ScanCredentialStatus>(`/targets/${targetId}/scan-credential`, body, "PUT");
+  },
+  removeCredential(targetId: ID): Promise<ScanCredentialStatus> {
+    if (!IS_API) return needsServer();
+    return mutate<ScanCredentialStatus>(`/targets/${targetId}/scan-credential`, {}, "DELETE");
+  },
+};
+
 export const findingService = {
   async resolveAlias(id: ID): Promise<ID | null> {
     if (!IS_API) return null;
@@ -225,6 +268,11 @@ export const findingService = {
     if (IS_API) return mutate<{ id: ID; code: string }>("/findings/manual", input);
     await delay(LATENCY);
     return store().createManualFinding(input);
+  },
+  /** A lead signs off a confirmed critical or high finding, or returns it for another look. */
+  signoff(findingId: ID, decision: "approve" | "return", note: string): Promise<void> {
+    if (!IS_API) return needsServer();
+    return mutate(`/findings/${findingId}/signoff`, { decision, note });
   },
   async addEvidence(findingId: ID, title: string, content: string) {
     if (IS_API) return void (await mutate(`/findings/${findingId}/evidence`, { title, content }));
@@ -303,6 +351,21 @@ export const reportService = {
   async update(id: ID, patch: Args<"updateReport">[1]) {
     if (IS_API) return void (await mutate(`/reports/${id}`, patch, "PATCH"));
     store().updateReport(id, patch);
+  },
+  /** Author sends a draft to the lead. */
+  submit(id: ID): Promise<void> {
+    if (!IS_API) return needsServer();
+    return mutate(`/reports/${id}/submit`);
+  },
+  /** A lead who did not write it makes it final. */
+  approve(id: ID, note = ""): Promise<void> {
+    if (!IS_API) return needsServer();
+    return mutate(`/reports/${id}/approve`, { note });
+  },
+  /** A lead sends it back to the author as a draft, with what to change. */
+  sendBack(id: ID, note: string): Promise<void> {
+    if (!IS_API) return needsServer();
+    return mutate(`/reports/${id}/return`, { note });
   },
   logExport(id: ID, format: string) {
     if (IS_API) return void api(`/reports/${id}/export`, { body: { format }, silent: true }).catch(() => undefined);

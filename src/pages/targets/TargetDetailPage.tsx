@@ -24,6 +24,7 @@ import { can } from "@/lib/permissions";
 import { IS_API, targetService } from "@/services";
 import { ToolImportDialog } from "@/components/forms/ToolImportDialog";
 import { QuickScanCard } from "@/components/security/QuickScanCard";
+import { ScanAutomationCard } from "@/components/security/ScanAutomationCard";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import type { TargetScope } from "@/types";
 
@@ -287,6 +288,8 @@ export default function TargetDetailPage() {
         </SectionCard>
       </div>
 
+      {IS_API && assessable && <ScanAutomationCard target={target} />}
+
       <Dialog open={scopeOpen} onOpenChange={setScopeOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -351,6 +354,9 @@ function AddToProject({ targetId, canManage }: { targetId: string; canManage: bo
     try {
       await fn();
       toast.success(done);
+    } catch (e) {
+      // Server errors are already shown by api(); only local errors (e.g. demo mode) need a toast here.
+      if (!IS_API) toast.error("Not saved", { description: (e as Error).message });
     } finally {
       setBusy(false);
     }

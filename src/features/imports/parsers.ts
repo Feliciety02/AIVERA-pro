@@ -12,7 +12,8 @@
 import type { AssessmentCategoryId, Severity, Target } from "@/types";
 import { pathMatches } from "@/features/simulation/generator";
 
-export type ImportFormat = "nmap_xml" | "zap_json";
+/** aivera_inspector is produced by the server's own HTTP/TLS inspector, never uploaded. */
+export type ImportFormat = "nmap_xml" | "zap_json" | "aivera_inspector";
 
 export interface ParsedPort {
   port: number;

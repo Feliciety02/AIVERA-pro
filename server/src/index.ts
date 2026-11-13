@@ -4,9 +4,9 @@
  * Security posture:
  *  - Session auth with hashed tokens; role checks on every mutating route.
  *  - Target scope re-validated server-side for imports and simulations.
- *  - The server never connects to assessment targets in this phase:
- *    tool output is uploaded by the assessor and parsed here.
- *  - Append-only activity log.
+ *  - Live tools run only when AIVERA_LIVE_SCANS_ENABLED=true, against allowlisted hosts, in a
+ *    separate worker process without server secrets (see scanWorker.ts).
+ *  - Append-only, tamper-evident activity log (see auditChain.ts).
  */
 import { env } from "./env.ts";
 import { existsSync } from "node:fs";
@@ -16,9 +16,11 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./http.ts";
 import { router as core } from "./routes/core.ts";
-import { router as security } from "./routes/security.ts";
+import { router as security, recoverInterruptedScans } from "./routes/security.ts";
 import { router as workflow } from "./routes/workflow.ts";
+import { router as automation } from "./routes/automation.ts";
 import { prisma } from "./db.ts";
+import { sealPending } from "./auditChain.ts";
 
 const app = express();
 app.disable("x-powered-by");
@@ -45,6 +47,7 @@ const api = express.Router();
 api.use(core); // auth routes first; core applies requireAuth to everything after /auth/login + /auth/logout
 api.use(security);
 api.use(workflow);
+api.use(automation);
 app.use("/api", api);
 app.use("/api", (_req, res) => res.status(404).json({ error: "Not found" }));
 
@@ -76,3 +79,7 @@ a{display:inline-block;margin-top:16px;padding:10px 20px;border-radius:999px;bac
 app.use(errorHandler);
 
 app.listen(env.port, () => console.log(`AIVERA API listening on http://localhost:${env.port}`));
+// Seal activity entries written outside log() (seed data, one-off maintenance scripts).
+void sealPending().then((n) => n && console.log(`[audit] sealed ${n} activity entr${n === 1 ? "y" : "ies"} into the chain`)).catch((e) => console.error("[audit] sealing failed", e));
+// Scans cut off by a previous stop or restart would otherwise show "Running" forever.
+void recoverInterruptedScans().then((n) => n && console.log(`[scan] marked ${n} interrupted scan(s) as failed`)).catch((e) => console.error("[scan] recovery failed", e));

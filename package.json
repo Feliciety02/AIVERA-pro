@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "build:api": "tsc -b && vite build --mode api",
     "typecheck": "tsc -b --noEmit && tsc -p server/tsconfig.json",
-    "test:scan-scope": "node --import tsx --test server/src/automatedAssessment.test.ts server/src/scopeDiscovery.test.ts server/src/scanLifecycle.test.ts",
+    "test:scan-scope": "node --import tsx --test server/src/automatedAssessment.test.ts server/src/scopeDiscovery.test.ts server/src/scanLifecycle.test.ts server/src/scanSafety.test.ts",
     "preview": "vite preview",
     "server:dev": "tsx watch --tsconfig server/tsconfig.json server/src/index.ts",
     "server:start": "tsx --tsconfig server/tsconfig.json server/src/index.ts",
@@ -20,7 +20,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx --tsconfig server/tsconfig.json server/src/seed.ts",
-    "db:dedupe": "tsx --tsconfig server/tsconfig.json server/src/consolidateDuplicates.ts",
+    "db:accounts": "tsx --tsconfig server/tsconfig.json server/src/addTeamAccounts.ts",
+    "db:dedupe":"tsx --tsconfig server/tsconfig.json server/src/consolidateDuplicates.ts",
     "db:setup": "prisma db push && npm run db:seed"
   },
   "dependencies": {

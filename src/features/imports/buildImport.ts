@@ -34,7 +34,12 @@ export interface ImportOptions {
 const RAW_LIMIT = 20_000;
 
 export function buildImport(parsed: ParseResult, target: ProjectTarget, o: ImportOptions): ImportBundle {
-  const tool: ScanTool = parsed.format === "nmap_xml" ? "nmap" : "owasp_zap";
+  const tool: ScanTool = parsed.format === "nmap_xml" ? "nmap" : parsed.format === "aivera_inspector" ? "http_inspector" : "owasp_zap";
+  // Alerts come from ZAP or from AIVERA's own HTTP/TLS inspector; both share the alert shape.
+  const alertTool: ScanTool = tool === "http_inspector" ? "http_inspector" : "owasp_zap";
+  const toolLabel = tool === "nmap" ? "Nmap" : tool === "http_inspector" ? "HTTP security inspector" : "OWASP ZAP";
+  const alertLabel = alertTool === "http_inspector" ? "HTTP security inspector" : "OWASP ZAP";
+  const alertShort = alertTool === "http_inspector" ? "Inspector" : "ZAP";
   const skipped: string[] = [];
   const hosts: Host[] = [];
   const ports: Port[] = [];
@@ -76,6 +81,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
         affectedAsset: `${h.hostname} tcp/${p.port}`,
         sourceTool: "nmap",
         verificationStatus: "pending",
+        signoffStatus: "not_required",
         assignedAssessorId: o.assessorId,
         discoveredAt: o.now,
         updatedAt: o.now,
@@ -105,7 +111,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
     inScope.forEach((i, ii) => {
       const u = new URL(i.uri);
       if (!endpoints.some((e) => e.path === u.pathname && e.method === i.method))
-        endpoints.push({ id: `ept-${o.scanId}-${a.pluginId}-${ii}`, targetId: target.id, method: (["GET", "POST", "PUT", "PATCH", "DELETE"].includes(i.method) ? i.method : "GET") as Endpoint["method"], path: u.pathname + (i.param ? `?${i.param}=` : ""), statusCode: 0, contentType: "unknown", authRequired: false, source: "owasp_zap", observedAt: o.now, dataOrigin: "imported" });
+        endpoints.push({ id: `ept-${o.scanId}-${a.pluginId}-${ii}`, targetId: target.id, method: (["GET", "POST", "PUT", "PATCH", "DELETE"].includes(i.method) ? i.method : "GET") as Endpoint["method"], path: u.pathname + (i.param ? `?${i.param}=` : ""), statusCode: 0, contentType: "unknown", authRequired: false, source: alertTool, observedAt: o.now, dataOrigin: "imported" });
     });
     const id = nextFindingId();
     const first = inScope[0]!;
@@ -113,7 +119,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
       id,
       code: code(),
       title: a.name,
-      description: `${a.description || "No description in report."}\n\nReported by OWASP ZAP (plugin ${a.pluginId}) with ${a.confidence} confidence across ${inScope.length} in-scope instance(s).`,
+      description: `${a.description || "No description in report."}\n\nReported by ${alertLabel} (${alertTool === "owasp_zap" ? "plugin" : "check"} ${a.pluginId}) with ${a.confidence} confidence across ${inScope.length} in-scope instance(s).`,
       projectId: target.projectId,
       targetId: target.id,
       scanId: o.scanId,
@@ -121,8 +127,9 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
       severity: a.severity,
       affectedAsset: first.uri,
       parameter: first.param || undefined,
-      sourceTool: "owasp_zap",
+      sourceTool: alertTool,
       verificationStatus: "pending",
+      signoffStatus: "not_required",
       assignedAssessorId: o.assessorId,
       discoveredAt: o.now,
       updatedAt: o.now,
@@ -130,11 +137,11 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
       remediation: a.solution || "No solution provided in the report.",
       cwe: a.cwe ? `CWE-${a.cwe}` : undefined,
       owasp: CATEGORY_BY_ID[a.category].owasp,
-      templateKey: `import:zap:${a.pluginId}`,
+      templateKey: alertTool === "owasp_zap" ? `import:zap:${a.pluginId}` : `import:inspector:${a.pluginId}`,
       dataOrigin: "imported",
     });
     inScope.slice(0, 5).forEach((i, k) =>
-      evidence.push({ id: `ev-${id}-${k + 1}`, findingId: id, type: "tool_output", title: `ZAP instance ${k + 1} (imported from ${o.fileName})`, content: `${i.method} ${i.uri}\nParameter: ${i.param || "N/A"}\nEvidence: ${i.evidence || "N/A"}\nPlugin: ${a.pluginId} · Confidence: ${a.confidence}${a.reference ? `\nReference: ${a.reference}` : ""}`, source: "owasp_zap", capturedAt: o.now, reviewed: false, dataOrigin: "imported" }),
+      evidence.push({ id: `ev-${id}-${k + 1}`, findingId: id, type: "tool_output", title: `${alertShort} instance ${k + 1} (imported from ${o.fileName})`, content: `${i.method} ${i.uri}\nParameter: ${i.param || "N/A"}\nEvidence: ${i.evidence || "N/A"}\n${alertTool === "owasp_zap" ? "Plugin" : "Check"}: ${a.pluginId} · Confidence: ${a.confidence}${a.reference ? `\nReference: ${a.reference}` : ""}`, source: alertTool, capturedAt: o.now, reviewed: false, dataOrigin: "imported" }),
     );
   });
 
@@ -142,7 +149,7 @@ export function buildImport(parsed: ParseResult, target: ProjectTarget, o: Impor
   const scan: Scan = {
     id: o.scanId,
     code: o.scanCode,
-    name: `Imported ${tool === "nmap" ? "Nmap" : "OWASP ZAP"} report, ${o.fileName}`,
+    name: `Imported ${toolLabel} report, ${o.fileName}`,
     projectId: target.projectId,
     targetId: target.id,
     status: "completed",
