@@ -65,7 +65,7 @@ export function UserChip({ user, className, showTitle }: { user?: User; classNam
   );
 }
 
-export function Callout({ tone = "info", title, children, icon, className }: { tone?: "info" | "warning" | "danger" | "demo"; title?: string; children: React.ReactNode; icon?: LucideIcon; className?: string }) {
+export function Callout({ tone = "info", title, children, icon, className }: { tone?: "info" | "success" | "warning" | "danger" | "demo"; title?: string; children: React.ReactNode; icon?: LucideIcon; className?: string }) {
   // General demo reminders can be hidden in Settings → Appearance. Per-record labels
   // (Simulated / Imported badges) are separate and always shown.
   const showDemo = useUIStore((s) => s.showDemoNotices);
@@ -74,6 +74,7 @@ export function Callout({ tone = "info", title, children, icon, className }: { t
   // Google-style inline banners: soft tinted background, coloured icon, regular text.
   const toneClass = {
     info: "bg-primary/8 [&>svg]:text-primary",
+    success: "bg-success/10 [&>svg]:text-success",
     warning: "bg-sev-medium/15 [&>svg]:text-warning",
     danger: "bg-sev-critical/10 [&>svg]:text-sev-critical",
     demo: "bg-muted [&>svg]:text-muted-foreground",

@@ -16,3 +16,6 @@ server/prisma/*.db
 server/prisma/*.db-journal
 server/prisma/generated/
 server/prisma/backups/
+
+# Tamper-evident log anchor (belongs to the local database)
+server/prisma/*.audit-anchor.json

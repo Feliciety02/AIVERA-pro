@@ -1,7 +1,8 @@
 import * as React from "react";
 import { Link } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, ShieldAlert } from "lucide-react";
+import { Download, Loader2, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
+import { IS_API, auditService, type AuditVerification } from "@/services";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -84,16 +85,20 @@ export default function ActivityPage() {
     <ContentContainer wide>
       <PageHeader
         title="Activity Logs"
-        description="Chronological record of actions taken in this demo workspace."
+        description="Every action taken in AIVERA, newest first."
         actions={
           <Button variant="outline" size="sm" disabled={!rows.length} onClick={() => { downloadCSV("aivera-activity.csv", rows, [{ header: "Timestamp", value: (a) => a.timestamp }, { header: "Event", value: (a) => ACTIVITY_LABELS[a.type] }, { header: "User", value: (a) => lookups.users[a.userId]?.name ?? a.userId }, { header: "Entity type", value: (a) => a.entityType }, { header: "Entity", value: (a) => a.entityLabel }, { header: "Description", value: (a) => a.description }]); toast.success(`Exported ${rows.length} log entries`); }}>
             <Download /> Export CSV
           </Button>
         }
       />
-      <Callout tone="warning" icon={ShieldAlert} title="Demonstration log, not a secure audit trail">
-        These entries live in your browser's localStorage and can be edited, cleared, or reset by anyone with access to it. A tamper-evident, append-only audit log will be implemented server-side by the backend.
-      </Callout>
+      {IS_API ? (
+        <LogIntegrity />
+      ) : (
+        <Callout tone="warning" icon={ShieldAlert} title="Demonstration log, not a secure audit trail">
+          In demo mode these entries live in your browser and can be edited or cleared. The full app keeps a tamper-evident log on the server.
+        </Callout>
+      )}
       <Card>
         <div className="border-b border-border p-3">
           <FilterBar active={type !== ALL || userId !== ALL || entity !== ALL || !!q} onReset={() => { setQ(""); setType(ALL); setUserId(ALL); setEntity(ALL); }}>
@@ -107,5 +112,43 @@ export default function ActivityPage() {
         <DataTable data={rows} columns={columns} getRowId={(a) => a.id} loading={loading} initialSorting={[{ id: "timestamp", desc: true }]} pageSize={20} caption="Activity log" />
       </Card>
     </ContentContainer>
+  );
+}
+
+/** Recomputes the server's hash chain and shows whether any entry was changed or removed. */
+function LogIntegrity() {
+  const [result, setResult] = React.useState<AuditVerification | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const check = React.useCallback(async () => {
+    setBusy(true);
+    try {
+      setResult(await auditService.verify());
+    } catch {
+      setResult(null);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+  React.useEffect(() => void check(), [check]);
+
+  const tone = !result ? "info" : result.intact ? "success" : "danger";
+  const Icon = !result ? ShieldCheck : result.intact ? ShieldCheck : ShieldX;
+  const title = busy && !result ? "Checking the log…" : !result ? "Log integrity not checked" : result.intact ? "Log intact" : "Log has been tampered with";
+  return (
+    <Callout tone={tone} icon={Icon} title={title}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p className="min-w-0 flex-1">
+          {!result
+            ? "Each entry is chained to the one before it with a keyed fingerprint (HMAC-SHA256), so any change or deletion shows up here."
+            : result.intact
+              ? `All ${result.checked} entries match their fingerprints and none are missing. Checked ${formatDateTime(result.verifiedAt)}.`
+              : `${result.problem} Entries before #${result.firstBadSeq} are still verified. Restore the database from a backup and investigate.`}
+          {result && result.unsealed > 0 && ` ${result.unsealed} new entr${result.unsealed === 1 ? "y is" : "ies are"} waiting to be sealed.`}
+        </p>
+        <Button size="sm" variant="outline" className="bg-card" disabled={busy} onClick={() => void check()}>
+          {busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Check again
+        </Button>
+      </div>
+    </Callout>
   );
 }
