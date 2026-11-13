@@ -11,40 +11,39 @@ track remediation and generate reports. The core principle: *AI assists the asse
 
 ## Run it locally
 
-Requirements: Node.js 20.19+ (tested on Node 24) and npm.
+**Full setup guide: [docs/SETUP.md](docs/SETUP.md).** It covers requirements, every `server/.env` setting, AI providers, live scanning, the UMERCH3.0 targets, backups and troubleshooting.
 
-```bash
-npm install
-npm run dev:full   # AIVERA server on :4000 + web app on http://localhost:5173 (full app)
-npm run dev        # web app only, full-app mode (needs the server running)
-npm run dev:demo   # optional browser-only demo with synthetic data, no server
-npm run build      # strict type-check (tsc -b) + production build to dist/
-npm run preview    # serve the production build
-npm run typecheck  # type-check only
-```
+Requirements: **Node.js 22 or newer** (tested on 24) and npm. Nmap, OWASP ZAP and AI keys are optional.
 
-Open the app and sign in with one of the AIVERA accounts.
-To start over, use **Settings → General → Reset demo data**.
-
-### Full stack (backend + database)
-
-The backend is Node.js + Express 5 + Prisma. Local development uses SQLite (no install needed).
-
-```bash
+```powershell
 npm install                                # also generates the Prisma client
-copy server\.env.example server\.env       # Windows (use cp on macOS/Linux)
-npm run db:setup                           # create tables + load the UMERCH3.0 starting data
-npm run dev:full                           # API on :4000 + web app (API mode) on :5173
+copy server\.env.example server\.env       # then set SEED_DEMO_PASSWORD (cp on macOS/Linux)
+npm run db:setup                           # create the database and load the starting data
+npm run dev:full                           # API on :4000 + web app on http://localhost:5173
 ```
 
-Sign in with a seeded account (`admin@aivera.local`, `assessor@aivera.local` or `viewer@aivera.local`) using the password set as
-`SEED_DEMO_PASSWORD` in `server/.env`. Change it before any shared deployment.
+Sign in with a seeded account (`admin@aivera.local`, `lead@aivera.local`, `assessor@aivera.local`, `developer@aivera.local`
+or `viewer@aivera.local`) using the password set as `SEED_DEMO_PASSWORD` in `server/.env`. Change it before any shared
+deployment. An existing database from before the team roles gets the new accounts with `npm run db:accounts` (no reseed).
+
+**Team roles and workflow:** Administrator > Security Lead > Security Assessor > Remediation Owner > Viewer, defined once in
+`src/lib/permissions.ts` and enforced by the server. People see only their projects. Nobody approves their own work: the
+lead signs off critical and high findings, approves closing fixes and makes reports final. Assignments are automatic
+(`server/src/workflowRules.ts`): findings to the least busy assessor, fix tasks with a due date by severity to the
+developer, retests to the confirming assessor, approvals to the lead, overdue fixes escalated, and open work handed over
+when someone leaves. See [docs/SETUP.md](docs/SETUP.md#33-create-the-database) for the full table.
+
+`npm run dev:full` reloads the API whenever a server file changes, which interrupts a running scan. For long scans, run `npm run server:start` and `npm run dev` in two terminals instead.
 
 | Script | What it does |
 |---|---|
 | `npm run server:dev` | API with auto-reload (`http://localhost:4000/api`) |
+| `npm run server:start` | API without auto-reload (use during long scans) |
+| `npm run dev:demo` | Browser-only demo with synthetic data, no server |
+| `npm run typecheck` / `test:scan-scope` / `build:api` | Checks to run before a demo or commit |
 | `npm run dev:api` | Web app in API mode (proxies `/api` to the server) |
 | `npm run db:push` / `db:seed` | Sync schema / reload the UMERCH3.0 starting data |
+| `npm run db:accounts` | Add missing starting accounts to an existing database without reseeding |
 | `npm run build:api` then `NODE_ENV=production npm run server:start` | Single-origin production deployment (Express serves `dist/`) |
 
 **Real AI (Google Gemini):** create a key at https://aistudio.google.com/apikey, then in `server/.env` set
@@ -69,7 +68,15 @@ Install Nmap and Docker on the dedicated assessment machine, pull `ghcr.io/zapro
 
 Before another scan or tool import for the same target, decide every pending or needs-review finding. Each completed rescan stays in scan history; recurring alerts reuse the existing finding instead of adding another review row, while new alerts enter a new review batch. Deleting a target from its detail page removes its scan history and related assessment records so it can be registered again. For older databases, `npm run db:dedupe` previews repeated unreviewed rows and `npm run db:dedupe -- --apply` consolidates them; back up the database before applying it. Old finding links redirect to the retained record.
 
-This first automated adapter supports authorized web targets reachable by both Nmap and the ZAP container. It does not run active ZAP attacks, authenticated scans, or tools for non-web systems. The Docker and Nmap executables are not bundled. See [the authorized target lab plan](docs/Authorized-Target-Lab.md) before a live demonstration.
+Three tools can run: Nmap, OWASP ZAP, and AIVERA's own HTTP and TLS inspector (one plain GET plus TLS handshakes; it checks security headers, cookie flags, certificate validity and expiry, and whether TLS 1.0 or 1.1 is still accepted). Each tool needs its own permission in the target's scope. The Docker and Nmap executables are not bundled. See [the authorized target lab plan](docs/Authorized-Target-Lab.md) before a live demonstration.
+
+**Scan profiles.** Passive and Baseline only observe. **Standard is the active profile**: ZAP sends attack payloads after spidering. The server allows it only when the target is a loopback copy (127.0.0.1, localhost or ::1) *and* the scope allows "Active scanning (local lab copy only)". A hosted site can never get an active scan. ZAP never submits POST forms in any profile.
+
+**Signed-in scans.** On a target's page, **Signed-in scans** stores a test-account session (for example the `Cookie` header after signing in with a test account). The value is encrypted with AES-256-GCM using `AIVERA_SECRET_KEY` (created in `server/.env` on first use), is never returned by the API, and is never logged. A run marked "Scan as the test account" sends it on every request and skips logout links. The scope must allow "Authenticated testing with provided test accounts". Use a test account only, never a real person's.
+
+**Scan worker and egress rules.** Each tool runs in a separate Node process (`server/src/scanWorker.ts`) that gets no database URL, AI keys, audit key or credential key, and can only hand its output back to the API process, which re-checks scope before storing anything. Before a tool runs, the worker checks that the host is on `AIVERA_ALLOWED_SCAN_HOSTS` and that an approved host *name* resolves only to public addresses, so DNS can't redirect a scan to this machine, the local network or a cloud metadata address. This is process isolation, not a network sandbox: the operating system does not stop the worker from opening other connections. For network-level isolation, run the worker in a container or VM whose firewall only allows the approved hosts.
+
+**Tamper-evident activity log.** Every activity entry is sealed into an HMAC-SHA256 hash chain (key `AIVERA_AUDIT_KEY` in `server/.env`), with an anchor file next to the database. **Activity → Log integrity** re-checks the chain and reports an edited, deleted or truncated entry. This is tamper evidence, not prevention: someone with both the database and `server/.env` could forge a new chain.
 
 > Keep `node_modules` out of OneDrive sync (or move the project outside OneDrive). OneDrive file locks can
 > corrupt installs (`ENOTEMPTY` errors).
@@ -198,14 +205,14 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
 | Dashboard, Security Analytics | Complete, all numbers derived from state |
 | Projects, Targets & Scope | Complete |
 | Reconnaissance | Complete, sample bundles + Nmap XML import |
-| Scan Center | Simulation and file import; API mode has an opt-in bounded Nmap and ZAP passive runner |
+| Scan Center | Simulation and file import; API mode has an opt-in runner (Nmap, ZAP passive or local-only active, HTTP/TLS inspector, optional signed-in session) in a separate worker process |
 | Vulnerability Assessment | Complete, guided checklists, manual findings |
 | Findings & Evidence, Verification | Complete, incl. manual evidence |
 | AI Security Analyst | Demo samples in browser mode; server-side Gemini when configured |
 | Risk, Remediation | Complete |
 | Reports (preview, print, PDF) | Complete; provenance notice and watermark depend on selected data |
 | Activity, Users, Integrations, Settings | Complete (integrations honestly show Not Connected) |
-| Backend, real auth, LLM gateway | Implemented in API mode; automated tool runner is opt-in; tamper-evident audit remains future work |
+| Backend, real auth, LLM gateway | Implemented in API mode; automated tool runner is opt-in; activity log is tamper-evident |
 
 ## Demo-only (clearly labelled in the UI)
 
@@ -214,7 +221,7 @@ settings (theme dark/light/system, density, page size, notifications, safeguards
 - **Reconnaissance in demo mode**: sample bundles only. API mode has scope detection and an opt-in Nmap adapter.
 - **AI in demo mode**: deterministic samples. API mode calls Gemini when configured.
 - **Integrations**: the integration cards do not certify installed external tools; check the assessment prerequisites separately.
-- **Activity log in demo mode**: stored in localStorage. API mode uses database records, but these are not tamper-evident.
+- **Activity log in demo mode**: stored in localStorage and not tamper-evident. API mode seals every entry into a verifiable hash chain.
 - **Reports**: simulated and synthetic data are explicitly marked. Imported output retains a provenance warning.
 
 The browser never launches tools or stores model secrets. API mode can contact an authorized target only through scope detection or an explicitly enabled automated assessment.
@@ -228,10 +235,11 @@ The browser never launches tools or stores model secrets. API mode can contact a
   `findingService`, `verificationService`, `analysisService`, `riskService`, `remediationService`, `reportService`,
   `userService`, `settingsService`). Swap each demo implementation for an API call with the same signature.
 - `src/services/ai/aiService.ts`: `AIAdapter` interface for demo samples; API mode uses the server-side Gemini route.
-- `scanService.startRealAssessment()`: queues the opt-in passive assessment through the API.
+- `scanService.startRealAssessment()`: queues the opt-in automated assessment through the API.
+- `automationService`: saves or removes a target's encrypted test-account session (write-only).
 
-The backend authenticates users, authorizes actions, and checks target scope before each tool. ZAP runs in a separate container; Nmap runs as a bounded subprocess on the assessment host. For shared deployment, move both adapters to dedicated isolated workers, add durable queue recovery and strict network egress controls, and make the activity log tamper-evident.
+The backend authenticates users, authorizes actions, and checks target scope before each tool. Each tool runs in a separate worker process without server secrets, after an egress check. For shared deployment, run that worker in a container or VM with a firewall that only allows approved hosts, and add durable queue recovery.
 
 ## Remaining work (next phases)
 
-Dedicated isolated workers, durable queue recovery, worker-level network egress restrictions, authenticated and active scan profiles, scheduling, non-web adapters, server-side PDF storage, tamper-evident audit records, and end-to-end tests against an approved lab target. The final submission also needs real assessment evidence, a completed report, a deployed demonstration, and member-specific oral preparation.
+**Scheduled scans** (repeat a scan daily, weekly or monthly; skip and notify while findings still need review), network-level worker isolation (a container or VM with a firewall, beyond today's process isolation and egress checks), form-based login for signed-in scans (today a session is pasted in), more non-web adapters (for example DNS and mail configuration), durable queue recovery, server-side PDF storage, and end-to-end tests against an approved lab target. The final submission also needs real assessment evidence, a completed report, a deployed demonstration, and member-specific oral preparation.

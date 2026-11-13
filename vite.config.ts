@@ -14,7 +14,8 @@ export default defineConfig({
   server: {
     // API mode: the browser talks to the backend through same-origin /api,
     // so the httpOnly session cookie works without CORS.
-    proxy: { "/api": { target: "http://localhost:4000", changeOrigin: false } },
+    // AIVERA_API_URL points a second copy of the web app at a second API (for example a test server).
+    proxy: { "/api": { target: process.env.AIVERA_API_URL ?? "http://localhost:4000", changeOrigin: false } },
   },
   build: {
     chunkSizeWarningLimit: 1600,
