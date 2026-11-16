@@ -20,17 +20,17 @@ export const router = Router();
 /* --------------------------------- Auth ---------------------------------- */
 router.post("/auth/login", async (req, res) => {
   const { email, password } = parse(z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) }), req.body);
-  const throttle = loginThrottle(`${req.ip}|${email.toLowerCase()}`);
+  const throttle = await loginThrottle(`${req.ip}|${email.toLowerCase()}`);
   if (throttle.blocked) fail(429, "Too many failed attempts. Try again in 15 minutes.");
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   // Same message for unknown user and wrong password (no account enumeration).
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    throttle.fail();
+    await throttle.fail();
     fail(401, "Incorrect email or password.");
   }
   if (user!.status === "invited") fail(403, "Your account is waiting for an administrator to approve it.");
   if (user!.status !== "active") fail(403, "This account is not active.");
-  throttle.reset();
+  await throttle.reset();
   await createSession(res, user!.id, req.get("user-agent"));
   await prisma.user.update({ where: { id: user!.id }, data: { lastActiveAt: new Date() } });
   await log(user!.id, "user_login", "user", user!.id, user!.name, "Signed in");
@@ -52,9 +52,9 @@ const signupBody = z.object({
     .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), "Use a mix of letters and numbers"),
 });
 router.post("/auth/register", async (req, res) => {
-  const throttle = loginThrottle(`register|${req.ip}`);
+  const throttle = await loginThrottle(`register|${req.ip}`);
   if (throttle.blocked) fail(429, "Too many sign-up attempts. Try again in 15 minutes.");
-  throttle.fail(); // every attempt counts, successful or not
+  await throttle.fail(); // every attempt counts, successful or not
   const b = parse(signupBody, req.body);
   if (await prisma.user.findUnique({ where: { email: b.email } })) fail(409, "An account with this email already exists. Try signing in.");
   const now = new Date();

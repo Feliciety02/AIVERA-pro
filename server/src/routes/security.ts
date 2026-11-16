@@ -14,7 +14,7 @@ import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { parseNmapXmlServer } from "../nmap.ts";
 import { aiConfigured, analyzeWithGemini } from "../ai/gemini.ts";
-import { approvedScanHosts } from "../egress.ts";
+import { approvedScanHosts, externalScanIsolationReady } from "../egress.ts";
 import { runToolInWorker } from "../workerClient.ts";
 import { open as openSecret } from "../secretBox.ts";
 import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, toolPermitted, urlHostInScope, type LiveTool } from "@/features/scanPermissions";
@@ -112,6 +112,8 @@ router.get("/scans/automated/capabilities", (_req, res) => {
  */
 export function assertAutomatedRunAllowed(target: Awaited<ReturnType<typeof authorizedTarget>>, config: ScanConfig, hasCredential: boolean) {
   if (!liveScansEnabled()) fail(503, "Live scanning is disabled. Set AIVERA_LIVE_SCANS_ENABLED=true on a dedicated lab server.");
+  if (!externalScanIsolationReady(target.url))
+    fail(503, "External live scans require an isolated worker network with firewall rules for the approved host and port. Set AIVERA_SCAN_EGRESS_ISOLATED=true only after configuring that network.");
   if (!approvedScanHosts().has(new URL(target.url).hostname.replace(/^\[|\]$/g, "").toLowerCase())) fail(403, "The target host is not on the server administrator's live scan allowlist.");
   if (!urlHostInScope(target.url, target.scope.inScopeHosts)) fail(400, "The target host must be explicitly in scope.");
   if (config.tools.some((tool) => !LIVE_TOOLS.includes(tool as LiveTool))) fail(400, "Automated runs support Nmap, OWASP ZAP and the HTTP security inspector only.");
@@ -156,18 +158,14 @@ export async function startAutomatedScan(input: { name: string; targetId: string
   return { id: scan.id, code: scan.code };
 }
 
-/**
- * Automated runs live in this process. If the server stops or restarts mid-run (including a
- * dev-mode reload after a file change), the run is gone but its record would stay "running"
- * forever and block new scans of that website. On startup, mark such runs as interrupted.
- */
+/** Requeue interrupted runs on startup. Completed tool outputs are retained and skipped. */
 export async function recoverInterruptedScans(): Promise<number> {
+  if (!liveScansEnabled()) return 0;
   const stuck = await prisma.scan.findMany({ where: { dataOrigin: "real", status: { in: ["queued", "running"] } } });
-  const message = "Interrupted: the AIVERA server stopped or restarted while this scan was running. Start the scan again.";
   for (const s of stuck) {
-    await prisma.scan.update({ where: { id: s.id }, data: { status: "failed", stage: "Interrupted", errorMessage: message, completedAt: new Date() } });
-    await log(s.createdBy, "scan_failed", "scan", s.id, s.code, message);
-    await scanNotice(s.id, { title: "Scan interrupted", message: `${s.code} on ${await targetName(s.targetId)} was cut off because the AIVERA server stopped or restarted. Results saved before that point are kept; start the scan again when you're ready.`, tone: "warning" });
+    await prisma.scan.update({ where: { id: s.id }, data: { status: "queued", stage: "Resuming after server restart", errorMessage: null, completedAt: null } });
+    await log(s.createdBy, "scan_queued", "scan", s.id, s.code, "Resuming after server restart; saved tool results will be reused");
+    void executeAutomatedScan(s.id).catch((e) => console.error("Resumed scan job failed", e));
   }
   return stuck.length;
 }
@@ -186,13 +184,16 @@ const STAGE: Record<LiveTool, (c: ScanConfig) => string> = {
 };
 
 async function executeAutomatedScan(id: string) {
+  // Claim once, including when recovery and a fresh request race.
+  const claimed = await prisma.scan.updateMany({ where: { id, status: "queued" }, data: { status: "running", startedAt: new Date(), stage: "Checking approved scope", progress: 5 } });
+  if (!claimed.count) return;
   const row = await prisma.scan.findUniqueOrThrow({ where: { id } });
   const config = row.config as unknown as ScanConfig;
   try {
-    await prisma.scan.update({ where: { id }, data: { status: "running", startedAt: new Date(), stage: "Checking approved scope", progress: 5 } });
     const selected = config.tools as LiveTool[];
-    let findings = 0;
+    let findings = await prisma.finding.count({ where: { scanId: id } });
     for (const [index, tool] of selected.entries()) {
+      if (await prisma.scanResult.count({ where: { scanId: id, tool } })) continue;
       const target = await authorizedTarget(row.targetId);
       const credential = config.authenticated ? await prisma.scanCredential.findUnique({ where: { targetId: target.id } }) : null;
       try {
@@ -268,6 +269,9 @@ async function analyzeAutomatedScan(scanId: string, requestedBy: string): Promis
   let missed = 0;
   for (const task of tasks) {
     try {
+      if (await prisma.aIAnalysis.findFirst({ where: {
+        scanId, mode: task.mode, findingId: "finding" in task ? task.finding?.id ?? null : null,
+      } })) continue; // A restart must not write the same advisory note twice.
       const evidence = "finding" in task && task.finding
         ? (await prisma.evidence.findMany({ where: { findingId: task.finding.id } })).map(M.toEvidence) : [];
       const analysis = await analyzeWithGemini({ ...base, ...task, evidence });

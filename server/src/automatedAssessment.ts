@@ -55,6 +55,8 @@ const cleanup = (path: string) => rm(path, { recursive: true, force: true, maxRe
 function run(command: string, args: string[], timeoutMs: number, limit = MAX_IMPORT_BYTES, okCodes: number[] = [0], cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], cwd });
+    const stopOnWorkerExit = () => child.kill();
+    process.once("exit", stopOnWorkerExit);
     let stdout = "";
     let stderr = "";
     let done = false;
@@ -62,6 +64,7 @@ function run(command: string, args: string[], timeoutMs: number, limit = MAX_IMP
       if (done) return;
       done = true;
       clearTimeout(timer);
+      process.off("exit", stopOnWorkerExit);
       if (error) reject(error);
       else resolve(stdout);
     };

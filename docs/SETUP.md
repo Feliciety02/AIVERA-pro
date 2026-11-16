@@ -100,7 +100,7 @@ Leave everything else as it is for now. `server/.env` is git-ignored. Never comm
 npm run db:setup
 ```
 
-This creates the tables (`prisma db push`) and loads the starting data (`npm run db:seed`): one account per role, the UMERCH3.0 project and its target.
+This applies versioned Prisma migrations and loads the starting data (`npm run db:seed`): one account per role, the UMERCH3.0 project and its target.
 
 | Account | Role | Can do |
 |---|---|---|
@@ -212,6 +212,8 @@ Restart the API after changing this file.
 |---|---|
 | `AIVERA_LIVE_SCANS_ENABLED` | `true` to allow real scans. `false` blocks them all. |
 | `AIVERA_ALLOWED_SCAN_HOSTS` | Exact hosts the server may contact, comma separated. Nothing else can be scanned. |
+| `AIVERA_SCAN_EGRESS_ISOLATED` | Keep `false` for loopback labs. For an external target, set `true` only after an OS-level firewall or isolated VM/container network limits worker egress to that approved host and port. The flag is an attestation, not a firewall. |
+| `AIVERA_TRUST_PROXY` | Set `true` only behind a trusted reverse proxy; otherwise client IPs come directly from the connection. |
 | `AIVERA_NMAP_PATH` | Full path to `nmap.exe` if it is not on PATH. Use forward slashes. |
 | `AIVERA_ZAP_PATH` | ZAP install folder (the one with `zap-<version>.jar`). Empty means use Docker. |
 | `AIVERA_JAVA_PATH` | Java to run ZAP with, only if ZAP's own Java is missing. |
@@ -276,6 +278,7 @@ AIVERA_ZAP_PATH=C:/Program Files/ZAP/Zed Attack Proxy
 ```
 
 Adjust the two paths to where Nmap and ZAP are installed on your computer, then restart the API.
+External targets remain blocked until the worker has network-level isolation and `AIVERA_SCAN_EGRESS_ISOLATED=true`. The local `127.0.0.1` lab does not need that flag.
 
 ### 7.2 What each website needs
 
@@ -346,20 +349,23 @@ The deployed site is on Render's free tier, which sleeps when idle. The first re
 ```powershell
 npm run typecheck        # web app and server types
 npm run test:scan-scope  # scan safety tests (scope, egress, worker, inspector, encryption)
+npm run test:e2e         # disposable SQLite database and self-owned loopback target
 npm run build:api        # production build of the web app
 npm audit                # known vulnerabilities in packages
 ```
 
-All four should finish without errors.
+All five should finish without errors.
 
 ---
 
 ## 10. Data: backups, reset, audit log
 
-**Back up** before anything that changes the database (schema changes, `db:seed`, `db:dedupe -- --apply`):
+**Stop the API and back up** before anything that changes the database (schema changes, `db:seed`, `db:dedupe -- --apply`):
 
 ```powershell
+New-Item -ItemType Directory -Force server\prisma\backups | Out-Null
 copy server\prisma\dev.db server\prisma\backups\dev-backup.db
+copy server\prisma\dev.db.audit-anchor.json server\prisma\backups\dev-backup.db.audit-anchor.json
 ```
 
 `server/prisma/backups/` is git-ignored. To restore, stop the API and copy the backup back over `dev.db`.
@@ -370,14 +376,22 @@ copy server\prisma\dev.db server\prisma\backups\dev-backup.db
 npm run db:seed
 ```
 
-**Schema changed** (after pulling new code that edits `server/prisma/schema.prisma`):
+**Schema changed** (after pulling new code that adds a migration):
 
 ```powershell
-npm run db:push
+npm run db:migrate
 npm run db:generate
 ```
 
-If `db:push` needs to drop data, Prisma stops and asks for confirmation. Back up first.
+For a database created before migrations were introduced, stop the API, back up the database and its `.audit-anchor.json` file, and first check that the only schema difference is the new `LoginAttempt` table:
+
+```powershell
+npx prisma migrate diff --from-config-datasource --to-schema server/prisma/schema.prisma
+npm run db:baseline
+npm run db:migrate
+```
+
+Run `db:baseline` only once on an existing database whose prior schema matches the baseline migration. A fresh database uses `db:setup` directly. A clone of the existing database was migrated with no remaining schema difference.
 
 **Repeated findings in an older database:**
 

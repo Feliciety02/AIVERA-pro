@@ -1,0 +1,567 @@
+{
+  "capturedOn": "2026-11-16",
+  "mode": "browser demo, synthetic data",
+  "viewport": "1440x900",
+  "images": [
+    {
+      "role": "Public",
+      "label": "Landing page",
+      "route": "/",
+      "file": "public-01-landing-page.png",
+      "sha256": "d08882d7e6c53513511ff0614076ca411e205421cad5fb807d9066b0ceb5b161"
+    },
+    {
+      "role": "Public",
+      "label": "Sign in",
+      "route": "/login",
+      "file": "public-02-sign-in.png",
+      "sha256": "535d80bad306df92c23176e6b1f42c5cdd13159187ff34eaa2862adb513d8fa0"
+    },
+    {
+      "role": "Public",
+      "label": "Create account",
+      "route": "/signup",
+      "file": "public-03-create-account.png",
+      "sha256": "4915be8746d5fbaebbfd738c07b9b1bda0b45b78b8651599580459b09b275f7c"
+    },
+    {
+      "role": "Administrator",
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "file": "administrator-01-dashboard.png",
+      "sha256": "a0794be60ab7c0284966894bb14815fd025997e2ae2532194067c9086b7c4aaa"
+    },
+    {
+      "role": "Administrator",
+      "label": "My work",
+      "route": "/my-work",
+      "file": "administrator-02-my-work.png",
+      "sha256": "ece46ce37edc5dab2bf03728d319ddac3fd6306e6f35ecf34bdb8bc048f45ba6"
+    },
+    {
+      "role": "Administrator",
+      "label": "Security Analytics",
+      "route": "/analytics",
+      "file": "administrator-03-security-analytics.png",
+      "sha256": "447078d8c9b58a598a20fa91ad5fa3ea681b6ffbf22253bb032482a744f222e3"
+    },
+    {
+      "role": "Administrator",
+      "label": "Projects",
+      "route": "/projects",
+      "file": "administrator-04-projects.png",
+      "sha256": "88eff6b157a5cfff0ed470ce3248f4695f0a9c2ce617bdba7a7f1348e5692a24"
+    },
+    {
+      "role": "Administrator",
+      "label": "Target Management",
+      "route": "/targets",
+      "file": "administrator-05-target-management.png",
+      "sha256": "a15322e042def1d88a2727933a7f8b546e691c717d24b67ebf5511dc49d841bc"
+    },
+    {
+      "role": "Administrator",
+      "label": "Reconnaissance",
+      "route": "/reconnaissance",
+      "file": "administrator-06-reconnaissance.png",
+      "sha256": "f255620268da169db081081ed18e8014552b5e08c7903b570c2db142d96b0f66"
+    },
+    {
+      "role": "Administrator",
+      "label": "Scan Center",
+      "route": "/scans",
+      "file": "administrator-07-scan-center.png",
+      "sha256": "bef31dffc4c1c85137906fd170b98870bf2d4de818d4665ef26d341b18d47f7c"
+    },
+    {
+      "role": "Administrator",
+      "label": "Vulnerability Assessment",
+      "route": "/assessments",
+      "file": "administrator-08-vulnerability-assessment.png",
+      "sha256": "2edf51e7282975293df12c4b9c2fa9cc0b478d18fdc101ccfb1190a52dfa5949"
+    },
+    {
+      "role": "Administrator",
+      "label": "AI Security Analyst",
+      "route": "/ai-analyst",
+      "file": "administrator-09-ai-security-analyst.png",
+      "sha256": "768660ec80aae0ba8b9ccf2b3d58c6ee8c7f0f265f2309bb48a59cd7c985bf80"
+    },
+    {
+      "role": "Administrator",
+      "label": "Findings & Evidence",
+      "route": "/findings",
+      "file": "administrator-10-findings-evidence.png",
+      "sha256": "9ef13218abbaed490ef0e984421d57abd9a13dbed0ea022b9a90d1b64a0586f5"
+    },
+    {
+      "role": "Administrator",
+      "label": "Risk Management",
+      "route": "/risks",
+      "file": "administrator-11-risk-management.png",
+      "sha256": "9a4e4edc27f3537e627a1e1706399766f2772092ec952a03a6c89b2ab0cf42ae"
+    },
+    {
+      "role": "Administrator",
+      "label": "Remediation Tracking",
+      "route": "/remediation",
+      "file": "administrator-12-remediation-tracking.png",
+      "sha256": "44a37e74c73e95d2c3a20468daf81a34a7d79bccc96f60f70ab8c3bb49ff6f3a"
+    },
+    {
+      "role": "Administrator",
+      "label": "Reports",
+      "route": "/reports",
+      "file": "administrator-13-reports.png",
+      "sha256": "d1c4e92e4d5d88c47beb95e9a69a627c7cdaa5fe7bfc9701c01e94f73a73a5cc"
+    },
+    {
+      "role": "Administrator",
+      "label": "Activity Logs",
+      "route": "/activity",
+      "file": "administrator-14-activity-logs.png",
+      "sha256": "d68df6207021377637e6ae443861b3ad615525fcb9fc068450d411d9f7871eb8"
+    },
+    {
+      "role": "Administrator",
+      "label": "User Management",
+      "route": "/users",
+      "file": "administrator-15-user-management.png",
+      "sha256": "8e77c1193449190b50be871a0385a72e9d21851ced93e2f971a9e68ab30481c0"
+    },
+    {
+      "role": "Administrator",
+      "label": "Integrations",
+      "route": "/integrations",
+      "file": "administrator-16-integrations.png",
+      "sha256": "0427c1dad567f0329d91070a06b257a34b7da0617c8b88abadb4beda82e18982"
+    },
+    {
+      "role": "Administrator",
+      "label": "Settings",
+      "route": "/settings",
+      "file": "administrator-17-settings.png",
+      "sha256": "ad95a3f18609fefe51a22a5bd2a3d4f9f5c7722edd62b1f888b6d58cc6bf7d30"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "file": "lead-01-dashboard.png",
+      "sha256": "c3c1a255872be7639d402e5f912ba613df87e315bf4f2b3ce1dd65f24ad34c66"
+    },
+    {
+      "role": "Security Lead",
+      "label": "My work",
+      "route": "/my-work",
+      "file": "lead-02-my-work.png",
+      "sha256": "6bd71b3c5c0fb1bec2d5cc7688e7a873ea6ba34152a5d124e86d8d580909594c"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Security Analytics",
+      "route": "/analytics",
+      "file": "lead-03-security-analytics.png",
+      "sha256": "a1ad8fcbe0b6b64fb060b8219a4500b206fc73d2957d8854d5b44206862472a9"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Projects",
+      "route": "/projects",
+      "file": "lead-04-projects.png",
+      "sha256": "11c6d2c5f0354162750b0d83c159c823662dfedb9412fe010cd22568b0793015"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Target Management",
+      "route": "/targets",
+      "file": "lead-05-target-management.png",
+      "sha256": "bf5731cc003547353612fd3759436cdc2defd8d526cb077fe93a7f28cb92e17a"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Reconnaissance",
+      "route": "/reconnaissance",
+      "file": "lead-06-reconnaissance.png",
+      "sha256": "39d1275f72fcaafed72e1c4ee33aa64ede985d9805a13837d08cfd0165be1cae"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Scan Center",
+      "route": "/scans",
+      "file": "lead-07-scan-center.png",
+      "sha256": "da249e908f5131c0b6079c4ad06baba96ea5c44a3107f6ebb2e08fdf0ecf0bed"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Vulnerability Assessment",
+      "route": "/assessments",
+      "file": "lead-08-vulnerability-assessment.png",
+      "sha256": "0c81051f2cf2f4bcba12840fb3326118f06bddd81ffac1defc8e94d0b5740f89"
+    },
+    {
+      "role": "Security Lead",
+      "label": "AI Security Analyst",
+      "route": "/ai-analyst",
+      "file": "lead-09-ai-security-analyst.png",
+      "sha256": "e8d086990b54ce524073042ca9da5540c1a3c7238225237fb055d7bb3d9b08c9"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Findings & Evidence",
+      "route": "/findings",
+      "file": "lead-10-findings-evidence.png",
+      "sha256": "b95d1058e150945457bbc4a3bbd5b43377d0acb14cf8ace4ffa2817db23465d6"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Risk Management",
+      "route": "/risks",
+      "file": "lead-11-risk-management.png",
+      "sha256": "7c0a4de0b2409955f21e602dbb30bf6eeaaf63807a66a49547e0aff3634ce0bb"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Remediation Tracking",
+      "route": "/remediation",
+      "file": "lead-12-remediation-tracking.png",
+      "sha256": "af18a28ef81f218f7d9886d695d50b0916487973b2738401e4459449de5f710e"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Reports",
+      "route": "/reports",
+      "file": "lead-13-reports.png",
+      "sha256": "f71882f8a051c2739cd87f8cadf666d4f4b0c499c28e7616eead2b326d6eb103"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Activity Logs",
+      "route": "/activity",
+      "file": "lead-14-activity-logs.png",
+      "sha256": "b95072e84c52adea4a7059f4923de35d74f8922831de2459c786d6ec6c5cc189"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Integrations",
+      "route": "/integrations",
+      "file": "lead-15-integrations.png",
+      "sha256": "998536c9c51d4837ec16371d2ae171ef64402802fadac9b511b2a5ae74da225b"
+    },
+    {
+      "role": "Security Lead",
+      "label": "Settings",
+      "route": "/settings",
+      "file": "lead-16-settings.png",
+      "sha256": "4d9ce0c4c0e18bb17b3057cfa6996e1732ca35319d74b2b6f69f9efdbc90b4ea"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "file": "assessor-01-dashboard.png",
+      "sha256": "615d66cc2dcd9e9e0b0e019f9ca34180f365c0828fa3df747ccf9e3b74dd5ff2"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "My work",
+      "route": "/my-work",
+      "file": "assessor-02-my-work.png",
+      "sha256": "8482473ba508254282754ad8433e59d7130c6e5e879089053e094ed9e5dd5d70"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Security Analytics",
+      "route": "/analytics",
+      "file": "assessor-03-security-analytics.png",
+      "sha256": "1e9796c6043bf5d4c1f5e0cde75354e23b1fed46481a113f3b485006b30be727"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Projects",
+      "route": "/projects",
+      "file": "assessor-04-projects.png",
+      "sha256": "4bcc98d5b1af3a3fa51571e100676e5270388473be3b0a68a3ef9c2fcc1d252e"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Target Management",
+      "route": "/targets",
+      "file": "assessor-05-target-management.png",
+      "sha256": "eee513dbad01390795034d0b5edb5d57ddde58757005a442f8eac3efe48a56f4"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Reconnaissance",
+      "route": "/reconnaissance",
+      "file": "assessor-06-reconnaissance.png",
+      "sha256": "ef35c3b3d72beaea4821487430e4077f9f740f284a14ce70948a823c62682c6f"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Scan Center",
+      "route": "/scans",
+      "file": "assessor-07-scan-center.png",
+      "sha256": "a57756a09365d699b04d93917a8f7b8c7949b964de9ab47600e71db34935b3eb"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Vulnerability Assessment",
+      "route": "/assessments",
+      "file": "assessor-08-vulnerability-assessment.png",
+      "sha256": "7c49808a2b732db2874c350cd8b7fd5254de7e198562cc1169fa730cb3a80cac"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "AI Security Analyst",
+      "route": "/ai-analyst",
+      "file": "assessor-09-ai-security-analyst.png",
+      "sha256": "dc196f8aa3c146e72c5ebc6edfd073d506d6cd46008f0c0498a6cfd0844fef87"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Findings & Evidence",
+      "route": "/findings",
+      "file": "assessor-10-findings-evidence.png",
+      "sha256": "5a1ee32553a09cc33b0af87bd0fe96ff1112697d7749fceaf0664b3357919332"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Risk Management",
+      "route": "/risks",
+      "file": "assessor-11-risk-management.png",
+      "sha256": "b7e7abdf8ee2b6c19d23f8a05cda6e3517c67fa186234054e6680e93142b43a2"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Remediation Tracking",
+      "route": "/remediation",
+      "file": "assessor-12-remediation-tracking.png",
+      "sha256": "75343044ae23dfbfc19e9dc55b85dbd4c41c085846d897142183e60d6d025542"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Reports",
+      "route": "/reports",
+      "file": "assessor-13-reports.png",
+      "sha256": "4bd8edf836d9c30284ba97a8a30217360d5579d32b61027b9190dc97dd2eb568"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Activity Logs",
+      "route": "/activity",
+      "file": "assessor-14-activity-logs.png",
+      "sha256": "6630cc7b5534e32bfee43b724138c39665d5b6df37ae96114e71ad93fdcc163d"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Integrations",
+      "route": "/integrations",
+      "file": "assessor-15-integrations.png",
+      "sha256": "79018bb6e443c646b776705900aaa8495989149a55038be68d28c93eda0bbdc2"
+    },
+    {
+      "role": "Security Assessor",
+      "label": "Settings",
+      "route": "/settings",
+      "file": "assessor-16-settings.png",
+      "sha256": "b78f353b90f29daf151d9d8c865b2e5ee7a7c1526ff1fdaff9ce4bf6e5013ca0"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "file": "remediation-owner-01-dashboard.png",
+      "sha256": "e01f2f16efaac17a7510182b12dab830527865d3e2e4d77854988b96408cae23"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "My work",
+      "route": "/my-work",
+      "file": "remediation-owner-02-my-work.png",
+      "sha256": "ec393d7a8d040ac99a4e6092e65cb161638854c97ed55573dd14540d5b6734f9"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Security Analytics",
+      "route": "/analytics",
+      "file": "remediation-owner-03-security-analytics.png",
+      "sha256": "cd18ea7442f120e7fe46130cdf99e9482f0adf8503083164e8f9a79da9a3bb42"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Projects",
+      "route": "/projects",
+      "file": "remediation-owner-04-projects.png",
+      "sha256": "9768093810f70d0818c3e8e20e0bd0eccb99e41a665d5aca88debb6cf8f7bf5c"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Target Management",
+      "route": "/targets",
+      "file": "remediation-owner-05-target-management.png",
+      "sha256": "44fbdac9ddb7516db98cc0d93f427220a2810a985539742fff287a2ffd005712"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Reconnaissance",
+      "route": "/reconnaissance",
+      "file": "remediation-owner-06-reconnaissance.png",
+      "sha256": "a197dd0d283a22b9d99d81204f2262305e545335969f46fff7620183c85c13ab"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Scan Center",
+      "route": "/scans",
+      "file": "remediation-owner-07-scan-center.png",
+      "sha256": "66c94171c4596eac890de8038088cfb86919aed565230f247a23672cb8b90035"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Vulnerability Assessment",
+      "route": "/assessments",
+      "file": "remediation-owner-08-vulnerability-assessment.png",
+      "sha256": "96cc6a25e46c528e7611df3d921c79126bb13d44df426dc789a9d36d9eed2dff"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Findings & Evidence",
+      "route": "/findings",
+      "file": "remediation-owner-09-findings-evidence.png",
+      "sha256": "8ff73d9e64105b6d682ff0952352c8671c3b6bf1037ea5930beab49417e9ef93"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Risk Management",
+      "route": "/risks",
+      "file": "remediation-owner-10-risk-management.png",
+      "sha256": "ebd1c52c1b2bf46dd32b974ed0ece38c239fa80f365271b247b3380b6e951cd9"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Remediation Tracking",
+      "route": "/remediation",
+      "file": "remediation-owner-11-remediation-tracking.png",
+      "sha256": "23119cc0f4a60bd9a3e6ab4bba12a4a70e9e77df6a218f6e8ce4c728d8d1bc9d"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Reports",
+      "route": "/reports",
+      "file": "remediation-owner-12-reports.png",
+      "sha256": "e367d1e1c704f96b54ba5c70659883c231a42e70aa6e2279da56fa8f4ffd739b"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Integrations",
+      "route": "/integrations",
+      "file": "remediation-owner-13-integrations.png",
+      "sha256": "d0b30c2415f551be9409d582fda8c73e3eada5f1ddb956a2989c6921432e6e94"
+    },
+    {
+      "role": "Remediation Owner",
+      "label": "Settings",
+      "route": "/settings",
+      "file": "remediation-owner-14-settings.png",
+      "sha256": "cf18a5303622f4ab858d6cc7ed2fbc7cebdf47c4e503eb9705b01ed292f822fb"
+    },
+    {
+      "role": "Viewer",
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "file": "viewer-01-dashboard.png",
+      "sha256": "45bacc99d97d7ac26fdedd8576fc773419f35eaddfc6a93f888fda9be0e6fc7e"
+    },
+    {
+      "role": "Viewer",
+      "label": "My work",
+      "route": "/my-work",
+      "file": "viewer-02-my-work.png",
+      "sha256": "2e5efd0a41d26f1f3a29e2d896ed9343fb815ee18a659a92de88602c24b99a7b"
+    },
+    {
+      "role": "Viewer",
+      "label": "Security Analytics",
+      "route": "/analytics",
+      "file": "viewer-03-security-analytics.png",
+      "sha256": "cb426baf29980dbb193f899c040e9073b0dd639d9542d9bb828f53d5c4560fb2"
+    },
+    {
+      "role": "Viewer",
+      "label": "Projects",
+      "route": "/projects",
+      "file": "viewer-04-projects.png",
+      "sha256": "afc1cd7b06e1d210e4e5399539a4bca8e3c8048b0e1909efb033c19bbe47db6f"
+    },
+    {
+      "role": "Viewer",
+      "label": "Target Management",
+      "route": "/targets",
+      "file": "viewer-05-target-management.png",
+      "sha256": "1819c4c78c0826d2c541dd4086769320828e40d4f7b3702d4332693794e8aeb5"
+    },
+    {
+      "role": "Viewer",
+      "label": "Reconnaissance",
+      "route": "/reconnaissance",
+      "file": "viewer-06-reconnaissance.png",
+      "sha256": "a11599b50a4166670f38415d97521ee35c406cf93eacf2b7301f9e4286ecf67e"
+    },
+    {
+      "role": "Viewer",
+      "label": "Scan Center",
+      "route": "/scans",
+      "file": "viewer-07-scan-center.png",
+      "sha256": "e98152a3f9f899ce284c4647fbe8faad48b4ae2370b007b7a6b86485a9ab2907"
+    },
+    {
+      "role": "Viewer",
+      "label": "Vulnerability Assessment",
+      "route": "/assessments",
+      "file": "viewer-08-vulnerability-assessment.png",
+      "sha256": "20da4740a3482940e316f30ee2b90eac697717eef1031c1c6e52355b65cb171c"
+    },
+    {
+      "role": "Viewer",
+      "label": "Findings & Evidence",
+      "route": "/findings",
+      "file": "viewer-09-findings-evidence.png",
+      "sha256": "e90f2be9ab012a9740a7307058c566a08ee3ebe28665af9603f24d6bcad81140"
+    },
+    {
+      "role": "Viewer",
+      "label": "Risk Management",
+      "route": "/risks",
+      "file": "viewer-10-risk-management.png",
+      "sha256": "8b1423d4cc0b638c5a3cffc95b09cc51742a38b3dbce648c18cab48a62250712"
+    },
+    {
+      "role": "Viewer",
+      "label": "Remediation Tracking",
+      "route": "/remediation",
+      "file": "viewer-11-remediation-tracking.png",
+      "sha256": "5ea05eeb1fcbf540a8ce666b0a6fd7c1ca36fac3fd38ef26ae2bb99118b374df"
+    },
+    {
+      "role": "Viewer",
+      "label": "Reports",
+      "route": "/reports",
+      "file": "viewer-12-reports.png",
+      "sha256": "b4381fe6b2f68d7a44d3ad33b24b937d5254373f047db333d43ab9551ea06adf"
+    },
+    {
+      "role": "Viewer",
+      "label": "Integrations",
+      "route": "/integrations",
+      "file": "viewer-13-integrations.png",
+      "sha256": "095a0f4611c36d41ecfada37c4dda0c01585970c6bc2a2017d4af60da158c3aa"
+    },
+    {
+      "role": "Viewer",
+      "label": "Settings",
+      "route": "/settings",
+      "file": "viewer-14-settings.png",
+      "sha256": "a6a04a086ac20ac74774d3b818d96d6ba45c8706f69ef5045e22833eed127ac6"
+    }
+  ]
+}

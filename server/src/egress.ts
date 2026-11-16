@@ -7,6 +7,11 @@
  */
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { isLoopbackUrl } from "@/features/scanPermissions";
+
+/** External scans require an explicit operator attestation of OS-level isolation. */
+export const externalScanIsolationReady = (url: string, attested = process.env.AIVERA_SCAN_EGRESS_ISOLATED === "true") =>
+  isLoopbackUrl(url) || attested;
 
 export const approvedScanHosts = () =>
   new Set(((process.env.AIVERA_ALLOWED_SCAN_HOSTS ?? process.env.AEGIS_ALLOWED_SCAN_HOSTS) ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean));

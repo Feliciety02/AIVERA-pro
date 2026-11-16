@@ -24,14 +24,27 @@ import { sealPending } from "./auditChain.ts";
 
 const app = express();
 app.disable("x-powered-by");
-app.set("trust proxy", 1);
-app.use(helmet({ contentSecurityPolicy: false }));
+// Only trust forwarded client IPs when a deployment has a trusted reverse proxy.
+app.set("trust proxy", process.env.AIVERA_TRUST_PROXY === "true" ? 1 : false);
+app.use(helmet({ contentSecurityPolicy: env.isProd ? {
+  directives: {
+    defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "blob:"], fontSrc: ["'self'", "data:"], connectSrc: ["'self'"],
+    objectSrc: ["'none'"], baseUri: ["'self'"], frameAncestors: ["'none'"],
+  },
+} : false }));
 app.use(express.json({ limit: "3mb" }));
 app.use(cookieParser());
 
 // Basic CSRF defence for cookie auth: state-changing requests must be JSON
 // (a cross-site HTML form cannot send application/json without CORS preflight).
 app.use("/api", (req, res, next) => {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    const origin = req.get("origin");
+    if (req.get("sec-fetch-site") === "cross-site" || (origin && origin !== `${req.protocol}://${req.get("host")}`)) {
+      return res.status(403).json({ error: "Cross-origin writes are not allowed" });
+    }
+  }
   if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !req.is("application/json") && req.headers["content-length"] !== "0") {
     return res.status(415).json({ error: "Requests must be application/json" });
   }
@@ -81,5 +94,5 @@ app.use(errorHandler);
 app.listen(env.port, () => console.log(`AIVERA API listening on http://localhost:${env.port}`));
 // Seal activity entries written outside log() (seed data, one-off maintenance scripts).
 void sealPending().then((n) => n && console.log(`[audit] sealed ${n} activity entr${n === 1 ? "y" : "ies"} into the chain`)).catch((e) => console.error("[audit] sealing failed", e));
-// Scans cut off by a previous stop or restart would otherwise show "Running" forever.
-void recoverInterruptedScans().then((n) => n && console.log(`[scan] marked ${n} interrupted scan(s) as failed`)).catch((e) => console.error("[scan] recovery failed", e));
+// Resume queued or interrupted runs, reusing the outputs already committed for each tool.
+void recoverInterruptedScans().then((n) => n && console.log(`[scan] resumed ${n} queued or interrupted scan(s)`)).catch((e) => console.error("[scan] recovery failed", e));

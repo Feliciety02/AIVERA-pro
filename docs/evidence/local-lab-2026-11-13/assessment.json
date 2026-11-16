@@ -1,0 +1,37 @@
+{
+  "authorization": "LOCAL-LAB-TEST (self-owned disposable loopback fixture)",
+  "targetUrl": "http://127.0.0.1:41152/",
+  "scan": {
+    "id": "scn-mweu5jy7130a5",
+    "status": "completed",
+    "tools": [
+      "http_inspector"
+    ],
+    "startedAt": "2026-11-13T10:30:18.989Z",
+    "completedAt": "2026-11-13T10:30:20.014Z"
+  },
+  "result": {
+    "tool": "http_inspector",
+    "rawOutput": "{\n  \"request\": \"GET http://127.0.0.1:41152/\",\n  \"headers\": {\n    \"connection\": \"keep-alive\",\n    \"content-type\": \"text/html\",\n    \"date\": \"Fri, 13 Nov 2026 10:30:19 GMT\",\n    \"keep-alive\": \"timeout=5\",\n    \"server\": \"aivera-local-lab/1.0\",\n    \"transfer-encoding\": \"chunked\"\n  },\n  \"setCookies\": [\n    \"session_id=[value hidden]; Path=/\"\n  ],\n  \"legacyTls\": [],\n  \"errors\": [],\n  \"status\": 200\n}"
+  },
+  "reviewedFinding": {
+    "code": "FND-0005",
+    "title": "Cookie \"session_id\" is missing HttpOnly, SameSite",
+    "severity": "medium",
+    "decision": "confirmed",
+    "remediation": "resolved after recorded retest",
+    "retestCookie": "session_id=[value hidden]; Path=/; HttpOnly; SameSite=Lax"
+  },
+  "report": {
+    "id": "rpt-mweu5law86650",
+    "title": "Local lab assessment report",
+    "status": "final"
+  },
+  "restartRecovery": {
+    "scanId": "scn-mweu5lj95d49d",
+    "status": "completed"
+  },
+  "loginThrottle": "Blocked after ten failed attempts and remained blocked after API restart",
+  "productionHeaders": "Content-Security-Policy observed on the API health response",
+  "limitations": "Loopback fixture only; no Nmap, ZAP, external site, AI provider, or production deployment was exercised."
+}

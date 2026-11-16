@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Target } from "@/types";
 import { zapPlan } from "./automatedAssessment.ts";
-import { assertEgressAllowed, isInternalAddress } from "./egress.ts";
+import { assertEgressAllowed, externalScanIsolationReady, isInternalAddress } from "./egress.ts";
 import { workerEnv } from "./workerClient.ts";
 import { inspectorAlerts } from "./inspector.ts";
 import { isLoopbackUrl } from "@/features/scanPermissions";
@@ -35,6 +35,12 @@ test("egress blocks unlisted hosts and names that resolve inward", async () => {
   assert.deepEqual(await assertEgressAllowed("http://127.0.0.1:8000", new Set(["127.0.0.1"])), ["127.0.0.1"]);
   // "localhost.localdomain"-style tricks: an approved name that resolves to loopback is refused.
   await assert.rejects(assertEgressAllowed("http://localtest.me", new Set(["localtest.me"])), /internal address|did not resolve|ENOTFOUND|EAI_AGAIN/);
+});
+
+test("external scans stay disabled without network isolation attestation", () => {
+  assert.equal(externalScanIsolationReady("http://127.0.0.1:8000", false), true);
+  assert.equal(externalScanIsolationReady("https://example.org", false), false);
+  assert.equal(externalScanIsolationReady("https://example.org", true), true);
 });
 
 test("scan worker gets no database URL or secrets", () => {

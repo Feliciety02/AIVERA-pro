@@ -67,16 +67,23 @@ export function requirePermission(p: Permission) {
   };
 }
 
-/** Minimal in-memory login throttle: 10 failed attempts per IP+email per 15 minutes. */
-const attempts = new Map<string, { count: number; first: number }>();
-export function loginThrottle(key: string): { blocked: boolean; fail: () => void; reset: () => void } {
-  const now = Date.now();
-  const rec = attempts.get(key);
-  if (rec && now - rec.first > 15 * 60_000) attempts.delete(key);
-  const cur = attempts.get(key);
+/** SQLite-backed throttle shared by API instances and retained across restarts. Keys are hashed. */
+const THROTTLE_WINDOW_MS = 15 * 60_000;
+const THROTTLE_LIMIT = 10;
+export async function loginThrottle(key: string): Promise<{ blocked: boolean; fail: () => Promise<void>; reset: () => Promise<void> }> {
+  const id = sha256(key);
+  const cutoff = new Date(Date.now() - THROTTLE_WINDOW_MS);
+  await prisma.loginAttempt.deleteMany({ where: { key: id, firstAt: { lt: cutoff } } });
+  const current = await prisma.loginAttempt.findUnique({ where: { key: id } });
   return {
-    blocked: !!cur && cur.count >= 10,
-    fail: () => attempts.set(key, cur ? { ...cur, count: cur.count + 1 } : { count: 1, first: now }),
-    reset: () => attempts.delete(key),
+    blocked: (current?.count ?? 0) >= THROTTLE_LIMIT,
+    fail: async () => { await prisma.loginAttempt.upsert({
+      where: { key: id }, create: { key: id, count: 1, firstAt: new Date() }, update: { count: { increment: 1 } },
+    }); },
+    reset: async () => { await prisma.loginAttempt.deleteMany({ where: { key: id } }); },
   };
 }
+
+setInterval(() => {
+  void prisma.loginAttempt.deleteMany({ where: { firstAt: { lt: new Date(Date.now() - THROTTLE_WINDOW_MS) } } }).catch((e) => console.error("Login throttle cleanup failed", e));
+}, 60 * 60_000).unref();

@@ -28,3 +28,6 @@ process.once("message", async (job: WorkerJob) => {
   }
   process.send?.(reply, () => process.exit(0));
 });
+
+// If the API process disappears, the worker must not keep scanning on its own.
+process.once("disconnect", () => process.exit(1));
