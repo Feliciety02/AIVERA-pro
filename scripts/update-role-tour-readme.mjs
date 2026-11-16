@@ -117,27 +117,33 @@ ${sections.join("\n\n")}
 
 ## How it works
 
+Each assessment is a series of handoffs between the five roles. The assessor and lead appear more than once because they return for retesting and approvals.
+
 \`\`\`mermaid
 flowchart TD
-    A["1. Define the scope<br/>Project, authorized target, and testing boundaries"]
-    B["2. Collect assessment data<br/>Recon, tool import, demo simulation, or approved scan"]
-    C["3. Review findings and evidence<br/>Check source, affected target, and supporting proof"]
-    D["4. Verify each finding<br/>An assessor confirms or rejects it with notes"]
-    E["5. Prioritize and assign a fix<br/>Record risk and create a remediation task"]
-    F["6. Retest and approve<br/>Check the fix, then approve closure"]
-    G["7. Report the outcome<br/>Prepare results and retain activity history"]
-    A --> B --> C --> D --> E --> F --> G
+    A["Administrator<br/>Activates accounts, manages roles, and oversees projects"]
+    L1["Security Lead<br/>Creates the project and approves target authorization"]
+    S1["Security Assessor<br/>Assesses the target and verifies findings"]
+    R["Remediation Owner<br/>Works the assigned fix and requests a retest"]
+    S2["Security Assessor<br/>Retests the fix and records the result"]
+    L2["Security Lead<br/>Approves closure and the final report"]
+    V["Viewer<br/>Follows project status and reads approved reports"]
+    A -->|Team access| L1
+    L1 -->|Authorized work| S1
+    S1 -->|Confirmed finding and fix task| R
+    R -->|Ready for retest| S2
+    S2 -->|Retest result and draft report| L2
+    L2 -->|Approved results| V
 \`\`\`
 
-1. **Define the scope.** Create a project, register the target, record authorization, and set allowed hosts, paths, testing activities, and exclusions. The app checks this scope before a live assessment or tool import.
-2. **Collect assessment data.** Use a clearly labelled browser simulation, import Nmap XML or ZAP JSON output, or run an explicitly enabled assessment in API mode. The browser demo does not contact targets.
-3. **Review evidence.** Tool alerts and manual findings are linked to the target and supporting evidence. The assessor checks provenance and may use AI analysis as an aid.
-4. **Verify each finding.** A person reviews the evidence, records notes and a reason, then confirms or rejects the finding. AI output never makes that decision.
-5. **Prioritize and assign a fix.** A confirmed finding receives a risk record and a remediation task for the project team. Critical and high findings also require lead sign-off.
-6. **Retest and approve.** The fix owner requests a retest. An assessor records whether it passed; a lead approves closure after a passing retest. A failed retest returns the task for more work.
-7. **Report the outcome.** The team prepares a report from the reviewed results, and a lead approves the final version. Activity history records the decisions and changes.
+- **Administrator → team:** Activates accounts, controls roles and settings, and can oversee any project. The administrator makes it possible for the assigned team to work together.
+- **Security Lead → Security Assessor:** Sets up the project team and checks that a target is authorized before testing. The lead also signs off critical and high findings after an assessor confirms them.
+- **Security Assessor → Remediation Owner:** Runs authorized checks or imports tool output, reviews evidence, and confirms or rejects each finding. A confirmed finding creates a risk record and a fix task for the owner. AI can help interpret evidence but cannot verify a finding.
+- **Remediation Owner → Security Assessor:** Works the assigned fix and marks it ready for retest. If the retest fails, the task returns to the owner for more work.
+- **Security Assessor → Security Lead:** Records the retest result and drafts the assessment report. A passed retest goes to the lead for closure approval; the lead also approves the final report.
+- **Security Lead → Viewer:** Makes approved results available. Viewers can follow project status during the work and read approved reports, but cannot change the assessment.
 
-The React app uses one workspace with navigation for each role. Browser demo data is synthetic and stored locally in the browser. In API mode, Express handles authentication, permissions, scope checks, workflow rules, and SQLite storage through Prisma. See the [system design](docs/System-Design.md) for the data and workflow model.
+The diagram shows the main handoffs, not exclusive access: administrators can step in throughout, and viewers can follow status as work progresses. The browser demo uses synthetic local data; API mode enforces roles and scope on the server and stores records in SQLite. See the [system design](docs/System-Design.md) for the full workflow.
 
 ## Run locally
 
