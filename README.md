@@ -250,16 +250,26 @@ Viewers follow project status and read available results.
 ## How it works
 
 ```mermaid
-flowchart LR
-    A["Authorized project and target scope"] --> B["Recon, import, or scan"]
-    B --> C["Findings and evidence"]
-    C --> D["Human verification"]
-    D --> E["Risk and remediation"]
-    E --> F["Retest and approval"]
-    F --> G["Reports and activity history"]
+flowchart TD
+    A["1. Define the scope<br/>Project, authorized target, and testing boundaries"]
+    B["2. Collect assessment data<br/>Recon, tool import, demo simulation, or approved scan"]
+    C["3. Review findings and evidence<br/>Check source, affected target, and supporting proof"]
+    D["4. Verify each finding<br/>An assessor confirms or rejects it with notes"]
+    E["5. Prioritize and assign a fix<br/>Record risk and create a remediation task"]
+    F["6. Retest and approve<br/>Check the fix, then approve closure"]
+    G["7. Report the outcome<br/>Prepare results and retain activity history"]
+    A --> B --> C --> D --> E --> F --> G
 ```
 
-The React app uses one role-aware workspace. In browser demo mode, its data is synthetic and persisted locally in the browser. In API mode, Express handles authentication, permissions, scope checks, workflow rules, and SQLite storage through Prisma. Optional Nmap, OWASP ZAP, and HTTP/TLS inspection results enter a review queue; AI analysis does not verify findings. See the [system design](docs/System-Design.md) for the data and workflow model.
+1. **Define the scope.** Create a project, register the target, record authorization, and set allowed hosts, paths, testing activities, and exclusions. The app checks this scope before a live assessment or tool import.
+2. **Collect assessment data.** Use a clearly labelled browser simulation, import Nmap XML or ZAP JSON output, or run an explicitly enabled assessment in API mode. The browser demo does not contact targets.
+3. **Review evidence.** Tool alerts and manual findings are linked to the target and supporting evidence. The assessor checks provenance and may use AI analysis as an aid.
+4. **Verify each finding.** A person reviews the evidence, records notes and a reason, then confirms or rejects the finding. AI output never makes that decision.
+5. **Prioritize and assign a fix.** A confirmed finding receives a risk record and a remediation task for the project team. Critical and high findings also require lead sign-off.
+6. **Retest and approve.** The fix owner requests a retest. An assessor records whether it passed; a lead approves closure after a passing retest. A failed retest returns the task for more work.
+7. **Report the outcome.** The team prepares a report from the reviewed results, and a lead approves the final version. Activity history records the decisions and changes.
+
+The React app uses one workspace with navigation for each role. Browser demo data is synthetic and stored locally in the browser. In API mode, Express handles authentication, permissions, scope checks, workflow rules, and SQLite storage through Prisma. See the [system design](docs/System-Design.md) for the data and workflow model.
 
 ## Run locally
 
