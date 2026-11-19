@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="216" height="52" viewBox="0 0 216 52" role="img" aria-label="Run locally">
+  <rect width="216" height="52" rx="26" fill="#0b57d0"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" transform="translate(34 16)">
+    <rect x="0" y="0" width="20" height="20" rx="4.5"/>
+    <path d="M5.5 7l3.5 3-3.5 3M11 14h4"/>
+  </g>
+  <text x="70" y="32" font-family="'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Run locally</text>
+</svg>

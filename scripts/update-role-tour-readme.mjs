@@ -66,25 +66,32 @@ const sections = roles.map(([role, heading, description]) => {
 
 const date = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
   .format(new Date(`${capturedOn}T00:00:00Z`));
-const hero = `${archive}/public-01-landing-page.png`;
-
 const readme = `<p align="center">
-  <a href="${hero}"><img src="${hero}" width="1200" alt="AIVERA public landing page"></a>
+  <img src="docs/readme/banner.svg" width="1200" alt="AIVERA Pro logo and name with a PRO badge and a minimal scope radar of the authorized local target">
 </p>
 
-<h1 align="center">AIVERA</h1>
+<h1 align="center">AIVERA Pro</h1>
 
-<p align="center">An intelligent web security assessment and vulnerability management app for authorized projects, evidence review, remediation, and reporting.</p>
+<p align="center">The team edition of AIVERA: an intelligent web security assessment and vulnerability management app for authorized projects, evidence review, remediation, and reporting across five roles.</p>
 
-<p align="center"><code>React 19 + TypeScript</code> &nbsp; <code>Vite 7 + Tailwind CSS 4</code> &nbsp; <code>Express + Prisma</code> &nbsp; <code>SQLite</code></p>
+<p align="center"><code>PRO edition</code> &nbsp; <code>Version 0.1.0</code> &nbsp; <code>React 19 + Vite 7</code> &nbsp; <code>Express + Prisma + SQLite</code> &nbsp; <code>Five team roles</code></p>
 
 <p align="center">
+  <a href="#run-locally"><img src="docs/readme/run-button.svg" width="216" alt="Run locally"></a>
+  <br>
+  <sub>Explore the browser demo with synthetic data, or run API mode against an authorized lab target.</sub>
+</p>
+
+<p align="center">
+  <a href="#at-a-glance"><strong>At a glance</strong></a> &nbsp;·&nbsp;
   <a href="#app-tour"><strong>App tour</strong></a> &nbsp;·&nbsp;
   <a href="#roles"><strong>Roles</strong></a> &nbsp;·&nbsp;
   <a href="#how-it-works"><strong>How it works</strong></a> &nbsp;·&nbsp;
   <a href="#run-locally"><strong>Run locally</strong></a> &nbsp;·&nbsp;
   <a href="#explore-the-repository"><strong>Explore the repository</strong></a>
 </p>
+
+<p align="center"><sub><strong>PRO</strong> · team roles, remediation, retests, and approvals &nbsp;|&nbsp; Need a single-user scanner? See <a href="https://github.com/Feliciety02/AIVERA-lite"><strong>AIVERA Lite</strong></a></sub></p>
 
 The browser demo uses synthetic data. API mode stores projects and findings in SQLite, enforces role and scope checks, and can run explicitly enabled assessments on an authorized lab target. AI assists with interpretation; a person confirms or rejects each finding.
 
@@ -117,33 +124,52 @@ ${sections.join("\n\n")}
 
 ## How it works
 
-Each assessment is a series of handoffs between the five roles. The assessor and lead appear more than once because they return for retesting and approvals.
+Each assessment passes work between the five roles. The branches show what happens when an assessor rejects a finding, when a fix fails retesting, and when a critical or high finding needs lead sign-off.
 
 \`\`\`mermaid
 flowchart TD
     A["Administrator<br/>Activates accounts, manages roles, and oversees projects"]
     L1["Security Lead<br/>Creates the project and approves target authorization"]
-    S1["Security Assessor<br/>Assesses the target and verifies findings"]
+    S1["Security Assessor<br/>Assesses the target and reviews evidence"]
+    D{"Assessor decision"}
+    X["Rejected finding<br/>Decision logged; no fix task"]
+    C["Confirmed finding<br/>Risk record and fix task created"]
+    Q["Review queue complete<br/>Every finding has a human decision"]
+    H["Security Lead<br/>Signs off critical or high findings"]
     R["Remediation Owner<br/>Works the assigned fix and requests a retest"]
     S2["Security Assessor<br/>Retests the fix and records the result"]
-    L2["Security Lead<br/>Approves closure and the final report"]
+    P{"Retest passed?"}
+    L2["Security Lead<br/>Approves closing the fix"]
+    RP["Security Assessor<br/>Drafts report after findings are reviewed"]
+    L3["Security Lead<br/>Approves the final report"]
     V["Viewer<br/>Follows project status and reads approved reports"]
     A -->|Team access| L1
     L1 -->|Authorized work| S1
-    S1 -->|Confirmed finding and fix task| R
+    S1 --> D
+    D -->|Rejected| X
+    D -->|Confirmed| C
+    X --> Q
+    C --> Q
+    C -->|Fix task| R
+    C -.->|Critical or high| H
     R -->|Ready for retest| S2
-    S2 -->|Retest result and draft report| L2
-    L2 -->|Approved results| V
+    S2 --> P
+    P -->|Failed| R
+    P -->|Passed| L2
+    Q --> RP
+    RP --> L3
+    L2 -.->|Closure status| V
+    L3 -->|Approved results| V
 \`\`\`
 
 - **Administrator → team:** Activates accounts, controls roles and settings, and can oversee any project. The administrator makes it possible for the assigned team to work together.
 - **Security Lead → Security Assessor:** Sets up the project team and checks that a target is authorized before testing. The lead also signs off critical and high findings after an assessor confirms them.
-- **Security Assessor → Remediation Owner:** Runs authorized checks or imports tool output, reviews evidence, and confirms or rejects each finding. A confirmed finding creates a risk record and a fix task for the owner. AI can help interpret evidence but cannot verify a finding.
+- **Security Assessor → decision:** Runs authorized checks or imports tool output, reviews evidence, and confirms or rejects each finding. A rejection is logged without creating a fix task. A confirmation creates a risk record and a task for the remediation owner. AI can help interpret evidence but cannot verify a finding.
 - **Remediation Owner → Security Assessor:** Works the assigned fix and marks it ready for retest. If the retest fails, the task returns to the owner for more work.
-- **Security Assessor → Security Lead:** Records the retest result and drafts the assessment report. A passed retest goes to the lead for closure approval; the lead also approves the final report.
+- **Security Assessor → Security Lead:** Records retest results and drafts the assessment report when all findings have been reviewed. Reporting can proceed while fix tasks continue. A passed retest goes to the lead for closure approval; the lead also approves the final report. Critical and high confirmed findings need a separate lead sign-off.
 - **Security Lead → Viewer:** Makes approved results available. Viewers can follow project status during the work and read approved reports, but cannot change the assessment.
 
-The diagram shows the main handoffs, not exclusive access: administrators can step in throughout, and viewers can follow status as work progresses. The browser demo uses synthetic local data; API mode enforces roles and scope on the server and stores records in SQLite. See the [system design](docs/System-Design.md) for the full workflow.
+Dashed paths show the additional lead sign-off and updates to the viewer. A failed retest loops back to the fix owner; a rejected finding creates no fix task and is excluded from verified report findings. Administrators can step in throughout, and viewers can follow status while work progresses. The browser demo uses synthetic local data; API mode enforces roles and scope on the server and stores records in SQLite. See the [system design](docs/System-Design.md) for the full workflow.
 
 ## Run locally
 
