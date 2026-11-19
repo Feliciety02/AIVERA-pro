@@ -19,3 +19,6 @@ server/prisma/backups/
 
 # Tamper-evident log anchor (belongs to the local database)
 server/prisma/*.audit-anchor.json
+
+# Local editor/assistant settings
+.claude/
