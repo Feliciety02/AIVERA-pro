@@ -1,6 +1,4 @@
 import * as React from "react";
-import { DIALOG_GUIDES } from "@/features/dialogGuides";
-import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,8 +7,9 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field } from "./fields";
+import { ChoiceChips, DateShortcuts } from "./choices";
+import { PRIORITY_OPTIONS } from "./RemediationForm";
 import { useDataStore } from "@/stores/dataStore";
-import { SEVERITIES, SEVERITY_META } from "@/lib/constants";
 import { toInputDate } from "@/lib/format";
 import { remediationService } from "@/services";
 import type { RemediationTask, Severity } from "@/types";
@@ -47,34 +46,23 @@ export function RemediationEditDialog({ task, open, onOpenChange }: { task: Reme
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit {task.code}</DialogTitle>
-          <DialogDescription>Status changes are made with the workflow actions so approval and retest rules always apply.</DialogDescription>
+          <DialogDescription>Details only. Status moves with the buttons on the task.</DialogDescription>
         </DialogHeader>
-        <DialogGuide guideKey="remediationEdit" steps={DIALOG_GUIDES.remediationEdit} />
         <div className="grid gap-4">
           <Field id="re-title" label="Title" required><Input id="re-title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></Field>
           <Field id="re-desc" label="Description" required><Textarea id="re-desc" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></Field>
           <Field id="re-rec" label="Recommendation"><Textarea id="re-rec" rows={3} value={draft.recommendation} onChange={(e) => setDraft({ ...draft, recommendation: e.target.value })} /></Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="re-owner" label="Owner">
-              <Select value={draft.ownerId} onValueChange={(v) => setDraft({ ...draft, ownerId: v })}>
-                <SelectTrigger id="re-owner"><SelectValue /></SelectTrigger>
-                <SelectContent>{users.filter((u) => u.status === "active").map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-            <Field id="re-pri" label="Priority">
-              <Select value={draft.priority} onValueChange={(v) => setDraft({ ...draft, priority: v as Severity })}>
-                <SelectTrigger id="re-pri"><SelectValue /></SelectTrigger>
-                <SelectContent>{SEVERITIES.map((s) => <SelectItem key={s} value={s}>{SEVERITY_META[s].label}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-            <Field id="re-due" label="Due date" required><Input id="re-due" type="date" className="[color-scheme:light] dark:[color-scheme:dark]" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></Field>
-          </div>
-          <label className="flex items-start gap-3 rounded-xl border border-border p-3">
-            <Checkbox checked={draft.retestRequired} disabled={closedTask} onCheckedChange={(v) => setDraft({ ...draft, retestRequired: v === true })} className="mt-0.5" />
-            <span>
-              <span className="block text-sm font-medium">Require retest before resolution</span>
-              <span className="block text-[11px] text-muted-foreground">{closedTask ? "Locked: task is already closed." : "Turning this off removes the retest gate; manual approval is still required."}</span>
-            </span>
+          <Field id="re-owner" label="Owner">
+            <Select value={draft.ownerId} onValueChange={(v) => setDraft({ ...draft, ownerId: v })}>
+              <SelectTrigger id="re-owner"><SelectValue /></SelectTrigger>
+              <SelectContent>{users.filter((u) => u.status === "active").map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
+          <Field id="re-pri" label="Priority"><ChoiceChips label="Priority" value={draft.priority} options={PRIORITY_OPTIONS} onChange={(v) => setDraft({ ...draft, priority: v as Severity })} /></Field>
+          <Field id="re-due" label="Due" required><DateShortcuts id="re-due" value={draft.dueDate} onChange={(v) => setDraft({ ...draft, dueDate: v })} /></Field>
+          <label className="flex items-center gap-3 text-sm">
+            <Checkbox checked={draft.retestRequired} disabled={closedTask} onCheckedChange={(v) => setDraft({ ...draft, retestRequired: v === true })} />
+            Retest before it can be closed {closedTask && <span className="text-xs text-muted-foreground">(locked, task is closed)</span>}
           </label>
           {err && <p role="alert" className="text-xs text-destructive">{err}</p>}
         </div>

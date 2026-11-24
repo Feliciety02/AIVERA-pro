@@ -221,7 +221,7 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/findings\/[^/]+$/,
     steps: [
       { target: "main h1", title: "The finding", body: "What was found, how serious the tool thinks it is, and on which website." },
-      { target: 'section[aria-label="Is this a real problem?"]', title: "Decide here", body: "One recommendation, worked out automatically from the evidence and checked by AI in the background. The recommended answer is the filled button. You make the call; your notes are filled in for you." },
+      { target: 'section[aria-label="Is this a real problem?"]', title: "Decide here", body: "Red: it is a real problem. Green: it is a false alarm. The AI result, when shown, is labelled as AI and is only advice. Your notes are filled in for you." },
       { target: card("Evidence", "h2"), title: "Check the evidence", body: "What the tool actually saw. Tick \"I reviewed this\" on the items you checked." },
       { target: card("Details", "h2"), title: "Details", body: "Location, category, tool, dates and risk score, all in one list." },
       { target: "main details", title: "More details", body: "Impact, the full fix, fix tasks and every past decision, folded away until you need them." },

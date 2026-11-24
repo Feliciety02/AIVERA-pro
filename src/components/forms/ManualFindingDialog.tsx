@@ -1,6 +1,4 @@
 import * as React from "react";
-import { DIALOG_GUIDES } from "@/features/dialogGuides";
-import { DialogGuide } from "@/components/shared/DialogGuide";
 import { useNavigate } from "react-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field } from "./fields";
+import { ChoiceChips } from "./choices";
 import { useDataStore } from "@/stores/dataStore";
 import { CATEGORIES, SEVERITIES, SEVERITY_META } from "@/lib/constants";
 import { findingService } from "@/services";
@@ -25,11 +24,11 @@ const schema = z.object({
   affectedAsset: z.string().trim().min(1, "Describe the affected URL, endpoint or service"),
   parameter: z.string().max(100),
   cwe: z.string().trim().regex(/^(CWE-\d+)?$/, "Use the format CWE-79 or leave empty"),
-  description: z.string().trim().min(10, "Describe what you observed (min. 10 characters)"),
-  impact: z.string().trim().min(5, "Describe the potential impact"),
-  remediation: z.string().trim().min(5, "Suggest a remediation"),
+  description: z.string().trim().min(10, "Say what you saw (min. 10 characters)"),
+  impact: z.string().trim().max(2000),
+  remediation: z.string().trim().max(2000),
   evidenceTitle: z.string().trim().min(3, "Name the evidence item"),
-  evidenceContent: z.string().trim().min(10, "Record the evidence (steps, request/response excerpt, observation)"),
+  evidenceContent: z.string().trim().min(10, "Add the steps or proof (min. 10 characters)"),
 });
 type Values = z.infer<typeof schema>;
 
@@ -83,10 +82,10 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
       toast.error("That category is not permitted by the target's approved scope.");
       return;
     }
-    const f = await findingService.createManual({ ...v, checklistRef: defaults?.checklistRef });
+    const f = await findingService.createManual({ ...v, impact: v.impact || "Not assessed yet.", remediation: v.remediation || "To be decided after verification.", checklistRef: defaults?.checklistRef });
     toast.success(`Recorded ${f.code}`, { description: "Added as Pending Verification. A separate verification decision is still required." });
     onOpenChange(false);
-    navigate(`/findings/${f.id}?tab=evidence`);
+    navigate(`/findings/${f.id}`);
   };
 
   return (
@@ -96,68 +95,53 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
           <DialogTitle className="flex items-center gap-2"><Hand className="size-4" /> Record manual finding</DialogTitle>
           <DialogDescription>Something you found yourself. It starts as unverified until someone confirms it.</DialogDescription>
         </DialogHeader>
-        <DialogGuide guideKey="manualFinding" steps={DIALOG_GUIDES.manualFinding} />
         <form id="manual-finding" onSubmit={handleSubmit(submit)} className="grid gap-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="mf-target" label="Target" required error={errors.targetId?.message}>
+            <Field id="mf-target" label="Website" required error={errors.targetId?.message}>
               <Controller control={control} name="targetId" render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="mf-target"><SelectValue placeholder="Authorized target" /></SelectTrigger>
+                  <SelectTrigger id="mf-target"><SelectValue placeholder="Choose a website" /></SelectTrigger>
                   <SelectContent>{targets.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
                 </Select>
               )} />
             </Field>
-            <Field id="mf-title" label="Title" required error={errors.title?.message}>
-              <Input id="mf-title" {...register("title")} aria-invalid={!!errors.title} />
-            </Field>
-            <Field id="mf-cat" label="Category" required hint={target ? undefined : "Select a target to see permitted categories"}>
+            <Field id="mf-cat" label="Type of problem" required>
               <Controller control={control} name="category" render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="mf-cat"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.id} value={c.id} disabled={!!target && !allowed.includes(c.id)}>{c.name}{target && !allowed.includes(c.id) ? " (not in scope)" : ""}</SelectItem>)}</SelectContent>
+                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.id} value={c.id} disabled={!!target && !allowed.includes(c.id)}>{c.short}{target && !allowed.includes(c.id) ? " (not in scope)" : ""}</SelectItem>)}</SelectContent>
                 </Select>
               )} />
-            </Field>
-            <Field id="mf-sev" label="Initial severity" required hint="Your initial rating; can be revisited at verification.">
-              <Controller control={control} name="severity" render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="mf-sev"><SelectValue /></SelectTrigger>
-                  <SelectContent>{SEVERITIES.map((s) => <SelectItem key={s} value={s}>{SEVERITY_META[s].label}</SelectItem>)}</SelectContent>
-                </Select>
-              )} />
-            </Field>
-            <Field id="mf-asset" label="Affected asset" required error={errors.affectedAsset?.message} className="sm:col-span-2">
-              <Input id="mf-asset" className="font-mono text-xs" {...register("affectedAsset")} />
-            </Field>
-            <Field id="mf-param" label="Parameter">
-              <Input id="mf-param" className="font-mono text-xs" {...register("parameter")} />
-            </Field>
-            <Field id="mf-cwe" label="CWE" error={errors.cwe?.message}>
-              <Input id="mf-cwe" placeholder="CWE-79" {...register("cwe")} />
             </Field>
           </div>
-          <Field id="mf-desc" label="Technical description" required error={errors.description?.message}>
-            <Textarea id="mf-desc" rows={3} {...register("description")} />
+          <Field id="mf-title" label="Title" required error={errors.title?.message}>
+            <Input id="mf-title" placeholder="e.g. Admin page opens without login" {...register("title")} aria-invalid={!!errors.title} />
           </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="mf-impact" label="Potential impact" required error={errors.impact?.message}>
-              <Textarea id="mf-impact" rows={2} {...register("impact")} />
-            </Field>
-            <Field id="mf-rem" label="Remediation recommendation" required error={errors.remediation?.message}>
-              <Textarea id="mf-rem" rows={2} {...register("remediation")} />
-            </Field>
-          </div>
-          <div className="rounded-xl border border-border p-3">
-            <p className="mb-2 text-xs font-semibold">Evidence (required)</p>
-            <div className="grid gap-3">
-              <Field id="mf-ev-title" label="Evidence title" required error={errors.evidenceTitle?.message}>
-                <Input id="mf-ev-title" {...register("evidenceTitle")} />
+          <Field id="mf-sev" label="How serious?">
+            <Controller control={control} name="severity" render={({ field }) => (
+              <ChoiceChips label="Severity" value={field.value} options={SEVERITIES.map((s) => ({ value: s, label: SEVERITY_META[s].label, color: SEVERITY_META[s].color }))} onChange={field.onChange} />
+            )} />
+          </Field>
+          <Field id="mf-desc" label="What did you see?" required error={errors.description?.message}>
+            <Textarea id="mf-desc" rows={2} {...register("description")} />
+          </Field>
+          <Field id="mf-ev" label="Steps or proof" required error={errors.evidenceContent?.message} hint="Never paste real passwords or personal data.">
+            <Textarea id="mf-ev" rows={3} className="font-mono text-[11.5px]" {...register("evidenceContent")} />
+          </Field>
+          <details className="group rounded-xl border border-border">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-3.5 py-2.5 text-xs font-medium [&::-webkit-details-marker]:hidden">
+              More details <span className="font-normal text-muted-foreground">Optional: address, parameter, CWE, impact, fix</span>
+            </summary>
+            <div className="grid gap-3 border-t border-border p-3.5 sm:grid-cols-2">
+              <Field id="mf-asset" label="Address" required error={errors.affectedAsset?.message} className="sm:col-span-2">
+                <Input id="mf-asset" className="font-mono text-xs" {...register("affectedAsset")} />
               </Field>
-              <Field id="mf-ev" label="Evidence" required error={errors.evidenceContent?.message} hint="Steps, redacted request/response excerpts, observations. Never paste real credentials or personal data.">
-                <Textarea id="mf-ev" rows={4} className="font-mono text-[11.5px]" {...register("evidenceContent")} />
-              </Field>
+              <Field id="mf-param" label="Parameter"><Input id="mf-param" className="font-mono text-xs" {...register("parameter")} /></Field>
+              <Field id="mf-cwe" label="CWE" error={errors.cwe?.message}><Input id="mf-cwe" placeholder="CWE-79" {...register("cwe")} /></Field>
+              <Field id="mf-impact" label="Possible impact"><Textarea id="mf-impact" rows={2} {...register("impact")} /></Field>
+              <Field id="mf-rem" label="How to fix"><Textarea id="mf-rem" rows={2} {...register("remediation")} /></Field>
             </div>
-          </div>
+          </details>
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>

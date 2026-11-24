@@ -1,6 +1,4 @@
 import * as React from "react";
-import { DIALOG_GUIDES } from "@/features/dialogGuides";
-import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
@@ -8,7 +6,7 @@ import {  TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input, Textarea } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DataTable } from "@/components/shared/DataTable";
@@ -17,6 +15,7 @@ import {  KeyValue, MiniStat, SectionCard, UserChip } from "@/components/shared/
 import { SeverityBadge, StatusBadge, OriginBadge } from "@/components/security/badges";
 import { RiskMatrix } from "@/components/security/RiskMatrix";
 import { Field } from "@/components/forms/fields";
+import { ChoiceChips, DateShortcuts } from "@/components/forms/choices";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useInitialLoading, useLookups } from "@/hooks";
 import { MITIGATION_STATUS } from "@/lib/constants";
@@ -36,43 +35,31 @@ function RiskEditor({ risk, onClose, readOnly }: { risk: Risk; onClose: () => vo
   return (
     <>
       <SheetBody className="space-y-4">
-        {!readOnly && <DialogGuide guideKey="riskEditor" steps={DIALOG_GUIDES.riskEditor} inSheet />}
         <div className="rounded-xl border p-3 text-center" style={{ borderColor: RISK_LEVEL_META[lvl].color }}>
           <p className="text-[11px] text-muted-foreground">Demo risk score (not CVSS)</p>
           <p className="text-3xl font-semibold tabular-nums" style={{ color: RISK_LEVEL_META[lvl].color }}>{score}</p>
           <p className="text-xs font-semibold" style={{ color: RISK_LEVEL_META[lvl].color }}>{RISK_LEVEL_META[lvl].label}</p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field id="rk-l" label="Likelihood">
-            <Select value={String(draft.likelihood)} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, likelihood: Number(v) as LikertScore })}>
-              <SelectTrigger id="rk-l"><SelectValue /></SelectTrigger>
-              <SelectContent>{([1, 2, 3, 4, 5] as LikertScore[]).map((n) => <SelectItem key={n} value={String(n)}>{n} · {LIKELIHOOD_LABELS[n]}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Field id="rk-i" label="Impact">
-            <Select value={String(draft.impact)} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, impact: Number(v) as LikertScore })}>
-              <SelectTrigger id="rk-i"><SelectValue /></SelectTrigger>
-              <SelectContent>{([1, 2, 3, 4, 5] as LikertScore[]).map((n) => <SelectItem key={n} value={String(n)}>{n} · {IMPACT_LABELS[n]}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Field id="rk-o" label="Assigned owner">
-            <Select value={draft.ownerId} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, ownerId: v })}>
-              <SelectTrigger id="rk-o"><SelectValue /></SelectTrigger>
-              <SelectContent>{users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Field id="rk-m" label="Mitigation status">
-            <Select value={draft.mitigationStatus} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, mitigationStatus: v as MitigationStatus })}>
-              <SelectTrigger id="rk-m"><SelectValue /></SelectTrigger>
-              <SelectContent>{(Object.keys(MITIGATION_STATUS) as MitigationStatus[]).map((m) => <SelectItem key={m} value={m}>{MITIGATION_STATUS[m].label}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Field id="rk-d" label="Review date" className="col-span-2">
-            <Input id="rk-d" type="date" disabled={readOnly} className="[color-scheme:light] dark:[color-scheme:dark]" value={toInputDate(draft.reviewDate)} onChange={(e) => e.target.value && setDraft({ ...draft, reviewDate: new Date(`${e.target.value}T00:00:00Z`).toISOString() })} />
-          </Field>
-        </div>
-        <Field id="rk-n" label="Notes">
-          <Textarea id="rk-n" rows={3} disabled={readOnly} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
+        <Field id="rk-l" label="How likely?">
+          <ChoiceChips label="Likelihood" disabled={readOnly} value={draft.likelihood} options={([1, 2, 3, 4, 5] as LikertScore[]).map((n) => ({ value: n, label: `${n} · ${LIKELIHOOD_LABELS[n]}` }))} onChange={(v) => setDraft({ ...draft, likelihood: v })} />
+        </Field>
+        <Field id="rk-i" label="How bad if it happens?">
+          <ChoiceChips label="Impact" disabled={readOnly} value={draft.impact} options={([1, 2, 3, 4, 5] as LikertScore[]).map((n) => ({ value: n, label: `${n} · ${IMPACT_LABELS[n]}` }))} onChange={(v) => setDraft({ ...draft, impact: v })} />
+        </Field>
+        <Field id="rk-m" label="Status">
+          <ChoiceChips label="Mitigation status" disabled={readOnly} value={draft.mitigationStatus} options={(Object.keys(MITIGATION_STATUS) as MitigationStatus[]).map((m) => ({ value: m, label: MITIGATION_STATUS[m].label }))} onChange={(v) => setDraft({ ...draft, mitigationStatus: v })} />
+        </Field>
+        <Field id="rk-o" label="Owner">
+          <Select value={draft.ownerId} disabled={readOnly} onValueChange={(v) => setDraft({ ...draft, ownerId: v })}>
+            <SelectTrigger id="rk-o"><SelectValue /></SelectTrigger>
+            <SelectContent>{users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+        <Field id="rk-d" label="Review again">
+          <DateShortcuts id="rk-d" disabled={readOnly} value={toInputDate(draft.reviewDate)} onChange={(v) => v && setDraft({ ...draft, reviewDate: new Date(`${v}T00:00:00Z`).toISOString() })} />
+        </Field>
+        <Field id="rk-n" label="Notes (optional)">
+          <Textarea id="rk-n" rows={2} disabled={readOnly} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
         </Field>
         <Button variant="link" size="sm" className="px-0" asChild>
           <Link to={`/findings/${risk.findingId}`}>Open related finding →</Link>

@@ -9,7 +9,7 @@ import { useLookups } from "@/hooks";
 import { copyToClipboard, cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 import { findingService } from "@/services";
-import type { Evidence, EvidenceType } from "@/types";
+import type { DataOrigin, Evidence, EvidenceType } from "@/types";
 
 const TYPE_META: Record<EvidenceType, { label: string; icon: typeof FileCode2 }> = {
   http_request: { label: "HTTP request", icon: FileOutput },
@@ -39,7 +39,8 @@ export function EvidenceViewer({ evidence, canReview }: { evidence: Evidence[]; 
           <li key={e.id} id={e.id} className={cn("rounded-xl border p-3.5 scroll-mt-20", e.reviewed ? "border-primary/25" : "border-border")}>
             <div className="mb-2.5 flex flex-wrap items-center gap-2">
               <meta.icon className="size-4 text-muted-foreground" aria-hidden />
-              <p className="text-sm font-medium">{e.title}</p>
+              <p className="text-sm font-medium">{e.title.replace(/\s*\[SIMULATED\]$/, "")}</p>
+              <SourceTag origin={e.dataOrigin} />
               <span className="ml-auto flex items-center gap-2">
                 <Hint label="Copy evidence">
                   <Button
@@ -71,5 +72,26 @@ export function EvidenceViewer({ evidence, canReview }: { evidence: Evidence[]; 
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Where this evidence came from, in plain words. Practice data is never shown as real:
+ * only the scanner (server mode), an imported tool report or a person can produce real evidence.
+ */
+const SOURCE: Record<DataOrigin, { label: string; hint: string; cls: string }> = {
+  real: { label: "Real capture", hint: "Collected from the website by the scanner.", cls: "bg-success/12 text-success" },
+  imported: { label: "Imported report", hint: "From a tool report that was uploaded. AIVERA did not contact the website.", cls: "bg-primary/10 text-primary" },
+  user_created: { label: "Added by a person", hint: "Written by an assessor during manual testing.", cls: "bg-primary/10 text-primary" },
+  simulated: { label: "Practice data, not real", hint: "Made up in your browser by the demo simulation. No request was sent to the website.", cls: "bg-warning/15 text-warning" },
+  synthetic: { label: "Sample data, not real", hint: "Fictional sample included with the demo.", cls: "bg-warning/15 text-warning" },
+};
+
+function SourceTag({ origin }: { origin: DataOrigin }) {
+  const m = SOURCE[origin];
+  return (
+    <Hint label={m.hint}>
+      <span tabIndex={0} className={cn("cursor-help rounded-full px-2 py-0.5 text-[11px] font-medium", m.cls)}>{m.label}</span>
+    </Hint>
   );
 }

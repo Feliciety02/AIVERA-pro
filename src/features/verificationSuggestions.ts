@@ -65,20 +65,6 @@ export interface VerificationSuggestion {
 export const BLANK_RE = /\[(?!REDACTED)[^\]\n]{2,}\]/g;
 export const findBlanks = (text: string) => text.match(BLANK_RE) ?? [];
 
-/**
- * The ready answers hidden in a blank, so it can be filled with a click:
- * "[has / does not have]" → both, "[how you checked: DevTools / curl -I]" → the tools,
- * "[what you saw, e.g. a 500 error]" → the example. A free-text blank has none.
- */
-export function blankOptions(blank: string): string[] {
-  const inner = blank.slice(1, -1).trim();
-  const eg = inner.match(/e\.g\.\s*(.+)$/);
-  const body = eg ? eg[1]! : inner.includes(": ") ? inner.slice(inner.indexOf(": ") + 2) : inner;
-  const options = body.split(" / ").map((o) => o.trim()).filter(Boolean);
-  if (!eg && !inner.includes(": ") && options.length < 2) return [];
-  return [...new Set(options)];
-}
-
 /** Put `value` in place of the first `blank`; an empty value removes it and tidies the sentence. */
 export function fillBlank(text: string, blank: string, value: string): string {
   const out = text.replace(blank, () => value);

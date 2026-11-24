@@ -1,9 +1,8 @@
+import * as React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { DIALOG_GUIDES } from "@/features/dialogGuides";
-import { DialogGuide } from "@/components/shared/DialogGuide";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field } from "./fields";
+import { ChoiceChips, DateShortcuts } from "./choices";
 import { useDataStore } from "@/stores/dataStore";
 import { SEVERITIES, SEVERITY_META } from "@/lib/constants";
 import { remediationService } from "@/services";
@@ -27,14 +27,22 @@ const schema = z.object({
 });
 type Values = z.infer<typeof schema>;
 
+export const PRIORITY_OPTIONS = SEVERITIES.map((s) => ({ value: s, label: SEVERITY_META[s].label, color: SEVERITY_META[s].color }));
+
+/**
+ * Everything is filled in from the finding: wording, owner, priority and a due date that matches the
+ * severity. The person checks the owner and date; the wording is one click away if it needs changing.
+ */
 export function RemediationForm({ finding, open, onOpenChange, onCreated }: { finding: VulnerabilityFinding; open: boolean; onOpenChange: (o: boolean) => void; onCreated?: (id: string) => void }) {
   const users = useDataStore((s) => s.users);
+  const [editText, setEditText] = React.useState(false);
   const days = finding.severity === "critical" ? 7 : finding.severity === "high" ? 14 : finding.severity === "medium" ? 30 : 60;
   const due = new Date(Date.now() + days * 86400_000).toISOString().slice(0, 10);
   const {
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -48,6 +56,9 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
       retestRequired: true,
     },
   });
+  React.useEffect(() => {
+    if (open) setEditText(false);
+  }, [open]);
 
   const submit = async (v: Values) => {
     const task = await remediationService.create({ ...v, findingId: finding.id, dueDate: new Date(`${v.dueDate}T00:00:00Z`).toISOString() });
@@ -55,55 +66,54 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
     onOpenChange(false);
     onCreated?.(task.id);
   };
+  const textError = errors.title?.message ?? errors.description?.message ?? errors.recommendation?.message;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create remediation task</DialogTitle>
-          <DialogDescription>
-            From <span className="font-mono">{finding.code}</span>. Tasks can only be resolved through manual approval (and a passed retest when required).
-          </DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><Wrench className="size-4" /> Create fix task</DialogTitle>
+          <DialogDescription>For <span className="font-mono">{finding.code}</span>. Check the owner and date, then create.</DialogDescription>
         </DialogHeader>
-        <DialogGuide guideKey="remediationCreate" steps={DIALOG_GUIDES.remediationCreate} />
         <form id="rem-form" onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
-          <Field id="r-title" label="Title" required error={errors.title?.message}>
-            <Input id="r-title" {...register("title")} aria-invalid={!!errors.title} />
+          <section className="rounded-xl bg-muted/50 px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Sparkles className="size-3.5 text-primary" aria-hidden /> Filled in from the finding</p>
+              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setEditText((v) => !v)}>{editText ? "Done" : "Edit"}</button>
+            </div>
+            {editText ? (
+              <div className="mt-2 space-y-2">
+                <Input aria-label="Title" {...register("title")} />
+                <Textarea aria-label="What needs doing" rows={2} {...register("description")} />
+                <Textarea aria-label="How to fix" rows={3} {...register("recommendation")} />
+              </div>
+            ) : (
+              <>
+                <p className="mt-1.5 text-sm font-medium">{watch("title")}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{watch("recommendation")}</p>
+              </>
+            )}
+            {textError && <p role="alert" className="mt-1.5 text-xs text-destructive">{textError}</p>}
+          </section>
+
+          <Field id="r-owner" label="Owner" required error={errors.ownerId?.message}>
+            <Controller control={control} name="ownerId" render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="r-owner"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{users.filter((u) => u.status === "active").map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+              </Select>
+            )} />
           </Field>
-          <Field id="r-desc" label="Description" required error={errors.description?.message}>
-            <Textarea id="r-desc" rows={2} {...register("description")} aria-invalid={!!errors.description} />
+          <Field id="r-priority" label="Priority">
+            <Controller control={control} name="priority" render={({ field }) => <ChoiceChips label="Priority" value={field.value} options={PRIORITY_OPTIONS} onChange={field.onChange} />} />
           </Field>
-          <Field id="r-rec" label="Remediation recommendation" required error={errors.recommendation?.message}>
-            <Textarea id="r-rec" rows={3} {...register("recommendation")} />
+          <Field id="r-due" label="Due" error={errors.dueDate?.message}>
+            <Controller control={control} name="dueDate" render={({ field }) => <DateShortcuts id="r-due" value={field.value} onChange={field.onChange} />} />
           </Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="r-owner" label="Owner" required error={errors.ownerId?.message}>
-              <Controller control={control} name="ownerId" render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="r-owner"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{users.filter((u) => u.status === "active").map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-                </Select>
-              )} />
-            </Field>
-            <Field id="r-priority" label="Priority" required>
-              <Controller control={control} name="priority" render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="r-priority"><SelectValue /></SelectTrigger>
-                  <SelectContent>{SEVERITIES.map((s) => <SelectItem key={s} value={s}>{SEVERITY_META[s].label}</SelectItem>)}</SelectContent>
-                </Select>
-              )} />
-            </Field>
-            <Field id="r-due" label="Due date" required error={errors.dueDate?.message}>
-              <Input id="r-due" type="date" className="[color-scheme:light] dark:[color-scheme:dark]" {...register("dueDate")} />
-            </Field>
-          </div>
           <Controller control={control} name="retestRequired" render={({ field }) => (
-            <label className="flex items-start gap-3 rounded-xl border border-border p-3">
-              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} className="mt-0.5" />
-              <span>
-                <span className="block text-sm font-medium">Require retest before resolution</span>
-                <span className="block text-[11px] text-muted-foreground">Recommended. The task cannot be resolved until a manual retest passes.</span>
-              </span>
+            <label className="flex cursor-pointer items-center gap-3 text-sm">
+              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />
+              Retest before it can be closed <span className="text-xs text-muted-foreground">(recommended)</span>
             </label>
           )} />
         </form>

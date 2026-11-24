@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
+import { NoteChips } from "@/components/forms/choices";
 import { Progress } from "@/components/ui/misc";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -36,6 +37,19 @@ function DueBadge({ task }: { task: RemediationTask }) {
   if (d <= 7) return <ToneBadge tone="warning">Due in {d}d</ToneBadge>;
   return <span className="text-xs text-muted-foreground">{formatDate(task.dueDate)}</span>;
 }
+
+/** Ready-made notes per action, so most decisions are one tap. They describe the choice; they never claim a test that did not happen. */
+const noteOptions = (a: Action | null): string[] => {
+  if (!a) return [];
+  if (a.kind === "retest") return a.result === "passed" ? ["Retested in scope; the issue no longer reproduces.", "Retested with the original steps; fixed."] : ["Retested in scope; the issue still reproduces.", "Partly fixed; one path still works."];
+  switch (a.to) {
+    case "resolved": return ["Fix checked and retest passed.", "Fix confirmed by code review and retest."];
+    case "in_progress": return a.title === "Send back" ? ["Retest still fails; please fix again.", "Fix incomplete; see retest notes."] : ["Started work on the fix."];
+    case "accepted_risk": return ["Owner accepts the risk; low impact.", "Compensating control in place.", "Fix planned in a later release."];
+    case "open": return ["Issue came back after the fix."];
+    default: return [];
+  }
+};
 
 type Action = { kind: "status"; to: RemediationStatus; title: string; description: string; requireNote: boolean } | { kind: "retest"; result: "passed" | "failed" };
 
@@ -173,8 +187,8 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
             <DialogTitle>{action?.kind === "status" ? action.title : `Record manual retest: ${action?.kind === "retest" ? action.result : ""}`}</DialogTitle>
             <DialogDescription>{action?.kind === "status" ? action.description : "Describe how you retested within the authorized scope. In this demo, no traffic is sent, this records your manual result."}</DialogDescription>
           </DialogHeader>
-          <DialogGuide guideKey="remediationAction" steps={DIALOG_GUIDES.remediationAction} />
-          <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes / justification" aria-label="Notes" />
+          <NoteChips options={noteOptions(action)} value={note} onPick={setNote} />
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Or write your own note" aria-label="Notes" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAction(null)} disabled={busy}>Cancel</Button>
             <Button
