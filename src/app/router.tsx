@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { AppShell, ContentContainer } from "@/components/layout/AppShell";
 import { CardsSkeleton, TableSkeleton } from "@/components/shared/states";
 
@@ -15,7 +15,6 @@ const ProjectDetail = React.lazy(() => import("@/pages/projects/ProjectDetailPag
 const Targets = React.lazy(() => import("@/pages/targets/TargetsPage"));
 const TargetForm = React.lazy(() => import("@/pages/targets/TargetFormPage"));
 const TargetDetail = React.lazy(() => import("@/pages/targets/TargetDetailPage"));
-const Recon = React.lazy(() => import("@/pages/reconnaissance/ReconPage"));
 const Scans = React.lazy(() => import("@/pages/scans/ScansPage"));
 const ScanNew = React.lazy(() => import("@/pages/scans/ScanWizardPage"));
 const ScanDetail = React.lazy(() => import("@/pages/scans/ScanDetailPage"));
@@ -24,7 +23,6 @@ const AssessmentDetail = React.lazy(() => import("@/pages/assessments/Assessment
 const AIAnalyst = React.lazy(() => import("@/pages/ai/AIAnalystPage"));
 const Findings = React.lazy(() => import("@/pages/findings/FindingsPage"));
 const FindingDetail = React.lazy(() => import("@/pages/findings/FindingDetailPage"));
-const Risks = React.lazy(() => import("@/pages/risks/RisksPage"));
 const Remediation = React.lazy(() => import("@/pages/remediation/RemediationPage"));
 const Reports = React.lazy(() => import("@/pages/reports/ReportsPage"));
 const ReportNew = React.lazy(() => import("@/pages/reports/ReportWizardPage"));
@@ -67,7 +65,8 @@ export const router = createBrowserRouter([
       { path: "/targets/new", element: s(<TargetForm />) },
       { path: "/targets/:targetId", element: s(<TargetDetail />) },
       { path: "/targets/:targetId/edit", element: s(<TargetForm />) },
-      { path: "/reconnaissance", element: s(<Recon />) },
+      // Merged pages: old links land on the view that replaced them.
+      { path: "/reconnaissance", element: <Navigate to="/targets?view=discovery" replace /> },
       { path: "/scans", element: s(<Scans />) },
       { path: "/scans/new", element: s(<ScanNew />) },
       { path: "/scans/:scanId", element: s(<ScanDetail />) },
@@ -76,7 +75,7 @@ export const router = createBrowserRouter([
       { path: "/ai-analyst", element: s(<AIAnalyst />) },
       { path: "/findings", element: s(<Findings />) },
       { path: "/findings/:findingId", element: s(<FindingDetail />) },
-      { path: "/risks", element: s(<Risks />) },
+      { path: "/risks", element: <Navigate to="/findings?view=risks" replace /> },
       { path: "/remediation", element: s(<Remediation />) },
       { path: "/reports", element: s(<Reports />) },
       { path: "/reports/new", element: s(<ReportNew />) },

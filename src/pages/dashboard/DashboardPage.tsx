@@ -1,47 +1,37 @@
 import * as React from "react";
 import { Link } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import {
-  CircleCheckBig,
-  ClipboardCheck,
-  FolderKanban,
-  Plus,
-  ScanLine,
-  ShieldAlert,
-  ShieldX,
-  Target,
-  Timer,
-  Wrench,
-  ArrowRight,
-} from "lucide-react";
+import { ArrowRight, BarChart3, CircleCheckBig, Globe, Inbox, Plus, ScanLine, Timer, Wrench } from "lucide-react";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/misc";
-import { StatCard, RecentActivity, VerificationQueue, FindingRow } from "@/components/dashboard/widgets";
+import { StatCard, RecentActivity } from "@/components/dashboard/widgets";
 import { NextStepCard } from "@/components/dashboard/NextStepCard";
-import { ChartCard, DonutChart, StackedBars, TrendArea, summarize } from "@/components/charts/charts";
+import { MyWorkList } from "@/components/dashboard/MyWorkList";
 import { SectionCard } from "@/components/shared/display";
 import { CardsSkeleton } from "@/components/shared/states";
-import { StatusBadge, ToneBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useUIStore } from "@/stores/sessionStore";
 import { useDocumentTitle, useInitialLoading, useLookups, useCurrentUser } from "@/hooks";
-import { activityOverTime, categoryBreakdown, computeDashboardMetrics, findingsOverTime, remediationDistribution, severityDistribution, verificationDistribution } from "@/features/metrics";
-import { ASSESSMENT_STATUS, PROJECT_STATUS } from "@/lib/constants";
+import { useMyWork } from "@/features/myWork";
+import { computeDashboardMetrics } from "@/features/metrics";
 import { riskLevel, riskScore, RISK_LEVEL_META } from "@/lib/risk";
-import { formatDate, formatRelative } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { can } from "@/lib/permissions";
-import type { ProjectStatus, AssessmentStatus } from "@/types";
 
+/**
+ * Home: one screen that answers "what should I do now?".
+ * 1. The next step of the assessment, 2. what is waiting on you, 3. four numbers that matter.
+ * Charts live on the Analytics page, so they are not repeated here.
+ */
 export default function DashboardPage() {
   const simpleMode = useUIStore((st) => st.simpleMode);
   // The website to offer a one-click scan for: the first one that's ready, otherwise the first registered.
   const scanTarget = useDataStore((st) => st.targets.find((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed && t.projectId) ?? st.targets[0]);
-  useDocumentTitle("Dashboard");
+  useDocumentTitle("Home");
   const loading = useInitialLoading();
   const user = useCurrentUser();
   const lookups = useLookups();
+  const work = useMyWork();
   const s = useDataStore(
     useShallow((st) => ({
       projects: st.projects,
@@ -55,25 +45,7 @@ export default function DashboardPage() {
       aiAnalyses: st.aiAnalyses,
     })),
   );
-
   const m = React.useMemo(() => computeDashboardMetrics(s), [s]);
-  const nonRejected = React.useMemo(() => s.findings.filter((f) => f.verificationStatus !== "rejected"), [s.findings]);
-  const sevData = React.useMemo(() => severityDistribution(nonRejected), [nonRejected]);
-  const verData = React.useMemo(() => verificationDistribution(s.findings), [s.findings]);
-  const remData = React.useMemo(() => remediationDistribution(s.remediation), [s.remediation]);
-  const catData = React.useMemo(() => categoryBreakdown(s.findings).filter((c) => c.total > 0), [s.findings]);
-  const trend = React.useMemo(() => findingsOverTime(s.findings, 12), [s.findings]);
-  const activityTrend = React.useMemo(() => activityOverTime(s.activity, s.scans, 12), [s.activity, s.scans]);
-
-  const queue = React.useMemo(
-    () =>
-      s.findings
-        .filter((f) => f.verificationStatus === "pending" || f.verificationStatus === "needs_review")
-        .sort((a, b) => b.discoveredAt.localeCompare(a.discoveredAt))
-        .slice(0, 6),
-    [s.findings],
-  );
-  const aiSent = React.useMemo(() => new Set(s.aiAnalyses.filter((a) => a.status === "sent_to_verification" && a.findingId).map((a) => a.findingId!)), [s.aiAnalyses]);
 
   const topRisks = React.useMemo(
     () =>
@@ -86,213 +58,120 @@ export default function DashboardPage() {
     [s.risks, s.findings],
   );
 
-  const recentProjects = React.useMemo(() => [...s.projects].filter((p) => p.status !== "archived").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5), [s.projects]);
-  const recentFindings = React.useMemo(() => [...s.findings].sort((a, b) => b.discoveredAt.localeCompare(a.discoveredAt)).slice(0, 6), [s.findings]);
-
-  const projectStatusCounts = (Object.keys(PROJECT_STATUS) as ProjectStatus[]).map((k) => ({ k, n: s.projects.filter((p) => p.status === k).length }));
-  const asmStatusCounts = (Object.keys(ASSESSMENT_STATUS) as AssessmentStatus[]).map((k) => ({ k, n: s.assessments.filter((a) => a.status === k).length }));
-
   return (
-    <ContentContainer wide>
+    <ContentContainer>
       <PageHeader
-        title="Security Operations Dashboard"
-        description="Where your assessment stands, and what to do next. Only findings a person confirmed count as vulnerabilities."
+        title="Home"
+        description="Your next step, what's waiting on you, and where the assessment stands. Only findings a person confirmed count as vulnerabilities."
         actions={
-          // Simple mode keeps the dashboard to one path: the next-step card and the scan button.
-          can(user?.role, "manage_projects") && !simpleMode && (
-            <>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/scans/new">
-                  <ScanLine /> New scan
-                </Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link to="/projects/new">
-                  <Plus /> New project
-                </Link>
-              </Button>
-            </>
-          )
+          <>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/analytics">
+                <BarChart3 /> Charts & trends
+              </Link>
+            </Button>
+            {can(user?.role, "manage_projects") && !simpleMode && (
+              <>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/scans/new">
+                    <ScanLine /> New scan
+                  </Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/projects/new">
+                    <Plus /> New project
+                  </Link>
+                </Button>
+              </>
+            )}
+          </>
         }
       />
 
       <NextStepCard scanTarget={scanTarget} />
 
       {loading ? (
-        <CardsSkeleton count={8} />
+        <CardsSkeleton count={4} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Assessment Projects" value={m.totalProjects} icon={FolderKanban} tooltip="Non-archived assessment projects in the demo workspace." sub={`${m.activeProjects} active`} to="/projects" />
-          <StatCard label="Registered Targets" value={m.registeredTargets} icon={Target} iconTone="bg-cyan/10 text-cyan" tooltip="Target applications registered as metadata. Registration never contacts the target." sub={`${m.authorizedTargets} authorized & confirmed`} to="/targets" />
-          <StatCard label="Completed Assessments" value={m.completedAssessments} icon={ClipboardCheck} iconTone="bg-primary/10 text-primary" tooltip="Category assessments (e.g. Session Management for a project) marked completed by an assessor." sub={`of ${s.assessments.length} category assessments`} to="/assessments" />
-          <StatCard label="Potential Findings" value={m.potentialFindings} icon={ShieldAlert} iconTone="bg-sev-medium/10 text-sev-medium" tooltip="All findings not rejected, includes unverified tool/simulation output. These are NOT confirmed vulnerabilities." trend={{ delta: m.findingsLast30 - m.findingsPrev30, goodWhenDown: true, label: "new vs. previous 30 days" }} to="/findings" />
-          <StatCard label="Confirmed Vulnerabilities" value={m.confirmed} icon={CircleCheckBig} tone="text-sev-high" iconTone="bg-sev-high/10 text-sev-high" tooltip="Findings a human assessor marked Confirmed after reviewing evidence. AI suggestions never count here." sub="human-verified only" to="/findings?status=confirmed" />
-          <StatCard label="Critical Vulnerabilities" value={m.criticalConfirmed} icon={ShieldX} tone={m.criticalConfirmed ? "text-sev-critical" : undefined} iconTone="bg-sev-critical/10 text-sev-critical" tooltip="Confirmed findings with Critical severity." sub="confirmed & critical" to="/findings?status=confirmed&severity=critical" />
-          <StatCard label="Pending Verification" value={m.pendingVerification} icon={Timer} tone="text-sev-medium" iconTone="bg-sev-medium/10 text-sev-medium" tooltip="Findings awaiting a human decision (Pending or Needs Further Review)." sub="awaiting assessor decision" to="/findings?status=unverified" />
-          <StatCard label="Remediation Progress" value={`${m.remediationProgress}%`} icon={Wrench} tone="text-primary" iconTone="bg-primary/10 text-primary" tooltip="Share of remediation tasks Resolved (with manual approval) or Accepted Risk." sub={<Progress value={m.remediationProgress} className="h-1 w-24" />} to="/remediation" />
+          <StatCard label="Websites ready to scan" value={m.authorizedTargets} icon={Globe} tooltip="Websites with confirmed permission that can be scanned. Registering a website never contacts it." sub={`of ${m.registeredTargets} added`} to="/targets" />
+          <StatCard label="Findings to review" value={m.pendingVerification} icon={Timer} tooltip="Findings waiting for a person to decide: real problem or false alarm." sub="awaiting a decision" to="/findings?status=unverified" />
+          <StatCard label="Confirmed problems" value={m.confirmed} icon={CircleCheckBig} tone={m.criticalConfirmed ? "text-sev-critical" : undefined} tooltip="Findings a person confirmed after checking the evidence. AI suggestions never count here." sub={m.criticalConfirmed ? `${m.criticalConfirmed} critical` : "none critical"} to="/findings?status=confirmed" />
+          <StatCard label="Fixes closed" value={`${m.remediationProgress}%`} icon={Wrench} tooltip="Share of fix tasks resolved (with approval) or accepted as a risk." sub={<Progress value={m.remediationProgress} className="h-1 w-24" />} to="/remediation" />
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-        <ChartCard title="Vulnerability Severity Distribution" description="Non-rejected findings by reported severity" summary={`Severity distribution: ${summarize(sevData)}`} raw>
-          <DonutChart data={sevData} centerLabel="findings" centerValue={nonRejected.length} />
-        </ChartCard>
-        <ChartCard title="Findings Over Time" description="Weekly new findings vs. those later confirmed (12 weeks)" summary={`Findings per week: ${trend.map((t) => `${t.week} ${t.total}`).join(", ")}`} className="2xl:col-span-1">
-          <TrendArea data={trend} xKey="week" series={[{ key: "total", name: "New findings", color: "var(--cyan)" }, { key: "confirmed", name: "Confirmed", color: "var(--sev-high)" }]} />
-        </ChartCard>
-        <ChartCard title="Finding Verification Status" description="Human verification decisions across all findings" summary={`Verification status: ${summarize(verData)}`} raw>
-          <DonutChart data={verData} centerLabel="total" centerValue={s.findings.length} />
-        </ChartCard>
-        <ChartCard title="Vulnerabilities by Assessment Category" description="Confirmed vs. unverified per category" summary={`By category: ${catData.map((c) => `${c.name} ${c.confirmed} confirmed, ${c.unverified} unverified`).join("; ")}`}>
-          <StackedBars data={catData} xKey="name" layout="vertical" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)", stack: "a" }]} />
-        </ChartCard>
-        <ChartCard title="Remediation Progress" description={`${m.remediationDone} of ${m.remediationTotal} tasks closed`} summary={`Remediation: ${summarize(remData)}`} raw>
-          <DonutChart data={remData} centerLabel="closed" centerValue={`${m.remediationProgress}%`} />
-        </ChartCard>
-        <ChartCard title="Assessment Activity Timeline" description="Weekly scans (imported/simulated) and verification decisions" summary={`Activity: ${activityTrend.map((a) => `${a.week}: ${a.scans} scans, ${a.verifications} decisions`).join("; ")}`}>
-          <StackedBars data={activityTrend} xKey="week" series={[{ key: "scans", name: "Scans", color: "var(--cyan)" }, { key: "verifications", name: "Verification decisions", color: "var(--primary)" }]} />
-        </ChartCard>
-      </div>
-
       <div className="grid gap-4 xl:grid-cols-3">
         <SectionCard
-          title="Pending Verification Queue"
-          description="Findings waiting for a human decision"
+          title="Waiting on you"
+          icon={Inbox}
+          className="xl:col-span-2"
+          description={work.total ? `${work.total} item${work.total === 1 ? "" : "s"} assigned to you` : undefined}
           actions={
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/findings?status=unverified">
-                View all <ArrowRight />
-              </Link>
-            </Button>
+            work.total > 3 && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/my-work">
+                  See all <ArrowRight />
+                </Link>
+              </Button>
+            )
           }
         >
-          <VerificationQueue findings={queue} targets={lookups.targets} aiSent={aiSent} />
+          {work.total === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nothing waiting on you. New assignments show up here.</p> : <MyWorkList work={work} limit={3} />}
         </SectionCard>
         <SectionCard
-          title="Highest-Priority Risks"
-          description="Open confirmed risks by demo score (likelihood × impact, not CVSS)"
+          title="Recent activity"
+          actions={
+            can(user?.role, "view_activity") && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/activity">
+                  Full log <ArrowRight />
+                </Link>
+              </Button>
+            )
+          }
+        >
+          <RecentActivity items={s.activity} users={lookups.users} limit={6} />
+        </SectionCard>
+      </div>
+
+      {!simpleMode && topRisks.length > 0 && (
+        <SectionCard
+          title="Fix these first"
+          description="Open confirmed risks by score (likelihood × impact, 1–25; not CVSS)"
           actions={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/risks">
+              <Link to="/findings?view=risks">
                 Risk register <ArrowRight />
               </Link>
             </Button>
           }
         >
-          {topRisks.length === 0 ? (
-            <p className="py-6 text-center text-xs text-muted-foreground">No open confirmed risks.</p>
-          ) : (
-            <ul className="-mx-2 space-y-0.5">
-              {topRisks.map(({ r, f }) => {
-                const lvl = riskLevel(r);
-                return (
-                  <li key={r.id}>
-                    <Link to={`/findings/${f!.id}`} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/50">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border text-xs font-bold tabular-nums" style={{ color: RISK_LEVEL_META[lvl].color, borderColor: RISK_LEVEL_META[lvl].color }}>
-                        {riskScore(r.likelihood, r.impact)}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-medium">{r.title}</span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {f!.code} · {lookups.targets[f!.targetId]?.name} · L{r.likelihood} × I{r.impact}
-                        </span>
-                      </span>
-                      <span className="text-[10.5px] font-semibold uppercase" style={{ color: RISK_LEVEL_META[lvl].color }}>
-                        {RISK_LEVEL_META[lvl].label}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </SectionCard>
-        <SectionCard
-          title="Recent Activity"
-          description="Demonstration activity log"
-          actions={
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/activity">
-                Full log <ArrowRight />
-              </Link>
-            </Button>
-          }
-        >
-          <RecentActivity items={s.activity} users={lookups.users} limit={7} />
-        </SectionCard>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <SectionCard title="Recent Assessment Projects" className="xl:col-span-1" actions={<Button variant="ghost" size="sm" asChild><Link to="/projects">All projects <ArrowRight /></Link></Button>}>
           <ul className="-mx-2 space-y-0.5">
-            {recentProjects.map((p) => {
-              const findings = s.findings.filter((f) => f.projectId === p.id);
+            {topRisks.map(({ r, f }) => {
+              const lvl = riskLevel(r);
               return (
-                <li key={p.id}>
-                  <Link to={`/projects/${p.id}`} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/50">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
-                      <FolderKanban className="size-4 text-muted-foreground" />
+                <li key={r.id}>
+                  <Link to={`/findings/${f!.id}`} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/50">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border text-xs font-bold tabular-nums" style={{ color: RISK_LEVEL_META[lvl].color, borderColor: RISK_LEVEL_META[lvl].color }}>
+                      {riskScore(r.likelihood, r.impact)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium">{p.name}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">
-                        <span className="font-mono">{p.code}</span> · {findings.length} findings · updated {formatRelative(p.updatedAt)}
+                      <span className="block truncate text-sm font-medium">{r.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {f!.code} · {lookups.targets[f!.targetId]?.name}
                       </span>
                     </span>
-                    <StatusBadge status={p.status} map={PROJECT_STATUS} />
+                    <span className="text-[11px] font-semibold uppercase" style={{ color: RISK_LEVEL_META[lvl].color }}>
+                      {RISK_LEVEL_META[lvl].label}
+                    </span>
                   </Link>
                 </li>
               );
             })}
           </ul>
         </SectionCard>
-        <SectionCard title="Recent Findings" actions={<Button variant="ghost" size="sm" asChild><Link to="/findings">All findings <ArrowRight /></Link></Button>}>
-          <div className="-mx-2 space-y-0.5">
-            {recentFindings.map((f) => (
-              <FindingRow key={f.id} finding={f} target={lookups.targets[f.targetId]?.name} />
-            ))}
-          </div>
-        </SectionCard>
-        <SectionCard title="Assessment Status Summary" description="Projects and category assessments by status">
-          <div className="space-y-4">
-            <div>
-              <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Projects</p>
-              <div className="grid grid-cols-2 gap-2">
-                {projectStatusCounts.map(({ k, n }) => (
-                  <Link key={k} to={`/projects?status=${k}`} className="flex items-center justify-between rounded-lg border border-border px-2.5 py-1.5 text-xs hover:border-primary/35">
-                    <StatusBadge status={k} map={PROJECT_STATUS} />
-                    <span className="font-semibold tabular-nums">{n}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Category assessments</p>
-              <div className="space-y-2">
-                {asmStatusCounts.map(({ k, n }) => (
-                  <div key={k} className="flex items-center gap-3 text-xs">
-                    <span className="w-24 shrink-0 text-muted-foreground">{ASSESSMENT_STATUS[k].label}</span>
-                    <Progress value={s.assessments.length ? (n / s.assessments.length) * 100 : 0} className="h-1.5 flex-1" indicatorClassName={cn(k === "completed" ? "bg-primary" : k === "in_progress" ? "bg-cyan" : k === "blocked" ? "bg-sev-critical" : "bg-muted-foreground/50")} />
-                    <span className="w-6 text-right font-semibold tabular-nums">{n}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between rounded-md border border-dashed border-border px-3 py-2 text-[11px] text-muted-foreground">
-              <span>Latest scan</span>
-              {s.scans[0] ? (
-                <Link to={`/scans/${s.scans[0].id}`} className="flex items-center gap-2 hover:text-foreground">
-                  <span className="font-mono">{s.scans[0].code}</span>
-                  <ToneBadge tone={s.scans[0].dataOrigin === "simulated" ? "warning" : "cyan"}>{s.scans[0].dataOrigin === "simulated" ? "SIMULATED" : "Imported sample"}</ToneBadge>
-                  <span>{formatDate(s.scans[0].createdAt)}</span>
-                </Link>
-              ) : (
-                <span>none</span>
-              )}
-            </div>
-          </div>
-        </SectionCard>
-      </div>
+      )}
     </ContentContainer>
   );
 }

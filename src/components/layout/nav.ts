@@ -1,19 +1,15 @@
 import {
   Activity,
   BarChart3,
-  Bot,
   ClipboardCheck,
   FileText,
   FolderKanban,
   Gauge,
-  Inbox,
   Plug,
-  Radar,
   ScanLine,
   Settings,
   ShieldAlert,
   Target,
-  TriangleAlert,
   Users,
   Wrench,
   type LucideIcon,
@@ -33,45 +29,45 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+/**
+ * Full menu: every tool, grouped in the order an assessment happens. Names match Simple mode
+ * and the page titles, so a page is called the same thing everywhere.
+ */
 export const NAV: NavGroup[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", to: "/dashboard", icon: Gauge },
-      { label: "My work", to: "/my-work", icon: Inbox },
-      { label: "Security Analytics", to: "/analytics", icon: BarChart3 },
+      { label: "Home", to: "/dashboard", icon: Gauge },
+      { label: "Analytics", to: "/analytics", icon: BarChart3 },
     ],
   },
   {
-    label: "Security Operations",
+    label: "1 · Set up",
     items: [
       { label: "Projects", to: "/projects", icon: FolderKanban },
-      { label: "Target Management", to: "/targets", icon: Target },
-      { label: "Reconnaissance", to: "/reconnaissance", icon: Radar },
-      { label: "Scan Center", to: "/scans", icon: ScanLine },
-      { label: "Vulnerability Assessment", to: "/assessments", icon: ClipboardCheck },
+      { label: "Websites", to: "/targets", icon: Target },
     ],
   },
   {
-    label: "Intelligence",
+    label: "2 · Test",
     items: [
-      { label: "AI Security Analyst", to: "/ai-analyst", icon: Bot, requires: "use_ai" },
-      { label: "Findings & Evidence", to: "/findings", icon: ShieldAlert },
-      { label: "Risk Management", to: "/risks", icon: TriangleAlert },
+      { label: "Scans", to: "/scans", icon: ScanLine },
+      { label: "Checklists", to: "/assessments", icon: ClipboardCheck },
     ],
   },
   {
-    label: "Management",
+    label: "3 · Review & fix",
     items: [
-      { label: "Remediation Tracking", to: "/remediation", icon: Wrench },
+      { label: "Findings", to: "/findings", icon: ShieldAlert },
+      { label: "Fixes", to: "/remediation", icon: Wrench },
       { label: "Reports", to: "/reports", icon: FileText },
-      { label: "Activity Logs", to: "/activity", icon: Activity, requires: "view_activity" },
     ],
   },
   {
-    label: "System",
+    label: "Admin",
     items: [
-      { label: "User Management", to: "/users", icon: Users, requires: "manage_users" },
+      { label: "Activity log", to: "/activity", icon: Activity, requires: "view_activity" },
+      { label: "Users", to: "/users", icon: Users, requires: "manage_users" },
       { label: "Integrations", to: "/integrations", icon: Plug },
       { label: "Settings", to: "/settings", icon: Settings },
     ],
@@ -79,15 +75,14 @@ export const NAV: NavGroup[] = [
 ];
 
 /**
- * Simple mode menu: the assessment workflow in order, with plain names. Every other page is
- * still reachable (links, search, "Show all tools"), it just isn't in the way.
+ * Simple mode menu: the five assessment steps in order. Every other page is still reachable
+ * (links, search, "Show all tools"), it just isn't in the way. "My work" lives on Home.
  */
 export const SIMPLE_NAV: NavGroup[] = [
   {
     label: "Your assessment",
     items: [
-      { label: "Dashboard", to: "/dashboard", icon: Gauge },
-      { label: "My work", to: "/my-work", icon: Inbox },
+      { label: "Home", to: "/dashboard", icon: Gauge },
       { label: "Websites", to: "/targets", icon: Target },
       { label: "Scans", to: "/scans", icon: ScanLine },
       { label: "Findings", to: "/findings", icon: ShieldAlert },
@@ -105,21 +100,21 @@ export const SIMPLE_NAV: NavGroup[] = [
 ];
 
 export const ROUTE_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
+  dashboard: "Home",
   "my-work": "My work",
-  analytics: "Security Analytics",
+  analytics: "Analytics",
   projects: "Projects",
-  targets: "Target Management",
+  targets: "Websites",
   reconnaissance: "Reconnaissance",
-  scans: "Scan Center",
-  assessments: "Vulnerability Assessment",
-  "ai-analyst": "AI Security Analyst",
-  findings: "Findings & Evidence",
-  risks: "Risk Management",
-  remediation: "Remediation Tracking",
+  scans: "Scans",
+  assessments: "Checklists",
+  "ai-analyst": "AI analyst",
+  findings: "Findings",
+  risks: "Risks",
+  remediation: "Fixes",
   reports: "Reports",
-  activity: "Activity Logs",
-  users: "User Management",
+  activity: "Activity log",
+  users: "Users",
   integrations: "Integrations",
   settings: "Settings",
   new: "New",

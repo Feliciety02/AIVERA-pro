@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
-import { Switch } from "@/components/ui/misc";
+import { Checkbox } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field } from "./fields";
 import { useDataStore } from "@/stores/dataStore";
@@ -51,7 +51,7 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
 
   const submit = async (v: Values) => {
     const task = await remediationService.create({ ...v, findingId: finding.id, dueDate: new Date(`${v.dueDate}T00:00:00Z`).toISOString() });
-    toast.success(`Created ${task.code}`, { description: "Track progress in Remediation Tracking." });
+    toast.success(`Created ${task.code}`, { description: "Track progress on the Fixes page." });
     onOpenChange(false);
     onCreated?.(task.id);
   };
@@ -98,12 +98,12 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
             </Field>
           </div>
           <Controller control={control} name="retestRequired" render={({ field }) => (
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <label className="flex items-start gap-3 rounded-xl border border-border p-3">
+              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} className="mt-0.5" />
               <span>
                 <span className="block text-sm font-medium">Require retest before resolution</span>
                 <span className="block text-[11px] text-muted-foreground">Recommended. The task cannot be resolved until a manual retest passes.</span>
               </span>
-              <Switch checked={field.value} onCheckedChange={field.onChange} aria-label="Require retest" />
             </label>
           )} />
         </form>

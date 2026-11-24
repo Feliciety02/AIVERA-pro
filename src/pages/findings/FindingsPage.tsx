@@ -6,6 +6,10 @@ import { Download, Eye, FileCheck2, FileX2, Hand, ShieldAlert, UserPlus } from "
 import { ManualFindingDialog } from "@/components/forms/ManualFindingDialog";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { ViewSwitch, useView } from "@/components/shared/ViewSwitch";
+import { RisksView } from "@/pages/risks/RisksPage";
+
+const VIEWS = [{ value: "list", label: "All findings" }, { value: "risks", label: "Risk priority" }] as const;
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Hint } from "@/components/ui/misc";
@@ -28,7 +32,7 @@ import type { FindingSource, VerificationStatus, VulnerabilityFinding } from "@/
 const PARAM_KEYS = ["status", "severity", "category", "tool", "origin", "assessor", "project", "target", "scan"] as const;
 
 export default function FindingsPage() {
-  useDocumentTitle("Findings & Evidence");
+  useDocumentTitle("Findings");
   const loading = useInitialLoading();
   const navigate = useNavigate();
   const user = useCurrentUser();
@@ -142,13 +146,14 @@ export default function FindingsPage() {
     toast.success(`Exported ${list.length} finding(s) to CSV`);
   };
 
+  const view = useView(VIEWS);
   const active = PARAM_KEYS.some((k) => params.has(k)) || !!q;
   const scopeChips = (["project", "target", "scan"] as const).filter((k) => params.has(k));
 
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Findings & Evidence"
+        title="Findings"
         description="Central register of potential vulnerabilities. Every finding requires a human verification decision; only Confirmed findings count as vulnerabilities."
         actions={
           <>
@@ -163,6 +168,11 @@ export default function FindingsPage() {
           </>
         }
       />
+      <ViewSwitch options={VIEWS} label="Findings view" />
+      {view === "risks" ? (
+        <RisksView />
+      ) : (
+        <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {(["pending", "needs_review", "confirmed", "rejected"] as VerificationStatus[]).map((s) => (
           <button key={s} type="button" onClick={() => set("status")(get("status") === s ? ALL : s)} className="text-left">
@@ -225,9 +235,12 @@ export default function FindingsPage() {
               <span className="text-[11px] text-muted-foreground">Bulk confirmation is intentionally unavailable, each finding needs an individual human decision.</span>
             </>
           )}
-          empty={<EmptyState icon={ShieldAlert} title="No findings match" description="Adjust filters, or run a demo simulation from the Scan Center." action={<Button size="sm" variant="outline" asChild><Link to="/scans/new">Configure demo scan</Link></Button>} />}
+          empty={<EmptyState icon={ShieldAlert} title="No findings match" description="Adjust filters, or run a demo simulation from the Scans page." action={<Button size="sm" variant="outline" asChild><Link to="/scans/new">Configure demo scan</Link></Button>} />}
         />
       </Card>
+
+        </>
+      )}
 
       <Sheet open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <SheetContent>

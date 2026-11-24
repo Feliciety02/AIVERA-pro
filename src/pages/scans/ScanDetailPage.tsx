@@ -5,16 +5,16 @@ import { Bot, CircleStop, Pause, Play, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/misc";
-import { SectionCard, KeyValue, CodeBlock, Callout } from "@/components/shared/display";
+import { KeyValue, CodeBlock } from "@/components/shared/display";
+import { Collapsible, ContentCard, DetailLayout, FactList, SidePanel } from "@/components/shared/DetailLayout";
 import { NotFoundState, EmptyState } from "@/components/shared/states";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { StatusBadge, OriginBadge, ToolBadge, ToneBadge } from "@/components/security/badges";
+import { StatusBadge } from "@/components/security/badges";
 import { ScanProgress } from "@/components/security/ScanProgress";
 import { FindingRow } from "@/components/dashboard/widgets";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
-import { CATEGORY_BY_ID, SCAN_PROFILES, SCAN_STATUS, TOOL_META } from "@/lib/constants";
+import { CATEGORY_BY_ID, DATA_ORIGIN, SCAN_PROFILES, SCAN_STATUS, TOOL_META } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { IS_API, scanService } from "@/services";
@@ -37,7 +37,7 @@ export default function ScanDetailPage() {
   if (!scan)
     return (
       <ContentContainer>
-        <NotFoundState entity="Scan" backTo="/scans" backLabel="Back to Scan Center" />
+        <NotFoundState entity="Scan" backTo="/scans" backLabel="Back to Scans" />
       </ContentContainer>
     );
 
@@ -46,115 +46,139 @@ export default function ScanDetailPage() {
   const scanFindings = findings.filter((f) => f.scanId === scan.id);
   const running = scan.status === "running" || scan.status === "queued";
 
+  const canDemo = scan.dataOrigin === "simulated" && can(user?.role, "run_demo_scans");
+
   return (
-    <ContentContainer>
+    <ContentContainer wide>
       <PageHeader
-        eyebrow={<><span className="font-mono">{scan.code}</span><span>·</span><Link className="hover:text-foreground" to={`/projects/${scan.projectId}`}>{lookups.projects[scan.projectId]?.code}</Link></>}
+        eyebrow={
+          <>
+            <Link to="/scans" className="hover:text-foreground">Scans</Link>
+            <span>/</span>
+            <span className="font-mono">{scan.code}</span>
+          </>
+        }
         title={scan.name}
         meta={
           <>
             <StatusBadge status={scan.status} map={SCAN_STATUS} />
-            <OriginBadge origin={scan.dataOrigin} />
-            {scan.config.tools.map((t) => <ToolBadge key={t} tool={t} />)}
-          </>
-        }
-        actions={
-          <>
-            {/* Demo simulations run step by step in the browser, so they can be paused, continued or stopped. */}
-            {scan.dataOrigin === "simulated" && !IS_API && can(user?.role, "run_demo_scans") && scan.status === "running" && (
-              <Button variant="outline" size="sm" onClick={() => void scanService.pause(scan.id).then(() => toast("Simulation paused", { description: `Stopped at ${scan.progress}%. Continue whenever you're ready.` }))}>
-                <Pause /> Pause
-              </Button>
-            )}
-            {scan.dataOrigin === "simulated" && !IS_API && can(user?.role, "run_demo_scans") && scan.status === "paused" && (
-              <Button size="sm" onClick={() => void scanService.resume(scan.id, (count) => toast.success(`Simulation ${scan.code} finished`, { description: `${count} SIMULATED finding(s) await human verification.` })).then(() => toast("Simulation continued"))}>
-                <Play /> Continue
-              </Button>
-            )}
-            {(running || scan.status === "paused") && scan.dataOrigin === "simulated" && can(user?.role, "run_demo_scans") && (
-              <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
-                <CircleStop /> Stop
-              </Button>
-            )}
-            {scan.status === "completed" && can(user?.role, "use_ai") && (
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/ai-analyst?scan=${scan.id}&mode=scan_interpretation`}>
-                  <Bot /> Interpret results with AI
-                </Link>
-              </Button>
-            )}
-            {scanFindings.length > 0 && (
-              <Button size="sm" asChild>
-                <Link to={`/findings?scan=${scan.id}`}>
-                  <ShieldAlert /> Review {scanFindings.length} finding(s)
-                </Link>
-              </Button>
-            )}
+            <span className="text-xs text-muted-foreground">
+              on <Link to={`/targets/${scan.targetId}`} className="font-medium text-foreground hover:text-primary">{target?.name}</Link>
+            </span>
           </>
         }
       />
 
-      {scan.dataOrigin === "simulated" && (
-        <Callout tone="demo" title="SIMULATED scan">
-          This record was produced by the in-browser demo simulation. Its results and findings are synthetic, are labelled SIMULATED everywhere, and are never converted into real evidence. Each finding still requires human verification.
-        </Callout>
-      )}
-
-      <SectionCard title="Progress">
-        <ScanProgress scan={scan} />
-        {scan.errorMessage && <p className="mt-3 rounded-md border border-sev-critical/30 bg-sev-critical/5 px-3 py-2 text-xs text-sev-critical">{scan.errorMessage}</p>}
-      </SectionCard>
-
-      <Tabs defaultValue={scanFindings.length ? "findings" : "config"}>
-        <TabsList>
-          <TabsTrigger value="findings">Findings ({scanFindings.length})</TabsTrigger>
-          <TabsTrigger value="results">Tool output ({scanResults.length})</TabsTrigger>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-        </TabsList>
-        <TabsContent value="findings">
-          <SectionCard title="Findings from this scan" description="All are unverified until an assessor records a decision.">
-            {scanFindings.length ? (
-              <div className="-mx-2 space-y-0.5">{scanFindings.map((f) => <FindingRow key={f.id} finding={f} target={target?.name} />)}</div>
-            ) : (
-              <EmptyState compact title={running ? "Assessment in progress…" : "No findings recorded"} description={running ? "Findings will appear when the assessment completes." : undefined} />
+      <DetailLayout
+        aside={
+          <>
+            <SidePanel tone="primary" title="Status">
+              <ScanProgress scan={scan} stages={false} />
+              {scan.errorMessage && <p className="rounded-md border border-sev-critical/30 bg-sev-critical/5 px-3 py-2 text-xs text-sev-critical">{scan.errorMessage}</p>}
+              <div className="space-y-2">
+                {scanFindings.length > 0 && (
+                  <Button className="w-full" asChild>
+                    <Link to={`/findings?scan=${scan.id}`}>
+                      <ShieldAlert /> Review {scanFindings.length} finding{scanFindings.length === 1 ? "" : "s"}
+                    </Link>
+                  </Button>
+                )}
+                {/* Demo simulations run step by step in the browser, so they can be paused, continued or stopped. */}
+                {canDemo && !IS_API && scan.status === "paused" && (
+                  <Button className="w-full" onClick={() => void scanService.resume(scan.id, (count) => toast.success(`Simulation ${scan.code} finished`, { description: `${count} SIMULATED finding(s) await human verification.` })).then(() => toast("Simulation continued"))}>
+                    <Play /> Continue
+                  </Button>
+                )}
+                {canDemo && (running || scan.status === "paused") && (
+                  <div className="flex gap-2">
+                    {!IS_API && scan.status === "running" && (
+                      <Button variant="warning-outline" size="sm" className="flex-1" onClick={() => void scanService.pause(scan.id).then(() => toast("Simulation paused", { description: `Stopped at ${scan.progress}%. Continue whenever you're ready.` }))}>
+                        <Pause /> Pause
+                      </Button>
+                    )}
+                    <Button variant="destructive-outline" size="sm" className="flex-1" onClick={() => setCancelOpen(true)}>
+                      <CircleStop /> Stop
+                    </Button>
+                  </div>
+                )}
+                {scan.status === "completed" && can(user?.role, "use_ai") && (
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link to={`/ai-analyst?scan=${scan.id}&mode=scan_interpretation`}>
+                      <Bot /> Explain these results with AI
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </SidePanel>
+            <SidePanel title="Details">
+              <FactList
+                items={[
+                  { label: "Website", value: target ? <Link to={`/targets/${target.id}`} className="hover:text-primary">{target.name}</Link> : "N/A" },
+                  { label: "Project", value: <Link to={`/projects/${scan.projectId}`} className="hover:text-primary">{lookups.projects[scan.projectId]?.code ?? "N/A"}</Link> },
+                  { label: "Profile", value: SCAN_PROFILES[scan.config.profile].label },
+                  { label: "Tools", value: scan.config.tools.map((t) => TOOL_META[t].label).join(", ") },
+                  { label: "Speed", value: `${scan.config.requestsPerSecond} req/s, max ${scan.config.timeLimitMinutes} min` },
+                  { label: "Data", value: DATA_ORIGIN[scan.dataOrigin].label },
+                  { label: "Started by", value: lookups.users[scan.createdBy]?.name ?? "N/A" },
+                  { label: "Started", value: formatDateTime(scan.startedAt) },
+                  scan.completedAt ? { label: "Finished", value: formatDateTime(scan.completedAt) } : null,
+                ]}
+              />
+            </SidePanel>
+          </>
+        }
+        main={
+          <>
+            {scan.dataOrigin === "simulated" && (running || scan.status === "paused") && (
+              <ContentCard title="Progress">
+                <ScanProgress scan={scan} />
+              </ContentCard>
             )}
-          </SectionCard>
-        </TabsContent>
-        <TabsContent value="results" className="space-y-4">
-          {scanResults.length === 0 && <EmptyState title="No tool output yet" />}
-          {scanResults.map((r) => (
-            <SectionCard key={r.id} title={TOOL_META[r.tool].label} description={r.summary} actions={<><OriginBadge origin={r.dataOrigin} /><ToneBadge tone="muted">{r.itemsFound} items</ToneBadge></>}>
-              <CodeBlock label={`${TOOL_META[r.tool].label} output`}>{r.rawOutput}</CodeBlock>
-              <p className="mt-2 text-[11px] text-muted-foreground">Recorded {formatDateTime(r.recordedAt)}</p>
-            </SectionCard>
-          ))}
-        </TabsContent>
-        <TabsContent value="config">
-          <SectionCard title="Configuration & scope snapshot">
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <KeyValue label="Target">{target?.name}<span className="block font-mono text-[11px] text-muted-foreground">{target?.url}</span></KeyValue>
-              <KeyValue label="Profile">{SCAN_PROFILES[scan.config.profile].label}</KeyValue>
-              <KeyValue label="Categories">{scan.config.categories.map((c) => CATEGORY_BY_ID[c].short).join(", ")}</KeyValue>
-              <KeyValue label="Rate limit">{scan.config.requestsPerSecond} req/s</KeyValue>
-              <KeyValue label="Time limit">{scan.config.timeLimitMinutes} min</KeyValue>
-              <KeyValue label="Concurrency">{scan.config.maxConcurrency}</KeyValue>
-              <KeyValue label="Output format">{scan.config.outputFormat.toUpperCase()}</KeyValue>
-              <KeyValue label="Exclusions enforced">{scan.config.respectExclusions ? "Yes" : "No"}</KeyValue>
-              <KeyValue label="Scope confirmed">{scan.config.scopeConfirmed ? "Yes" : "No"}</KeyValue>
-              <KeyValue label="Created by">{lookups.users[scan.createdBy]?.name}</KeyValue>
-              <KeyValue label="Started">{formatDateTime(scan.startedAt)}</KeyValue>
-              <KeyValue label="Completed">{formatDateTime(scan.completedAt)}</KeyValue>
-              <KeyValue label="Excluded paths" mono className="sm:col-span-2 lg:col-span-3">{target?.scope.excludedPaths.join(", ") || "none"}</KeyValue>
-            </dl>
-          </SectionCard>
-        </TabsContent>
-      </Tabs>
+
+            <ContentCard title="Findings" count={scanFindings.length} action={scanFindings.length > 0 && <span className="text-xs text-muted-foreground">Unverified until a person decides</span>}>
+              {scanFindings.length ? (
+                <div className="-mx-2 space-y-0.5">{scanFindings.map((f) => <FindingRow key={f.id} finding={f} target={target?.name} />)}</div>
+              ) : (
+                <EmptyState compact title={running ? "Scan in progress…" : "No findings recorded"} description={running ? "Findings appear here when the scan completes." : undefined} />
+              )}
+            </ContentCard>
+
+            <Collapsible title={`Tool output (${scanResults.length})`} hint="Raw output from each tool">
+              <div className="space-y-4">
+                {scanResults.length === 0 && <EmptyState compact title="No tool output yet" />}
+                {scanResults.map((r) => (
+                  <div key={r.id}>
+                    <p className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-sm">
+                      <span className="font-medium">{TOOL_META[r.tool].label}</span>
+                      <span className="text-xs text-muted-foreground">{r.itemsFound} items · {formatDateTime(r.recordedAt)}</span>
+                    </p>
+                    {r.summary && <p className="mb-2 text-xs text-muted-foreground">{r.summary}</p>}
+                    <CodeBlock label={`${TOOL_META[r.tool].label} output`}>{r.rawOutput}</CodeBlock>
+                  </div>
+                ))}
+              </div>
+            </Collapsible>
+
+            <Collapsible title="Scan settings" hint="Categories, limits and scope">
+              <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <KeyValue label="Address" mono>{target?.url}</KeyValue>
+                <KeyValue label="Categories">{scan.config.categories.map((c) => CATEGORY_BY_ID[c].short).join(", ")}</KeyValue>
+                <KeyValue label="Concurrency">{scan.config.maxConcurrency}</KeyValue>
+                <KeyValue label="Output format">{scan.config.outputFormat.toUpperCase()}</KeyValue>
+                <KeyValue label="Exclusions enforced">{scan.config.respectExclusions ? "Yes" : "No"}</KeyValue>
+                <KeyValue label="Scope confirmed">{scan.config.scopeConfirmed ? "Yes" : "No"}</KeyValue>
+                <KeyValue label="Excluded paths" mono className="sm:col-span-2 lg:col-span-3">{target?.scope.excludedPaths.join(", ") || "none"}</KeyValue>
+              </dl>
+            </Collapsible>
+          </>
+        }
+      />
 
       <ConfirmDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Stop this simulation?"
-        description="The simulated run ends here and no findings will be generated. To clear all practice data, use Reset simulated data on the Scan Center page."
+        description="The simulated run ends here and no findings will be generated. To clear all practice data, use Reset simulated data on the Scans page."
         confirmLabel="Stop simulation"
         destructive
         onConfirm={async () => {

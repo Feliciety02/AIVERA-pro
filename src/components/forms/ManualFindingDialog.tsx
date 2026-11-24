@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Callout } from "@/components/shared/display";
 import { Field } from "./fields";
 import { useDataStore } from "@/stores/dataStore";
 import { CATEGORIES, SEVERITIES, SEVERITY_META } from "@/lib/constants";
@@ -95,10 +94,9 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Hand className="size-4" /> Record manual finding</DialogTitle>
-          <DialogDescription>Document an issue you observed during manual testing within the authorized scope.</DialogDescription>
+          <DialogDescription>Something you found yourself. It starts as unverified until someone confirms it.</DialogDescription>
         </DialogHeader>
         <DialogGuide guideKey="manualFinding" steps={DIALOG_GUIDES.manualFinding} />
-        <Callout>Recording a finding does not confirm it. It enters the verification queue as <strong>Pending Verification</strong>; confirming is a separate, explicit decision.</Callout>
         <form id="manual-finding" onSubmit={handleSubmit(submit)} className="grid gap-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="mf-target" label="Target" required error={errors.targetId?.message}>

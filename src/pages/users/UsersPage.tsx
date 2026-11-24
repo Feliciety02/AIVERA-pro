@@ -3,7 +3,7 @@ import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
-import { Check, Minus, ShieldAlert, UserCog } from "lucide-react";
+import { Check, Minus,  UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -91,7 +91,7 @@ function UserEditor({ user, onClose, isSelf }: { user: User; onClose: () => void
 }
 
 export default function UsersPage() {
-  useDocumentTitle("User Management");
+  useDocumentTitle("Users");
   const loading = useInitialLoading();
   const me = useCurrentUser();
   const lookups = useLookups();
@@ -102,7 +102,7 @@ export default function UsersPage() {
   if (!can(me?.role, "manage_users"))
     return (
       <ContentContainer>
-        <PageHeader title="User Management" />
+        <PageHeader title="Users" />
         <Callout tone="warning">Only an administrator can manage users.</Callout>
       </ContentContainer>
     );
@@ -122,10 +122,7 @@ export default function UsersPage() {
 
   return (
     <ContentContainer wide>
-      <PageHeader title="User Management" description="Manage accounts, roles and project assignments." />
-      <Callout tone="info" icon={ShieldAlert} title="How roles work">
-        Highest first: Administrator, Security Lead, Security Assessor, Remediation Owner, Viewer. The server checks every request, and people only see the projects they are on. Nobody approves their own work: whoever confirms a critical finding, owns a fix or writes a report needs someone else to sign it off.
-      </Callout>
+      <PageHeader title="Users" description="Manage accounts, roles and project assignments." />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <MiniStat label="Users" value={users.length} />
         {ROLES.map((r) => <MiniStat key={r} label={ROLE_META[r].label} value={users.filter((u) => u.role === r).length} />)}

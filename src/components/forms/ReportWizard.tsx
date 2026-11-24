@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
-import { Checkbox, Switch } from "@/components/ui/misc";
+import { Checkbox } from "@/components/ui/misc";
 import { Label } from "@/components/ui/label";
 import { Callout } from "@/components/shared/display";
 import { EmptyState } from "@/components/shared/states";
@@ -107,6 +107,15 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
     }
   };
 
+  // Reaching the summary step drafts the executive summary once, so nobody starts from a blank box.
+  const autoDrafted = React.useRef(false);
+  React.useEffect(() => {
+    if (step === 4 && !summary.trim() && !autoDrafted.current && project) {
+      autoDrafted.current = true;
+      draftSummary().catch(() => toast.error("Could not draft the summary", { description: "Write one, or try Draft summary again." }));
+    }
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const generate = async () => {
     if (!draft) return;
     setSaving(true);
@@ -190,12 +199,12 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
                     ))}
                   </ul>
                 )}
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                <label className="flex items-start gap-3 rounded-xl border border-border p-3">
+                  <Checkbox checked={includeUnverified} onCheckedChange={(v) => setIncludeUnverified(v === true)} className="mt-0.5" />
                   <span>
                     <span className="block text-sm font-medium">Include unverified observations appendix</span>
                     <span className="block text-[11px] text-muted-foreground">{unverifiedCount} observation(s). Clearly separated and labelled as NOT verified.</span>
                   </span>
-                  <Switch checked={includeUnverified} onCheckedChange={setIncludeUnverified} aria-label="Include unverified appendix" />
                 </label>
               </>
             )}
@@ -213,17 +222,17 @@ export function ReportWizard({ initialProjectId, initialTemplate, userId, onCanc
                     <ChoiceCard key={s.key} checked={sections.includes(s.key)} disabled={s.required} onToggle={() => setSections(sections.includes(s.key) ? sections.filter((x) => x !== s.key) : [...sections, s.key])} title={s.label} badge={s.required ? <ToneBadge tone="muted">Required</ToneBadge> : undefined} />
                   ))}
                 </div>
-                <Field id="rp-sum" label="Executive summary" hint="Write your own, or draft one from the sample AI adapter and edit it.">
+                <Field id="rp-sum" label="Executive summary" hint="Drafted for you from the findings. Read it and edit anything that is not right.">
                   <Textarea id="rp-sum" rows={5} value={summary} onChange={(e) => setSummary(e.target.value)} />
                 </Field>
                 <Button variant="outline" size="sm" onClick={draftSummary} disabled={drafting}>
-                  {drafting ? <Loader2 className="animate-spin" /> : <Bot />} Draft summary (Sample AI, Demo Mode)
+                  {drafting ? <Loader2 className="animate-spin" /> : <Bot />} Redraft summary
                 </Button>
                 {IS_API ? (
                   <p className="text-xs text-muted-foreground">Saved as a draft. Submit it from the report page and a Security Lead approves it as final.</p>
                 ) : (
                   <label className="flex items-center gap-3 text-sm">
-                    <Switch checked={final} onCheckedChange={setFinal} aria-label="Mark as final" /> Mark as final (visible to Viewers)
+                    <Checkbox checked={final} onCheckedChange={(v) => setFinal(v === true)} /> Mark as final (visible to Viewers)
                   </label>
                 )}
               </>

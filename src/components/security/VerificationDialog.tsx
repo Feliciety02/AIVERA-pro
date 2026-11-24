@@ -3,7 +3,7 @@ import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import { CircleCheck, CircleX, Loader2, ShieldQuestion, Sparkles, Timer, TriangleAlert } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import { findBlanks, suggestVerification } from "@/features/verificationSuggestions";
+import { blankOptions, fillAllBlanks, fillBlank, findBlanks, suggestVerification } from "@/features/verificationSuggestions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +19,6 @@ import { VERIFICATION_STATUS } from "@/lib/constants";
 import { formatDateTime, nowISO } from "@/lib/format";
 import { verificationService } from "@/services";
 import type { VerificationStatus, VulnerabilityFinding } from "@/types";
-import { SeverityBadge, OriginBadge } from "./badges";
 
 const ICONS: Record<VerificationStatus, typeof CircleCheck> = { confirmed: CircleCheck, rejected: CircleX, needs_review: ShieldQuestion, pending: Timer };
 
@@ -100,58 +99,36 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
           </DialogDescription>
         </DialogHeader>
         {stage === "form" && <DialogGuide guideKey="verification" steps={DIALOG_GUIDES.verification} />}
-        <div className="flex flex-wrap gap-2">
-          <SeverityBadge severity={finding.severity} />
-          <OriginBadge origin={finding.dataOrigin} />
-        </div>
-
         {stage === "form" ? (
           <div className="space-y-4">
-            {finding.dataOrigin === "simulated" && isConfirm && (
-              <Callout tone="demo" title="Simulated finding">
-                Confirming a SIMULATED finding records a demo decision only. It remains labelled SIMULATED and is not real evidence of a vulnerability.
-              </Callout>
-            )}
+            {finding.dataOrigin === "simulated" && isConfirm && <p className="text-xs text-warning">Practice data: this only records a demo decision.</p>}
             {suggestion && (
-              <div data-guide="v-autofill" className="rounded-xl border border-primary/25 bg-primary/[0.05] p-3.5 text-sm">
+              <div data-guide="v-autofill" className="space-y-1.5 rounded-xl bg-muted/50 px-3.5 py-2.5 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Sparkles className="size-4 text-primary" aria-hidden />
-                  <span className="font-medium">Autofilled: {suggestion.label}</span>
-                  {suggestion.recommend && (
-                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", suggestion.recommend === status ? "bg-success/12 text-success" : "bg-sev-medium/15 text-warning")}>
-                      Usually: {VERIFICATION_STATUS[suggestion.recommend].label}
-                    </span>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="ml-auto h-7 text-primary"
-                    onClick={() => {
-                      setNotes(suggestion.notes);
-                      setReason(suggestion.reason);
-                      setErr(null);
-                    }}
-                  >
-                    Refill
-                  </Button>
+                  <Sparkles className="size-3.5 text-primary" aria-hidden />
+                  <span className="text-muted-foreground">
+                    Filled in for you{notesBlanks.length + reasonBlanks.length > 0 ? ". Pick an answer for each [ ] or skip them." : "."}
+                  </span>
+                  <span className="ml-auto flex gap-1">
+                    {(notesBlanks.length > 0 || reasonBlanks.length > 0) && (
+                      <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => { setNotes(fillAllBlanks(notes)); setReason(fillAllBlanks(reason)); setErr(null); }}>
+                        Skip the rest
+                      </Button>
+                    )}
+                    <Button type="button" size="sm" variant="ghost" className="h-7 text-primary" onClick={() => { setNotes(suggestion.notes); setReason(suggestion.reason); setErr(null); }}>
+                      Refill
+                    </Button>
+                  </span>
                 </div>
-                {suggestion.why && <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{suggestion.why}</p>}
-                {suggestion.recommend && suggestion.recommend !== status && (
-                  <p className="mt-1.5 text-xs font-medium text-warning">
-                    You're marking it {VERIFICATION_STATUS[status].label}, but findings like this are usually {VERIFICATION_STATUS[suggestion.recommend].label}. That's fine if your check shows otherwise.
-                  </p>
-                )}
-                <p className="mt-1.5 text-xs text-muted-foreground">Read and edit the text below. Fill in every highlighted [ ] part with what you actually saw.</p>
               </div>
             )}
             <Field id="v-notes" label="Verification notes" required={status !== "pending"}>
-              <Textarea id="v-notes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did you verify? Steps, observations, environment…" className={cn(notesBlanks.length > 0 && "border-warning/70")} />
-              <BlankHint blanks={notesBlanks} />
+              <Textarea id="v-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did you verify? Steps, observations, environment…" className={cn(notesBlanks.length > 0 && "border-warning/70")} />
+              <BlankFiller text={notes} onChange={setNotes} />
             </Field>
             <Field id="v-reason" label="Decision reason" required>
               <Textarea id="v-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={isConfirm ? "e.g. Reproduced manually; impact consistent with description" : status === "rejected" ? "e.g. False positive, compensating control verified" : "e.g. Requires owner input"} className={cn(reasonBlanks.length > 0 && "border-warning/70")} />
-              <BlankHint blanks={reasonBlanks} />
+              <BlankFiller text={reason} onChange={setReason} />
               {suggestion && (
                 <div className="flex flex-wrap gap-1.5 pt-1" aria-label="Quick reasons">
                   {suggestion.reasonChips.map((c) => (
@@ -173,10 +150,7 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
                 <Label htmlFor="v-reviewed" className="text-sm leading-snug">I reviewed the technical evidence attached to this finding{needsEvidence ? " (required)" : ""}.</Label>
               </div>
             )}
-            <dl className="grid grid-cols-2 gap-3 rounded-md border border-dashed border-border p-3 text-xs">
-              <div><dt className="text-muted-foreground">Assessor</dt><dd className="font-medium">{user?.name}</dd></div>
-              <div><dt className="text-muted-foreground">Verification date</dt><dd className="font-medium">{formatDateTime(nowISO())}</dd></div>
-            </dl>
+            <p className="text-[11px] text-muted-foreground">Recorded as {user?.name}, {formatDateTime(nowISO())}</p>
             {err && <p role="alert" className="text-xs text-destructive">{err}</p>}
           </div>
         ) : (
@@ -191,7 +165,7 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
           </Button>
           <Button
             data-guide="v-submit"
-            variant={status === "rejected" ? "secondary" : isConfirm ? "destructive" : "default"}
+            variant={status === "rejected" ? "success" : isConfirm ? "destructive" : status === "needs_review" ? "warning" : "default"}
             disabled={busy}
             onClick={() => {
               const e = validate();
@@ -202,7 +176,9 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
             }}
           >
             {busy && <Loader2 className="animate-spin" />}
-            {isConfirm ? (stage === "confirm" ? "Yes, confirm vulnerability" : "Continue") : `Mark ${VERIFICATION_STATUS[status].label}`}
+            {isConfirm
+              ? stage === "confirm" ? "Yes, it is a real problem" : settings.requireConfirmBeforeVerify ? "Continue" : "Save as real problem"
+              : status === "rejected" ? "Save as false alarm" : status === "needs_review" ? "Save as not sure" : "Undo decision"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -210,12 +186,26 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
   );
 }
 
-/** Lists the [ ] parts still waiting for the assessor. */
-function BlankHint({ blanks }: { blanks: string[] }) {
+/** One row per [ ] part still open, with its ready answers as buttons, so nothing has to be typed. */
+function BlankFiller({ text, onChange }: { text: string; onChange: (t: string) => void }) {
+  const blanks = [...new Set(findBlanks(text))];
   if (!blanks.length) return null;
+  const chip = "rounded-full border border-border px-2.5 py-0.5 text-xs transition-colors hover:border-primary hover:bg-primary/8 hover:text-primary";
   return (
-    <p className="text-xs text-warning">
-      Fill in {blanks.length === 1 ? "this part" : `these ${blanks.length} parts`}: {blanks.map((b) => <code key={b} className="mx-0.5 rounded bg-sev-medium/15 px-1 font-mono text-[11px]">{b}</code>)}
-    </p>
+    <ul className="space-y-1.5 pt-1" aria-label="Parts to fill">
+      {blanks.map((b) => (
+        <li key={b} className="flex flex-wrap items-center gap-1.5">
+          <code className="rounded bg-sev-medium/15 px-1 font-mono text-[11px] text-warning">{b}</code>
+          {blankOptions(b).map((o) => (
+            <button key={o} type="button" className={chip} onClick={() => onChange(fillBlank(text, b, o))}>
+              {o}
+            </button>
+          ))}
+          <button type="button" className={cn(chip, "text-muted-foreground")} onClick={() => onChange(fillBlank(text, b, ""))}>
+            Leave out
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

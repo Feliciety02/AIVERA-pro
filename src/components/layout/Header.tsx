@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Link, useLocation, useNavigate } from "react-router";
-import { Bell, CheckCheck, ChevronRight, CircleHelp, FlaskConical, LogOut, Menu, Moon, Search, Settings, Sun, Trash2, UserRoundCog, Users } from "lucide-react";
+import { useLocation, useNavigate } from "react-router";
+import { Bell, CheckCheck, CircleHelp, LogOut, Menu, Moon, Search, Settings, Sun, Trash2, UserRoundCog, Users } from "lucide-react";
 import { tourForPath } from "@/features/tours";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger, Hint, Avatar } from "@/components/ui/misc";
@@ -12,57 +12,7 @@ import { cn, initials } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
 import { ROLE_META } from "@/lib/constants";
 import { authService, IS_API, notificationService, settingsService } from "@/services";
-import { ROUTE_LABELS } from "./nav";
 import { GlobalSearch } from "./GlobalSearch";
-
-function useEntityLabel(segment: string): string | undefined {
-  return useDataStore((s) => {
-    if (segment.startsWith("prj-")) return s.projects.find((p) => p.id === segment)?.code;
-    if (segment.startsWith("tgt-")) return s.targets.find((t) => t.id === segment)?.name;
-    if (segment.startsWith("scn-")) return s.scans.find((t) => t.id === segment)?.code;
-    if (segment.startsWith("fnd-")) return s.findings.find((t) => t.id === segment)?.code;
-    if (segment.startsWith("rpt-")) return s.reports.find((t) => t.id === segment)?.code;
-    return undefined;
-  });
-}
-
-function Crumb({ segment, to, last }: { segment: string; to: string; last: boolean }) {
-  const entity = useEntityLabel(segment);
-  const label = entity ?? ROUTE_LABELS[segment] ?? segment.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  return (
-    <li className="flex min-w-0 items-center gap-1.5">
-      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
-      {last ? (
-        <span aria-current="page" className="truncate font-medium text-foreground">
-          {label}
-        </span>
-      ) : (
-        <Link to={to} className="truncate text-muted-foreground hover:text-foreground">
-          {label}
-        </Link>
-      )}
-    </li>
-  );
-}
-
-export function Breadcrumbs() {
-  const { pathname } = useLocation();
-  const segments = pathname.split("/").filter(Boolean);
-  return (
-    <nav aria-label="Breadcrumb" className="hidden max-w-[30%] min-w-0 shrink-0 md:block">
-      <ol className="flex min-w-0 items-center gap-1.5 text-xs">
-        <li>
-          <Link to="/dashboard" className="text-muted-foreground hover:text-foreground">
-            AIVERA
-          </Link>
-        </li>
-        {segments.map((seg, i) => (
-          <Crumb key={seg + i} segment={seg} to={"/" + segments.slice(0, i + 1).join("/")} last={i === segments.length - 1} />
-        ))}
-      </ol>
-    </nav>
-  );
-}
 
 export function ThemeToggle() {
   const theme = useDataStore((s) => s.settings.appearance.theme);
@@ -193,7 +143,6 @@ export function Header() {
   const onMenu = () => (window.matchMedia("(min-width: 1024px)").matches ? toggleSidebar() : setMobileNav(true));
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
 
-  const showDemoNotices = useUIStore((s) => s.showDemoNotices) && !IS_API;
   const startTour = useUIStore((s) => s.startTour);
   const location = useLocation();
 
@@ -213,7 +162,6 @@ export function Header() {
       <Button variant="ghost" size="icon-sm" aria-label="Main menu" onClick={onMenu}>
         <Menu />
       </Button>
-      <Breadcrumbs />
       <button
         type="button"
         onClick={() => setCommandOpen(true)}
@@ -225,13 +173,6 @@ export function Header() {
         <kbd className="ml-auto hidden rounded border border-border px-1.5 py-px font-sans text-[11px] sm:inline">Ctrl K</kbd>
       </button>
       <div className="flex items-center gap-1">
-        {showDemoNotices && (
-          <Hint label="Demo mode: synthetic data, simulated scans, sample AI analyses. Hide this in Settings → Appearance.">
-            <span tabIndex={0} className="mr-1 hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground lg:inline-flex">
-              <FlaskConical className="size-3.5" /> Demo
-            </span>
-          </Hint>
-        )}
         <Hint label="Replay this page's tutorial">
           <Button variant="ghost" size="icon-sm" aria-label="Replay page tutorial" onClick={() => startTour(tourForPath(location.pathname)?.key ?? "welcome")}>
             <CircleHelp />

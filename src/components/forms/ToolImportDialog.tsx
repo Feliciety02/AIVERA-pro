@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Callout, MiniStat } from "@/components/shared/display";
+import { MiniStat } from "@/components/shared/display";
 import { SeverityBadge } from "@/components/security/badges";
 import { ChoiceCard, Field } from "./fields";
 import { useDataStore } from "@/stores/dataStore";
@@ -120,12 +120,9 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><FileUp className="size-4" /> Import tool output</DialogTitle>
-          <DialogDescription>Bring in an Nmap XML or OWASP ZAP JSON report produced during an authorized engagement. Parsed entirely in your browser.</DialogDescription>
+          <DialogDescription>Only reports you ran on this website with permission. Read in your browser; anything out of scope is skipped.</DialogDescription>
         </DialogHeader>
         <DialogGuide guideKey="toolImport" steps={DIALOG_GUIDES.toolImport} />
-        <Callout tone="warning" title="AIVERA does not run these tools">
-          Only import output from tools you ran against this target within its written authorization. The file is read locally, nothing is uploaded and no host in it is contacted. Entries outside the target's approved scope are skipped. Imported findings start as <strong>Pending Verification</strong>.
-        </Callout>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id="imp-target" label="Authorized target" required>

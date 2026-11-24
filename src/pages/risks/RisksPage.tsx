@@ -4,10 +4,8 @@ import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
-import { eachWeekOfInterval, endOfWeek, format, isWithinInterval, parseISO, startOfWeek, subWeeks } from "date-fns";
-import { Info, TriangleAlert } from "lucide-react";
+import {  TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
@@ -15,13 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
-import { Callout, KeyValue, MiniStat, SectionCard, UserChip } from "@/components/shared/display";
+import {  KeyValue, MiniStat, SectionCard, UserChip } from "@/components/shared/display";
 import { SeverityBadge, StatusBadge, OriginBadge } from "@/components/security/badges";
 import { RiskMatrix } from "@/components/security/RiskMatrix";
-import { ChartCard, DonutChart, TrendLines, summarize } from "@/components/charts/charts";
 import { Field } from "@/components/forms/fields";
 import { useDataStore } from "@/stores/dataStore";
-import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
+import { useCurrentUser, useInitialLoading, useLookups } from "@/hooks";
 import { MITIGATION_STATUS } from "@/lib/constants";
 import { IMPACT_LABELS, LIKELIHOOD_LABELS, riskLevel, riskScore, RISK_LEVEL_META } from "@/lib/risk";
 import { formatDate, toInputDate } from "@/lib/format";
@@ -99,8 +96,8 @@ function RiskEditor({ risk, onClose, readOnly }: { risk: Risk; onClose: () => vo
   );
 }
 
-export default function RisksPage() {
-  useDocumentTitle("Risk Management");
+/** Risk priority view, shown on the Findings page (?view=risks). */
+export function RisksView() {
   const loading = useInitialLoading();
   const user = useCurrentUser();
   const readOnly = !can(user?.role, "verify_findings");
@@ -129,19 +126,8 @@ export default function RisksPage() {
     [active, cell, level, mit, q, findingById],
   );
 
-  const distribution = LEVELS.map((k) => ({ key: k, name: RISK_LEVEL_META[k].label, value: open.filter((r) => riskLevel(r) === k).length, fill: RISK_LEVEL_META[k].color }));
   const avg = open.length ? (open.reduce((n, r) => n + riskScore(r.likelihood, r.impact), 0) / open.length).toFixed(1) : "0";
 
-  const trend = React.useMemo(() => {
-    const end = new Date();
-    return eachWeekOfInterval({ start: startOfWeek(subWeeks(end, 11), { weekStartsOn: 1 }), end }, { weekStartsOn: 1 }).map((w) => {
-      const until = endOfWeek(w, { weekStartsOn: 1 });
-      const existing = active.filter((r) => parseISO(r.createdAt) <= until);
-      const row: Record<string, string | number> = { week: format(w, "MMM d"), new: active.filter((r) => isWithinInterval(parseISO(r.createdAt), { start: w, end: until })).length };
-      LEVELS.forEach((k) => (row[k] = existing.filter((r) => riskLevel(r) === k).length));
-      return row;
-    });
-  }, [active]);
 
   const assets = React.useMemo(() => {
     const m = new Map<string, { targetId: string; count: number; max: number }>();
@@ -169,11 +155,8 @@ export default function RisksPage() {
   ];
 
   return (
-    <ContentContainer wide>
-      <PageHeader title="Risk Management" description="Prioritise confirmed vulnerabilities using a deterministic likelihood × impact model." />
-      <Callout icon={Info} title="Demo risk model, not CVSS">
-        Scores here are a simple qualitative rating (likelihood 1 to 5 × impact 1 to 5), seeded from the finding's severity and adjustable by an assessor. They are not CVSS base scores. A CVSS calculator would require implementing the FIRST specification.
-      </Callout>
+    <>
+      <p className="text-xs text-muted-foreground">Score = likelihood (1–5) × impact (1–5). A simple ranking, not CVSS.</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MiniStat label="Open risks" value={open.length} />
         <MiniStat label="Critical" value={open.filter((r) => riskLevel(r) === "critical").length} tone="text-sev-critical" />
@@ -187,9 +170,6 @@ export default function RisksPage() {
           <RiskMatrix risks={active} selected={cell} onSelect={setCell} />
         </SectionCard>
         <div className="grid gap-4">
-          <ChartCard title="Risk distribution" description="Open risks by level" summary={summarize(distribution)} raw height={200}>
-            <DonutChart data={distribution} centerLabel="open" centerValue={open.length} />
-          </ChartCard>
           <SectionCard title="Affected assets" description="Targets ranked by highest open risk">
             <ul className="space-y-2">
               {assets.length === 0 && <li className="text-xs text-muted-foreground">No open risks.</li>}
@@ -210,9 +190,6 @@ export default function RisksPage() {
         </div>
       </div>
 
-      <ChartCard title="Risk trends" description="Cumulative confirmed risks by current level (12 weeks)" summary={trend.map((t) => `${t.week}: ${LEVELS.map((k) => `${k} ${t[k]}`).join(", ")}`).join("; ")}>
-        <TrendLines data={trend} xKey="week" series={LEVELS.map((k) => ({ key: k, name: RISK_LEVEL_META[k].label, color: RISK_LEVEL_META[k].color }))} />
-      </ChartCard>
 
       <Card>
         <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -249,7 +226,7 @@ export default function RisksPage() {
           )}
         </SheetContent>
       </Sheet>
-    </ContentContainer>
+    </>
   );
 }
 

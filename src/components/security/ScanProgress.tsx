@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { SIMULATION_STAGES } from "@/features/simulation/generator";
 import type { Scan } from "@/types";
 
-export function ScanProgress({ scan, compact }: { scan: Scan; compact?: boolean }) {
+export function ScanProgress({ scan, compact, stages = true }: { scan: Scan; compact?: boolean; stages?: boolean }) {
   const Icon = scan.status === "running" ? Loader2 : scan.status === "completed" ? CircleCheck : scan.status === "failed" ? CircleX : scan.status === "cancelled" ? Ban : Clock;
   const color = scan.status === "failed" ? "bg-sev-critical" : scan.status === "cancelled" ? "bg-muted-foreground" : scan.status === "completed" ? "bg-primary" : "bg-cyan";
   if (compact)
@@ -24,7 +24,7 @@ export function ScanProgress({ scan, compact }: { scan: Scan; compact?: boolean 
         <span className="font-mono text-sm tabular-nums">{scan.progress}%</span>
       </div>
       <Progress value={scan.progress} className="h-2" indicatorClassName={color} aria-label="Scan progress" />
-      {scan.dataOrigin === "simulated" && (
+      {stages && scan.dataOrigin === "simulated" && (
         <ol className="grid gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
           {SIMULATION_STAGES.map((s, i) => {
             const next = SIMULATION_STAGES[i + 1]?.at ?? 101;
@@ -38,9 +38,9 @@ export function ScanProgress({ scan, compact }: { scan: Scan; compact?: boolean 
           })}
         </ol>
       )}
-      {scan.dataOrigin === "simulated" && (
+      {stages && scan.dataOrigin === "simulated" && (
         <p className="flex items-center gap-1.5 text-[11px] font-medium text-sev-medium">
-          <FlaskConical className="size-3.5" /> SIMULATED run, progress and results are generated in your browser. No traffic is sent to the target.
+          <FlaskConical className="size-3.5" /> Practice run: generated in your browser, no traffic sent to the website.
         </p>
       )}
     </div>

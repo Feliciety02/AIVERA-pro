@@ -1,15 +1,19 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, ShieldAlert, Target as TargetIcon } from "lucide-react";
+import { Plus,  Target as TargetIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { ViewSwitch, useView } from "@/components/shared/ViewSwitch";
+import { DiscoveryView } from "@/pages/reconnaissance/ReconPage";
+
+const VIEWS = [{ value: "list", label: "Websites" }, { value: "discovery", label: "Discovery" }] as const;
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
 import { EmptyState } from "@/components/shared/states";
-import { Callout, MiniStat } from "@/components/shared/display";
+import {  MiniStat } from "@/components/shared/display";
 import { StatusBadge, OriginBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
@@ -19,7 +23,7 @@ import { can } from "@/lib/permissions";
 import type { AuthorizationStatus, Target } from "@/types";
 
 export default function TargetsPage() {
-  useDocumentTitle("Target Management");
+  useDocumentTitle("Websites");
   const loading = useInitialLoading();
   const navigate = useNavigate();
   const user = useCurrentUser();
@@ -65,12 +69,13 @@ export default function TargetsPage() {
     [lookups.projects, findings],
   );
 
+  const view = useView(VIEWS);
   const authorized = targets.filter((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed).length;
 
   return (
-    <ContentContainer>
+    <ContentContainer wide={view === "discovery"}>
       <PageHeader
-        title="Target & Scope Management"
+        title="Websites"
         description="Register web applications that are approved for assessment and define exactly what may be tested."
         actions={
           can(user?.role, "manage_targets") && (
@@ -82,9 +87,11 @@ export default function TargetsPage() {
           )
         }
       />
-      <Callout tone="warning" icon={ShieldAlert} title="Authorized targets only">
-        Only websites with written permission from their owner may be registered and tested. Registering saves the details. The only contact with the website is the optional “Detect scope” check (DNS, robots.txt and sitemap.xml), done by the AIVERA server after you confirm permission, no crawling or scanning.
-      </Callout>
+      <ViewSwitch options={VIEWS} label="Websites view" />
+      {view === "discovery" ? (
+        <DiscoveryView />
+      ) : (
+        <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat label="Registered" value={targets.length} />
         <MiniStat label="Authorized & confirmed" value={authorized} tone="text-primary" />
@@ -110,6 +117,8 @@ export default function TargetsPage() {
           empty={<EmptyState icon={TargetIcon} title="No targets match" description="Adjust filters or register a new authorized target." />}
         />
       </Card>
+        </>
+      )}
     </ContentContainer>
   );
 }

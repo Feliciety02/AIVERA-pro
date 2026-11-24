@@ -65,6 +65,63 @@ export interface VerificationSuggestion {
 export const BLANK_RE = /\[(?!REDACTED)[^\]\n]{2,}\]/g;
 export const findBlanks = (text: string) => text.match(BLANK_RE) ?? [];
 
+/**
+ * The ready answers hidden in a blank, so it can be filled with a click:
+ * "[has / does not have]" → both, "[how you checked: DevTools / curl -I]" → the tools,
+ * "[what you saw, e.g. a 500 error]" → the example. A free-text blank has none.
+ */
+export function blankOptions(blank: string): string[] {
+  const inner = blank.slice(1, -1).trim();
+  const eg = inner.match(/e\.g\.\s*(.+)$/);
+  const body = eg ? eg[1]! : inner.includes(": ") ? inner.slice(inner.indexOf(": ") + 2) : inner;
+  const options = body.split(" / ").map((o) => o.trim()).filter(Boolean);
+  if (!eg && !inner.includes(": ") && options.length < 2) return [];
+  return [...new Set(options)];
+}
+
+/** Put `value` in place of the first `blank`; an empty value removes it and tidies the sentence. */
+export function fillBlank(text: string, blank: string, value: string): string {
+  const out = text.replace(blank, () => value);
+  if (value) return out;
+  return out
+    .replace(/\(\s*\)/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([.,;:)])/g, "$1")
+    .replace(/:\s*\./g, ".")
+    .trim();
+}
+
+/**
+ * Clear every part still open without typing. It never picks an answer or inserts an example,
+ * so the record only holds what the person chose or wrote.
+ */
+export function fillAllBlanks(text: string): string {
+  // An aside like "(…[how you checked]…)" just goes.
+  const trimmed = text.replace(new RegExp(`\\s*\\(\\s*${BLANK_RE.source}\\s*\\)`, "g"), "");
+  // Then drop each sentence that still has an open part, so no half-sentence is left behind.
+  // Periods inside [ ] (like "e.g.") don't end a sentence.
+  const sentences: string[] = [];
+  let cur = "";
+  let depth = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    const c = trimmed[i]!;
+    cur += c;
+    if (c === "[") depth++;
+    else if (c === "]") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && /[.!?]/.test(c) && (i + 1 === trimmed.length || /\s/.test(trimmed[i + 1]!))) {
+      sentences.push(cur);
+      cur = "";
+    }
+  }
+  if (cur) sentences.push(cur);
+  const kept = sentences.filter((s) => findBlanks(s).length === 0).join("").replace(/\s{2,}/g, " ").trim();
+  if (kept.length >= 10) return kept;
+  // Nothing usable left: say plainly what was not checked instead of inventing an answer.
+  let out = text;
+  for (const b of findBlanks(text)) out = fillBlank(out, b, "(not checked)");
+  return out;
+}
+
 const TOOL_NAME: Record<string, string> = { owasp_zap: "OWASP ZAP", nmap: "Nmap", manual: "manual testing", http_inspector: "the HTTP inspector", dns_utils: "DNS utilities" };
 
 /** Today in the user's own time zone (toISOString would give the UTC date). */

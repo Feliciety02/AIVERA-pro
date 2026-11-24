@@ -1,38 +1,43 @@
 import * as React from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, Bot, ChevronLeft, ChevronRight, Loader2, Sparkles, Wrench } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowRight, ChevronLeft, ChevronRight, CircleHelp, Loader2, ShieldAlert, ShieldCheck, Sparkles, Undo2, Wrench } from "lucide-react";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger, Hint } from "@/components/ui/misc";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SectionCard, KeyValue, UserChip } from "@/components/shared/display";
+import { Hint } from "@/components/ui/misc";
+import { KeyValue, UserChip } from "@/components/shared/display";
+import { Collapsible, ContentCard, DetailLayout, FactList, SidePanel } from "@/components/shared/DetailLayout";
 import { NotFoundState, EmptyState } from "@/components/shared/states";
-import { SeverityBadge, StatusBadge, ToolBadge, OriginBadge, ToneBadge } from "@/components/security/badges";
+import { SeverityBadge, StatusBadge, ToneBadge } from "@/components/security/badges";
 import { EvidenceViewer } from "@/components/security/EvidenceViewer";
 import { AddEvidenceForm } from "@/components/security/AddEvidenceForm";
-import { AIAnalysisPanel } from "@/components/security/AIAnalysisPanel";
-import { AINotice } from "@/components/security/AINotice";
 import { VerificationDialog } from "@/components/security/VerificationDialog";
 import { SignoffPanel } from "@/components/security/SignoffPanel";
 import { RemediationForm } from "@/components/forms/RemediationForm";
-import { RecentActivity } from "@/components/dashboard/widgets";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
-import { AI_MODES, CATEGORY_BY_ID, MITIGATION_STATUS, REMEDIATION_STATUS, VERIFICATION_STATUS } from "@/lib/constants";
+import { CATEGORY_BY_ID, DATA_ORIGIN, MITIGATION_STATUS, REMEDIATION_STATUS, SEVERITY_META, SOURCE_LABEL, VERIFICATION_STATUS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { riskLevel, riskScore, RISK_LEVEL_META } from "@/lib/risk";
 import { can, deniedReason } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
 import { analysisService, findingService } from "@/services";
-import type { AIMode, VerificationStatus } from "@/types";
+import type { VerificationStatus } from "@/types";
 import { awaitsReview } from "@/features/scanLifecycle";
 
-const FINDING_MODES = AI_MODES.filter((m) => m.needs === "finding");
+/** Findings the AI was already asked about in this browser session, so it runs once per finding. */
+const aiRequested = new Set<string>();
 
+/** First sentence only: the page shows a verdict, not an essay. */
+const firstSentence = (t: string) => (t.match(/^.*?[.!?](\s|$)/)?.[0] ?? t).trim();
+
+/**
+ * Review layout: what you read on the left (summary, evidence), what you decide on the right.
+ * The decision panel holds one recommendation and one primary button; it stays in view while
+ * the evidence scrolls.
+ */
 export default function FindingDetailPage() {
   const { findingId } = useParams();
-  const [params, setParams] = useSearchParams();
   const user = useCurrentUser();
   const canVerify = can(user?.role, "verify_findings");
   const canAI = can(user?.role, "use_ai");
@@ -40,16 +45,19 @@ export default function FindingDetailPage() {
   const lookups = useLookups();
   const finding = useDataStore((s) => s.findings.find((f) => f.id === findingId));
   useDocumentTitle(finding?.code ?? "Finding");
-  const all = useDataStore(useShallow((s) => ({ evidence: s.evidence, verifications: s.verifications, analyses: s.aiAnalyses, activity: s.activity, remediation: s.remediation, risks: s.risks, projects: s.projects })));
+  const all = useDataStore(useShallow((s) => ({ evidence: s.evidence, verifications: s.verifications, analyses: s.aiAnalyses, remediation: s.remediation, risks: s.risks, findings: s.findings })));
   const [decision, setDecision] = React.useState<VerificationStatus | null>(null);
   const [remOpen, setRemOpen] = React.useState(false);
-  const [mode, setMode] = React.useState<AIMode>("vulnerability_explanation");
-  const [generating, setGenerating] = React.useState(false);
+  const [aiState, setAiState] = React.useState<"idle" | "running" | "failed">("idle");
   const [justSaved, setJustSaved] = React.useState<VerificationStatus | null>(null);
   const [aliasCheckedId, setAliasCheckedId] = React.useState<string | null>(null);
   const navigate = useNavigate();
-  const allFindings = useDataStore((s) => s.findings);
-  const tab = params.get("tab") ?? "overview";
+
+  const evidence = React.useMemo(() => all.evidence.filter((e) => e.findingId === finding?.id), [all.evidence, finding?.id]);
+  const analysis = React.useMemo(
+    () => all.analyses.filter((a) => a.findingId === finding?.id).sort((a, b) => b.generatedAt.localeCompare(a.generatedAt))[0],
+    [all.analyses, finding?.id],
+  );
 
   React.useEffect(() => {
     if (finding || !findingId) return;
@@ -60,11 +68,22 @@ export default function FindingDetailPage() {
   }, [finding, findingId, navigate]);
 
   // A new finding starts without the "decision saved" banner.
-  React.useEffect(() => setJustSaved(null), [findingId]);
-
   React.useEffect(() => {
-    if (window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
-  }, [tab]);
+    setJustSaved(null);
+    setAiState("idle");
+  }, [findingId]);
+
+  // The AI check runs by itself the first time a finding is opened. Nothing to click.
+  React.useEffect(() => {
+    const project = finding ? lookups.projects[finding.projectId] : undefined;
+    if (!finding || !project || !canAI || analysis || aiRequested.has(finding.id)) return;
+    aiRequested.add(finding.id);
+    setAiState("running");
+    analysisService
+      .analyze({ mode: "risk_prioritization", project, finding, evidence })
+      .then(() => setAiState("idle"))
+      .catch(() => setAiState("failed"));
+  }, [finding?.id, canAI, analysis]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!finding)
     return (
@@ -75,302 +94,306 @@ export default function FindingDetailPage() {
       </ContentContainer>
     );
 
-  const evidence = all.evidence.filter((e) => e.findingId === finding.id);
   const history = all.verifications.filter((v) => v.findingId === finding.id).sort((a, b) => b.decidedAt.localeCompare(a.decidedAt));
-  const analyses = all.analyses.filter((a) => a.findingId === finding.id);
-  const activity = all.activity.filter((a) => a.entityId === finding.id);
   const tasks = all.remediation.filter((r) => r.findingId === finding.id);
   const openTask = tasks.find((t) => t.status !== "resolved" && t.status !== "accepted_risk");
   // Once a lead signs a finding off, its decision is locked until the lead returns it.
   const locked = finding.signoffStatus === "approved";
-  const taskAction = canRemediate && finding.verificationStatus === "confirmed" && (openTask
-    ? <Button size="sm" variant="outline" asChild><Link to={`/remediation?task=${openTask.id}`}><Wrench /> Open fix task</Link></Button>
-    : <Button size="sm" variant="outline" onClick={() => setRemOpen(true)}><Wrench /> Create task</Button>);
   const risk = all.risks.find((r) => r.findingId === finding.id);
   const target = lookups.targets[finding.targetId];
   const project = lookups.projects[finding.projectId];
   const cat = CATEGORY_BY_ID[finding.category];
+  const current = finding.verificationStatus;
+  const decided = current === "confirmed" || current === "rejected";
 
   // Review order: by finding code. "To review" = no final decision yet.
-  const ordered = allFindings.filter((f) => f.targetId === finding.targetId).sort((a, b) => a.code.localeCompare(b.code));
+  const ordered = all.findings.filter((f) => f.targetId === finding.targetId).sort((a, b) => a.code.localeCompare(b.code));
   const index = ordered.findIndex((f) => f.id === finding.id);
   const prev = index > 0 ? ordered[index - 1] : undefined;
   const next = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : undefined;
   const toReview = ordered.filter(awaitsReview);
-  // Next undecided finding after this one, wrapping around to the start.
   const nextToReview = [...ordered.slice(index + 1), ...ordered.slice(0, Math.max(index, 0))].find((f) => f.id !== finding.id && awaitsReview(f));
   const goTo = (id: string) => navigate(`/findings/${id}`);
 
-  const generate = async () => {
-    if (!project) return;
-    setGenerating(true);
-    try {
-      await analysisService.analyze({ mode, project, finding, evidence });
-      toast.success("Sample AI analysis ready", { description: "Demo adapter, predefined sample, not a language model." });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const decisionButtons: { status: VerificationStatus; label: string }[] = [
-    { status: "confirmed", label: "Confirm" },
-    { status: "rejected", label: "Reject" },
-    { status: "needs_review", label: "Review later" },
+  const aiSeverity = analysis?.suggestedSeverity;
+  const aiLine = analysis ? firstSentence(analysis.interpretation || analysis.explanation) : "";
+  // Fixed order, colour = meaning: red means "this is a problem", green means "this is safe".
+  const choices = [
+    { status: "confirmed" as const, label: "Real problem", change: "Change to real problem", icon: ShieldAlert, solid: "destructive" as const, outline: "destructive-outline" as const },
+    { status: "rejected" as const, label: "False alarm", change: "Change to false alarm", icon: ShieldCheck, solid: "success" as const, outline: "success-outline" as const },
   ];
-  const current = finding.verificationStatus;
+  const blockedReason = locked ? "Signed off by the lead. Ask the lead to return it to change the decision." : deniedReason(user?.role);
+  const canDecide = canVerify && !locked;
+  const reviewed = evidence.filter((e) => e.reviewed).length;
+
+  const decisionPanel = (
+    <SidePanel
+      tone="primary"
+      title={decided ? "Decision" : "Is this a real problem?"}
+      footer={
+        <div className="flex items-center justify-between gap-2" data-tour="finding-nav">
+          <span className="text-muted-foreground">{toReview.length ? `${toReview.length} left to review` : "All reviewed"}</span>
+          <span className="flex items-center gap-0.5" aria-label="Finding navigation">
+            <Button size="icon-sm" variant="ghost" disabled={!prev} onClick={() => prev && goTo(prev.id)} aria-label={prev ? `Previous finding ${prev.code}` : "No previous finding"}>
+              <ChevronLeft />
+            </Button>
+            <span className="px-1 tabular-nums text-muted-foreground">{index + 1} / {ordered.length}</span>
+            <Button size="icon-sm" variant="ghost" disabled={!next} onClick={() => next && goTo(next.id)} aria-label={next ? `Next finding ${next.code}` : "No next finding"}>
+              <ChevronRight />
+            </Button>
+          </span>
+        </div>
+      }
+    >
+      {justSaved && (
+        <div role="status" className="rounded-xl bg-success/10 px-3.5 py-2.5 text-sm">
+          <p className="font-medium">Saved as {VERIFICATION_STATUS[justSaved].label}.</p>
+          {nextToReview ? (
+            <Button size="sm" className="mt-2 w-full" onClick={() => goTo(nextToReview.id)}>
+              Next to review <ArrowRight />
+            </Button>
+          ) : (
+            <Button size="sm" className="mt-2 w-full" asChild>
+              <Link to="/findings?status=confirmed">All decided. Plan fixes <ArrowRight /></Link>
+            </Button>
+          )}
+        </div>
+      )}
+
+      {decided ? (
+        <div className="flex items-start gap-3">
+          <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", current === "confirmed" ? "bg-destructive/12 text-destructive" : "bg-success/12 text-success")}>
+            {current === "confirmed" ? <ShieldAlert className="size-5" /> : <ShieldCheck className="size-5" />}
+          </span>
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold">{current === "confirmed" ? "Confirmed as a real problem" : "Rejected as a false alarm"}</p>
+            {history[0] && <p className="text-xs text-muted-foreground">by {lookups.users[history[0].assessorId]?.name ?? "unknown"}, {formatDateTime(history[0].decidedAt)}</p>}
+            {history[0]?.decisionReason && <p className="mt-1.5 text-xs">{history[0].decisionReason}</p>}
+          </div>
+        </div>
+      ) : (
+        canAI &&
+        (aiState !== "idle" || analysis) && (
+          <div className="rounded-xl bg-muted/50 px-3.5 py-3 text-sm" aria-live="polite">
+            <p className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/12 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                <Sparkles className="size-3" aria-hidden /> AI result
+              </span>
+              <span className="text-[11px] text-muted-foreground">AI-generated, may be wrong. You decide.</span>
+            </p>
+            {aiState === "running" ? (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" aria-hidden /> AI is checking this finding…
+              </p>
+            ) : aiState === "failed" && !analysis ? (
+              <p className="mt-1.5 text-xs text-muted-foreground">The AI could not check this one. Decide from the evidence.</p>
+            ) : (
+              <>
+                {aiSeverity && (
+                  <p className="mt-1.5 font-semibold">
+                    Rates it {SEVERITY_META[aiSeverity].label}
+                    {aiSeverity !== finding.severity && <span className="text-xs font-normal text-warning"> (tool said {SEVERITY_META[finding.severity].label})</span>}
+                  </p>
+                )}
+                {aiLine && <p className="mt-0.5 text-xs text-muted-foreground">{aiLine}</p>}
+              </>
+            )}
+          </div>
+        )
+      )}
+
+      <div className="space-y-2" role="group" aria-label="Record your decision">
+        <div className={cn("grid gap-2", !decided && "grid-cols-2")}>
+        {choices
+          .filter((c) => c.status !== current)
+          .map((c) => {
+            const button = (
+              <Button
+                className={cn("w-full", !decided && "h-11")}
+                size={decided ? "sm" : "default"}
+                variant={decided ? c.outline : c.solid}
+                disabled={!canDecide}
+                onClick={() => setDecision(c.status)}
+              >
+                <c.icon /> {decided ? c.change : c.label}
+              </Button>
+            );
+            return canDecide ? (
+              <React.Fragment key={c.status}>{button}</React.Fragment>
+            ) : (
+              <Hint key={c.status} label={blockedReason}>
+                <span tabIndex={0} className="block">{button}</span>
+              </Hint>
+            );
+          })}
+        </div>
+        {canDecide && (
+          <div className="flex gap-2">
+            {current !== "needs_review" ? (
+              <Button variant="warning-outline" size="sm" className="flex-1" onClick={() => setDecision("needs_review")}>
+                <CircleHelp /> Not sure
+              </Button>
+            ) : (
+              <span className="flex h-8 flex-1 items-center justify-center gap-1.5 text-xs text-warning">
+                <CircleHelp className="size-3.5" aria-hidden /> Flagged as not sure
+              </span>
+            )}
+            {current !== "pending" && (
+              <Button variant="ghost" size="sm" className="flex-1" onClick={() => setDecision("pending")}>
+                <Undo2 /> Undo
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </SidePanel>
+  );
 
   return (
-    <ContentContainer>
+    <ContentContainer wide>
       <PageHeader
         eyebrow={
           <>
+            <Link to="/findings" className="hover:text-foreground">Findings</Link>
+            <span>/</span>
             <span className="font-mono">{finding.code}</span>
-            <span>·</span>
-            <Link to={`/projects/${finding.projectId}`} className="hover:text-foreground">{project?.code}</Link>
-            <span>·</span>
-            <Link to={`/targets/${finding.targetId}`} className="hover:text-foreground">{target?.name}</Link>
           </>
         }
         title={finding.title}
         meta={
           <>
             <SeverityBadge severity={finding.severity} />
-            <StatusBadge status={finding.verificationStatus} map={VERIFICATION_STATUS} />
-            <ToolBadge tool={finding.sourceTool} />
-            <OriginBadge origin={finding.dataOrigin} />
-            {finding.cwe && <ToneBadge tone="muted">{finding.cwe}</ToneBadge>}
+            <StatusBadge status={current} map={VERIFICATION_STATUS} />
+            <span className="text-xs text-muted-foreground">
+              on <Link to={`/targets/${finding.targetId}`} className="font-medium text-foreground hover:text-primary">{target?.name}</Link>
+            </span>
           </>
-        }
-        actions={
-          canAI && (
-            <Button variant="outline" size="sm" asChild>
-              <Link to={`/ai-analyst?finding=${finding.id}`}>
-                <Bot /> Open in AI Analyst
-              </Link>
-            </Button>
-          )
         }
       />
 
-      <section aria-label="Your decision" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-        {justSaved && (
-          <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-success/8 px-4 py-2.5 text-sm">
-            <span className="min-w-0 flex-1">
-              <span className="font-medium">Saved as {VERIFICATION_STATUS[justSaved].label}.</span>{" "}
-              <span className="text-muted-foreground">{nextToReview ? `${toReview.length} left to review.` : "Every finding has a decision."}</span>
-            </span>
-            {nextToReview ? (
-              <Button size="sm" className="rounded-full" onClick={() => goTo(nextToReview.id)}>
-                Next to review <ArrowRight />
-              </Button>
-            ) : (
-              <Button size="sm" className="rounded-full" asChild>
-                <Link to="/findings?status=confirmed">Plan fixes</Link>
-              </Button>
+      <DetailLayout
+        aside={
+          <>
+            <section aria-label="Is this a real problem?">{decisionPanel}</section>
+            {current === "confirmed" && canRemediate && (
+              <SidePanel title="Fix">
+                <p className="text-sm text-muted-foreground">
+                  {openTask ? `Task ${openTask.code} is ${REMEDIATION_STATUS[openTask.status].label.toLowerCase()}.` : "Confirmed problems need a fix task so someone owns the repair."}
+                </p>
+                {openTask ? (
+                  <Button size="sm" variant="outline" className="w-full" asChild>
+                    <Link to={`/remediation?task=${openTask.id}`}><Wrench /> Open fix task</Link>
+                  </Button>
+                ) : (
+                  <Button size="sm" className="w-full" onClick={() => setRemOpen(true)}>
+                    <Wrench /> Create fix task
+                  </Button>
+                )}
+              </SidePanel>
             )}
-          </div>
-        )}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold">Your decision</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {history[0] ? (
-                <>
-                  Last set by {lookups.users[history[0].assessorId]?.name ?? "unknown"}, {formatDateTime(history[0].decidedAt)}
-                  {canVerify && !locked && current !== "pending" && (
-                    <>
-                      {" · "}
-                      <button type="button" className="font-medium text-primary hover:underline" onClick={() => setDecision("pending")}>
-                        Undo
-                      </button>
-                    </>
-                  )}
-                </>
-              ) : (
-                "Check the evidence below, then choose."
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Record your decision">
-            {decisionButtons.map((b) => {
-              const active = current === b.status;
-              const button = (
-                <Button
-                  size="sm"
-                  variant={active ? "default" : "outline"}
-                  className="min-w-24 rounded-full"
-                  disabled={!canVerify || locked || active}
-                  aria-pressed={active}
-                  onClick={() => setDecision(b.status)}
-                >
-                  {b.label}
-                </Button>
-              );
-              return canVerify && !locked ? (
-                <React.Fragment key={b.status}>{button}</React.Fragment>
-              ) : (
-                <Hint key={b.status} label={locked ? "Signed off by the lead. Ask the lead to return it to change the decision." : deniedReason(user?.role)}>
-                  <span tabIndex={0}>{button}</span>
-                </Hint>
-              );
-            })}
-          </div>
-        </div>
-        <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs" data-tour="finding-nav">
-          <Link to={`/findings?target=${finding.targetId}&status=unverified`} className="text-muted-foreground hover:text-foreground">
-            {toReview.length ? `${toReview.length} left to review` : "All reviewed"}
-          </Link>
-          <div className="flex items-center gap-1" aria-label="Finding navigation">
-            <Button size="sm" variant="ghost" disabled={!prev} onClick={() => prev && goTo(prev.id)} aria-label={prev ? `Previous finding ${prev.code}` : "No previous finding"}>
-              <ChevronLeft /> Previous
-            </Button>
-            <Button size="sm" variant="ghost" disabled={!next} onClick={() => next && goTo(next.id)} aria-label={next ? `Next finding ${next.code}` : "No next finding"}>
-              Next <ChevronRight />
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <SignoffPanel finding={finding} history={history} />
-
-      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="evidence">Technical Evidence ({evidence.length})</TabsTrigger>
-          <TabsTrigger value="ai">AI Analysis ({analyses.length})</TabsTrigger>
-          <TabsTrigger value="history">Verification History ({history.length})</TabsTrigger>
-          <TabsTrigger value="remediation">Risk & Remediation</TabsTrigger>
-          <TabsTrigger value="activity">Related Activity</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
-            <SectionCard title="Technical description">
+            <SignoffPanel finding={finding} history={history} />
+            <SidePanel title="Details">
+              <FactList
+                items={[
+                  { label: "Location", value: <span className="font-mono text-xs">{finding.affectedAsset}</span> },
+                  finding.parameter ? { label: "Parameter", value: <span className="font-mono text-xs">{finding.parameter}</span> } : null,
+                  { label: "Category", value: cat.name },
+                  {
+                    label: "Found by",
+                    value: (
+                      <>
+                        {SOURCE_LABEL[finding.sourceTool]}
+                        {finding.dataOrigin !== "real" && <span className="text-muted-foreground"> · {DATA_ORIGIN[finding.dataOrigin].label}</span>}
+                      </>
+                    ),
+                  },
+                  { label: "Found on", value: formatDate(finding.discoveredAt) },
+                  { label: "Assessor", value: <UserChip user={lookups.users[finding.assignedAssessorId]} /> },
+                  project ? { label: "Project", value: <Link to={`/projects/${project.id}`} className="hover:text-primary">{project.code}</Link> } : null,
+                  finding.scanId ? { label: "Scan", value: <Link to={`/scans/${finding.scanId}`} className="font-mono text-xs hover:text-primary">{finding.scanId}</Link> } : null,
+                  risk
+                    ? { label: "Risk score", value: <span style={{ color: RISK_LEVEL_META[riskLevel(risk)].color }} className="font-semibold">{riskScore(risk.likelihood, risk.impact)} · {RISK_LEVEL_META[riskLevel(risk)].label}</span> }
+                    : null,
+                  finding.cwe || finding.owasp ? { label: "References", value: [finding.cwe, finding.owasp].filter(Boolean).join(" · ") } : null,
+                ]}
+              />
+            </SidePanel>
+          </>
+        }
+        main={
+          <>
+            <ContentCard title="Summary">
               <p className="text-sm leading-relaxed">{finding.description}</p>
-            </SectionCard>
-            <SectionCard title="Potential impact">
-              <p className="text-sm leading-relaxed">{finding.impact}</p>
-            </SectionCard>
-            <SectionCard title="Remediation recommendations" actions={taskAction}>
-              <p className="text-sm leading-relaxed">{finding.remediation}</p>
-            </SectionCard>
-          </div>
-          <SectionCard title="Finding overview">
-            <dl className="space-y-4">
-              <KeyValue label="Affected asset" mono>{finding.affectedAsset}</KeyValue>
-              {finding.parameter && <KeyValue label="Parameter" mono>{finding.parameter}</KeyValue>}
-              <KeyValue label="Security category">
-                <Link className="hover:text-primary" to={`/assessments/${cat.id}?project=${finding.projectId}`}>{cat.name}</Link>
-              </KeyValue>
-              <KeyValue label="Severity (reported)"><SeverityBadge severity={finding.severity} /></KeyValue>
-              <KeyValue label="Source tool"><ToolBadge tool={finding.sourceTool} /></KeyValue>
-              {finding.scanId && <KeyValue label="Source scan"><Link to={`/scans/${finding.scanId}`} className="font-mono text-xs hover:text-primary">{finding.scanId}</Link></KeyValue>}
-              <KeyValue label="References">{finding.cwe} · {finding.owasp}</KeyValue>
-              <KeyValue label="Assigned assessor"><UserChip user={lookups.users[finding.assignedAssessorId]} /></KeyValue>
-              <KeyValue label="Discovered">{formatDateTime(finding.discoveredAt)}</KeyValue>
-              <KeyValue label="Data origin"><OriginBadge origin={finding.dataOrigin} /></KeyValue>
-            </dl>
-          </SectionCard>
-        </TabsContent>
+              {finding.remediation && (
+                <p className="mt-3 rounded-xl bg-muted/50 px-3.5 py-2.5 text-sm leading-relaxed">
+                  <span className="font-medium">How to fix: </span>
+                  {firstSentence(finding.remediation)}
+                </p>
+              )}
+            </ContentCard>
 
-        <TabsContent value="evidence">
-          <SectionCard title="Technical evidence" description="Review each item before making a decision. Toggle “Reviewed” to record your review.">
-            <EvidenceViewer evidence={evidence} canReview={canVerify} />
-            {canVerify && <div className="mt-4"><AddEvidenceForm findingId={finding.id} /></div>}
-          </SectionCard>
-        </TabsContent>
+            <ContentCard title="Evidence" count={evidence.length} action={evidence.length > 0 && <span className="text-xs text-muted-foreground">{reviewed} of {evidence.length} reviewed</span>}>
+              <EvidenceViewer evidence={evidence} canReview={canVerify} />
+              {canVerify && <div className="mt-4"><AddEvidenceForm findingId={finding.id} /></div>}
+            </ContentCard>
 
-        <TabsContent value="ai" className="space-y-4">
-          <AINotice />
-          {canAI && (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Select value={mode} onValueChange={(v) => setMode(v as AIMode)}>
-                <SelectTrigger className="h-9 sm:w-72" aria-label="Analysis mode"><SelectValue /></SelectTrigger>
-                <SelectContent>{FINDING_MODES.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button onClick={generate} disabled={generating}>
-                {generating ? <Loader2 className="animate-spin" /> : <Sparkles />} Generate sample analysis
-              </Button>
-            </div>
-          )}
-          {analyses.length === 0 ? (
-            <EmptyState icon={Bot} title="No AI analyses yet" description="Generate a sample analysis to see interpretation, impact and verification guidance." />
-          ) : (
-            analyses.map((a) => <AIAnalysisPanel key={a.id} analysis={a} finding={finding} canSend={canAI} />)
-          )}
-        </TabsContent>
-
-        <TabsContent value="history">
-          <SectionCard title="Verification history" description="Every human decision on this finding">
-            {history.length === 0 ? (
-              <EmptyState compact title="No decisions recorded" description="This finding is awaiting its first verification decision." />
-            ) : (
-              <ol className="space-y-3">
-                {history.map((v) => (
-                  <li key={v.id} className="rounded-xl border border-border p-3.5">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <StatusBadge status={v.fromStatus} map={VERIFICATION_STATUS} />
-                      <span className="text-muted-foreground">→</span>
-                      <StatusBadge status={v.toStatus} map={VERIFICATION_STATUS} />
-                      <span className="ml-auto text-muted-foreground">{formatDateTime(v.decidedAt)}</span>
-                    </div>
-                    <dl className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <KeyValue label="Assessor"><UserChip user={lookups.users[v.assessorId]} /></KeyValue>
-                      <KeyValue label="Evidence review">{v.evidenceReviewed ? "Evidence reviewed" : "Not recorded"}</KeyValue>
-                      <KeyValue label="Decision reason">{v.decisionReason || "N/A"}</KeyValue>
-                      <KeyValue label="Verification notes" className="sm:col-span-3"><span className="text-xs text-foreground/85">{v.notes || "N/A"}</span></KeyValue>
-                    </dl>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="remediation" className="grid gap-4 lg:grid-cols-2">
-          <SectionCard title="Risk record" description="Demo risk score = likelihood × impact (not CVSS)" actions={<Button size="sm" variant="ghost" asChild><Link to="/risks">Risk register</Link></Button>}>
-            {risk ? (
-              <dl className="grid grid-cols-2 gap-4">
-                <KeyValue label="Demo risk score">
-                  <span className="text-lg font-semibold" style={{ color: RISK_LEVEL_META[riskLevel(risk)].color }}>{riskScore(risk.likelihood, risk.impact)} · {RISK_LEVEL_META[riskLevel(risk)].label}</span>
-                </KeyValue>
-                <KeyValue label="Likelihood × impact">L{risk.likelihood} × I{risk.impact}</KeyValue>
-                <KeyValue label="Owner"><UserChip user={lookups.users[risk.ownerId]} /></KeyValue>
-                <KeyValue label="Mitigation"><StatusBadge status={risk.mitigationStatus} map={MITIGATION_STATUS} /></KeyValue>
-                <KeyValue label="Review date">{formatDate(risk.reviewDate)}</KeyValue>
-              </dl>
-            ) : (
-              <EmptyState compact title="No risk record" description="A risk record is created automatically when the finding is confirmed by an assessor." />
-            )}
-          </SectionCard>
-          <SectionCard title="Remediation tasks" actions={taskAction}>
-            {finding.verificationStatus !== "confirmed" && <p className="mb-3 text-[11px] text-muted-foreground">Remediation tasks can be created once the finding is confirmed.</p>}
-            {tasks.length === 0 ? (
-              <EmptyState compact title="No remediation tasks" />
-            ) : (
-              <ul className="divide-y divide-border">
-                {tasks.map((t) => (
-                  <li key={t.id}>
-                    <Link to={`/remediation?task=${t.id}`} className="flex items-center gap-3 py-2.5 hover:text-primary">
-                      <span className="font-mono text-xs">{t.code}</span>
-                      <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                      <StatusBadge status={t.status} map={REMEDIATION_STATUS} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="activity">
-          <SectionCard title="Related activity">
-            <RecentActivity items={activity} users={lookups.users} limit={50} />
-          </SectionCard>
-        </TabsContent>
-      </Tabs>
+            <Collapsible title="More details" hint="Impact, full fix, tasks and history">
+              <div className="space-y-5">
+                <div className="grid gap-4 text-sm leading-relaxed md:grid-cols-2">
+                  <KeyValue label="Possible impact">{finding.impact}</KeyValue>
+                  <KeyValue label="How to fix">{finding.remediation}</KeyValue>
+                </div>
+                {risk && (
+                  <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    Risk register: <StatusBadge status={risk.mitigationStatus} map={MITIGATION_STATUS} /> next review {formatDate(risk.reviewDate)}
+                  </p>
+                )}
+                {tasks.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Fix tasks</p>
+                    <ul className="divide-y divide-border rounded-xl border border-border">
+                      {tasks.map((t) => (
+                        <li key={t.id}>
+                          <Link to={`/remediation?task=${t.id}`} className="flex items-center gap-3 px-3 py-2 hover:text-primary">
+                            <span className="font-mono text-xs">{t.code}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
+                            <StatusBadge status={t.status} map={REMEDIATION_STATUS} />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Decision history</p>
+                  {history.length === 0 ? (
+                    <EmptyState compact title="No decisions yet" />
+                  ) : (
+                    <ol className="space-y-2">
+                      {history.map((v) => (
+                        <li key={v.id} className="rounded-xl border border-border p-3 text-xs">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusBadge status={v.fromStatus} map={VERIFICATION_STATUS} />
+                            <span className="text-muted-foreground">→</span>
+                            <StatusBadge status={v.toStatus} map={VERIFICATION_STATUS} />
+                            <span className="text-muted-foreground">by {lookups.users[v.assessorId]?.name ?? "unknown"}</span>
+                            <span className="ml-auto text-muted-foreground">{formatDateTime(v.decidedAt)}</span>
+                          </div>
+                          {v.decisionReason && <p className="mt-1.5">{v.decisionReason}</p>}
+                          {v.notes && <p className="mt-1 text-muted-foreground">{v.notes}</p>}
+                          {!v.evidenceReviewed && <ToneBadge tone="muted" className="mt-1.5">Evidence review not recorded</ToneBadge>}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+                {canAI && aiState === "failed" && <p className="text-xs text-muted-foreground">The AI check could not run this time. The decision does not depend on it.</p>}
+                {canAI && <p className="text-[11px] text-muted-foreground">AI advice is generated with secrets removed. It never makes the decision.</p>}
+              </div>
+            </Collapsible>
+          </>
+        }
+      />
 
       <VerificationDialog finding={finding} status={decision} open={!!decision} onOpenChange={(o) => !o && setDecision(null)} onSaved={setJustSaved} />
       <RemediationForm finding={finding} open={remOpen} onOpenChange={setRemOpen} />

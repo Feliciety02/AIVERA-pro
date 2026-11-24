@@ -123,17 +123,16 @@ export default function ProjectDetailPage() {
         <MiniStat label="Checklist progress" value={`${progressPct}%`} sub={`${d.tested}/${d.checklistTotal} checks recorded`} />
       </div>
 
+      {/* Three tabs instead of six, in the order the work happens. */}
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="targets">Targets ({d.targets.length})</TabsTrigger>
-          <TabsTrigger value="scans">Scans ({d.scans.length})</TabsTrigger>
-          <TabsTrigger value="findings">Findings ({d.findings.length})</TabsTrigger>
-          <TabsTrigger value="reports">Reports ({d.reports.length})</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="overview">Overview & websites ({d.targets.length})</TabsTrigger>
+          <TabsTrigger value="work">Scans & findings ({d.scans.length + d.findings.length})</TabsTrigger>
+          <TabsTrigger value="reports">Reports & activity ({d.reports.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="grid gap-4 lg:grid-cols-3">
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-3">
           <SectionCard title="Project overview" className="lg:col-span-2">
             <dl className="grid gap-4 sm:grid-cols-2">
               <KeyValue label="Owner">
@@ -162,9 +161,9 @@ export default function ProjectDetailPage() {
               ))}
             </ul>
           </SectionCard>
-          <SectionCard title="Assessment progress" description="Checklist coverage per category" className="lg:col-span-2" actions={<Button variant="ghost" size="sm" asChild><Link to={`/assessments?project=${project.id}`}>Open assessments</Link></Button>}>
+          <SectionCard title="Assessment progress" description="Checklist coverage per category" className="lg:col-span-2" actions={<Button variant="ghost" size="sm" asChild><Link to={`/assessments?project=${project.id}`}>Open checklists</Link></Button>}>
             {d.assessments.length === 0 ? (
-              <EmptyState compact title="No category assessments started" description="Open Vulnerability Assessment to begin a guided checklist for this project." />
+              <EmptyState compact title="No category assessments started" description="Open Checklists to begin a guided checklist for this project." />
             ) : (
               <ul className="space-y-3">
                 {d.assessments.map((a) => {
@@ -206,9 +205,7 @@ export default function ProjectDetailPage() {
               {pending.length} unverified observation(s) are not counted. Remediation: {d.remediation.filter((r) => r.status === "resolved").length}/{d.remediation.length} resolved.
             </p>
           </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="targets">
+          </div>
           <SectionCard title="Authorized targets" flush actions={canManage && !archived && <Button size="sm" variant="outline" asChild><Link to={`/targets/new?project=${project.id}`}><Target /> Register target</Link></Button>}>
             {d.targets.length === 0 ? (
               <div className="p-4">
@@ -246,7 +243,7 @@ export default function ProjectDetailPage() {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="scans">
+        <TabsContent value="work" className="space-y-4">
           <SectionCard title="Recent scans" flush actions={can(user?.role, "run_demo_scans") && !archived && <Button size="sm" variant="outline" asChild><Link to={`/scans/new?project=${project.id}`}><ScanLine /> Configure demo scan</Link></Button>}>
             {d.scans.length === 0 ? (
               <div className="p-4">
@@ -292,9 +289,6 @@ export default function ProjectDetailPage() {
               </Table>
             )}
           </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="findings">
           <SectionCard title="Findings" actions={<Button variant="ghost" size="sm" asChild><Link to={`/findings?project=${project.id}`}>Open in Findings register</Link></Button>}>
             {d.findings.length === 0 ? (
               <EmptyState compact title="No findings yet" />
@@ -308,7 +302,7 @@ export default function ProjectDetailPage() {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="reports">
+        <TabsContent value="reports" className="space-y-4">
           <SectionCard title="Reports" actions={can(user?.role, "generate_reports") && <Button size="sm" variant="outline" asChild><Link to={`/reports/new?project=${project.id}`}><FileText /> New report</Link></Button>}>
             {d.reports.length === 0 ? (
               <EmptyState compact icon={FileText} title="No reports generated" description="Generate a demonstration report once findings are verified." />
@@ -331,9 +325,6 @@ export default function ProjectDetailPage() {
               </ul>
             )}
           </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="activity">
           <SectionCard title="Activity timeline" description="Demonstration log entries related to this project">
             <RecentActivity items={d.activity} users={lookups.users} limit={30} />
           </SectionCard>

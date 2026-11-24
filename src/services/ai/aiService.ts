@@ -111,7 +111,7 @@ function scanAnalysis(req: AIAnalysisRequest): AIAnalysis {
       "Discard indicators outside the approved scope.",
       scan.dataOrigin === "simulated" ? "Remember: these results are SIMULATED and cannot be used as real evidence." : "Imported sample output should be cross-checked with the tool's original report.",
     ],
-    verificationSteps: ["Open each linked finding in Findings & Evidence.", "Mark evidence reviewed and record a verification decision."],
+    verificationSteps: ["Open each linked finding on the Findings page.", "Mark evidence reviewed and record a verification decision."],
     reasoning: results.map((r) => `${TOOL_META[r.tool].label} output summary: ${r.summary}`),
     suggestedSeverity: undefined,
   };

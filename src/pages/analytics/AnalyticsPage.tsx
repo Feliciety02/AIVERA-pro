@@ -16,7 +16,7 @@ import type { FindingSource } from "@/types";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default function AnalyticsPage() {
-  useDocumentTitle("Security Analytics");
+  useDocumentTitle("Analytics");
   const loading = useInitialLoading();
   const s = useDataStore(useShallow((st) => ({ projects: st.projects, targets: st.targets, findings: st.findings, scans: st.scans, remediation: st.remediation, activity: st.activity, verifications: st.verifications })));
   const [range, setRange] = React.useState<DateRange>({ from: iso(new Date(Date.now() - 120 * 86400_000)), to: iso(new Date()) });
@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Security Analytics"
+        title="Analytics"
         description="Trends and comparisons computed live from the demo dataset. Filters apply to every chart."
         actions={
           <div className="flex flex-wrap items-center gap-2">

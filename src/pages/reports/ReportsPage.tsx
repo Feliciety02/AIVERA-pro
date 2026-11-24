@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
-import { Callout, SectionCard } from "@/components/shared/display";
+import {  SectionCard } from "@/components/shared/display";
 import { EmptyState } from "@/components/shared/states";
 import { StatusBadge, ToneBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
@@ -71,11 +71,10 @@ export default function ReportsPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Security Reports"
+        title="Reports"
         description="Generate print-friendly reports that clearly separate verified findings from unverified observations."
         actions={can(user?.role, "generate_reports") && <Button size="sm" asChild><Link to="/reports/new"><Plus /> Create report</Link></Button>}
       />
-      {!IS_API && <Callout tone="demo" title="Demonstration reports">All reports are generated from demonstration data and are watermarked accordingly. They must not be presented as real security assessment reports.</Callout>}
 
       {can(user?.role, "generate_reports") && <SectionCard title="Report templates" icon={LayoutTemplate} description="Start a report from a template">
         <div className="grid gap-3 md:grid-cols-3">

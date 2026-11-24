@@ -11,6 +11,7 @@ import { Field, FormSection, ChoiceCard } from "./fields";
 import { ASSESSMENT_TYPES, PROJECT_STATUS } from "@/lib/constants";
 import { can } from "@/lib/permissions";
 import { toInputDate } from "@/lib/format";
+import { useCurrentUser } from "@/hooks";
 import type { AssessmentType, Project, ProjectStatus, User } from "@/types";
 
 const assessmentTypes = Object.keys(ASSESSMENT_TYPES) as [AssessmentType, ...AssessmentType[]];
@@ -35,7 +36,34 @@ export const projectSchema = z
 
 export type ProjectFormValues = z.infer<typeof projectSchema>;
 
+/** Ready-made wording per assessment type, so a new project needs no typing. Editable afterwards. */
+const TYPE_TEMPLATES: Record<AssessmentType, { description: string; objectives: string }> = {
+  web_application: {
+    description: "Security assessment of an authorized web application in its approved test environment.",
+    objectives: "Find common web vulnerabilities (OWASP Top 10); check security headers, cookies and TLS; confirm each finding with evidence; plan fixes and retest them.",
+  },
+  authenticated_webapp: {
+    description: "Assessment of an authorized web application while signed in with test accounts for each role.",
+    objectives: "Check access control between roles; review session handling and logout; test signed-in pages for common web vulnerabilities; confirm each finding with evidence.",
+  },
+  api: {
+    description: "Security assessment of an authorized API and the endpoints it exposes.",
+    objectives: "Check authentication and authorization on every endpoint; look for data exposure, CORS and input-handling issues; confirm each finding with evidence.",
+  },
+  external_perimeter: {
+    description: "Review of the internet-facing services of an authorized environment.",
+    objectives: "Identify exposed hosts, ports and services; flag outdated or unexpected services; check TLS and server configuration.",
+  },
+  retest: {
+    description: "Retest of previously confirmed findings after the owner deployed fixes.",
+    objectives: "Retest each fixed finding within the approved scope; record pass or fail with evidence; close or reopen the fix tasks.",
+  },
+};
+
+const inDays = (n: number) => toInputDate(new Date(Date.now() + n * 86400_000).toISOString());
+
 export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }: { initial?: Project; users: User[]; onSubmit: (v: ProjectFormValues) => Promise<void>; onCancel: () => void; submitLabel: string }) {
+  const me = useCurrentUser();
   const active = users.filter((u) => u.status === "active");
   const assessors = active.filter((u) => can(u.role, "verify_findings"));
   const leads = active.filter((u) => can(u.role, "signoff_findings"));
@@ -46,25 +74,52 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
-    defaultValues: {
-      name: initial?.name ?? "",
-      description: initial?.description ?? "",
-      assessmentType: initial?.assessmentType ?? "web_application",
-      ownerId: initial?.ownerId ?? "",
-      leadId: initial?.leadId,
-      remediationOwnerId: initial?.remediationOwnerId,
-      memberIds: initial?.memberIds ?? [],
-      status: initial && initial.status !== "archived" ? initial.status : "draft",
-      startDate: toInputDate(initial?.startDate),
-      dueDate: toInputDate(initial?.dueDate),
-      objectives: initial?.objectives ?? "",
-      notes: initial?.notes ?? "",
-    },
+    // A new project opens fully filled in: you as owner, the first lead and developer, two weeks
+    // starting today, and wording for the chosen type. Everything stays editable.
+    defaultValues: initial
+      ? {
+          name: initial.name,
+          description: initial.description,
+          assessmentType: initial.assessmentType,
+          ownerId: initial.ownerId,
+          leadId: initial.leadId,
+          remediationOwnerId: initial.remediationOwnerId,
+          memberIds: initial.memberIds,
+          status: initial.status !== "archived" ? initial.status : "draft",
+          startDate: toInputDate(initial.startDate),
+          dueDate: toInputDate(initial.dueDate),
+          objectives: initial.objectives,
+          notes: initial.notes,
+        }
+      : {
+          name: `${ASSESSMENT_TYPES.web_application} ${new Date().toLocaleDateString(undefined, { month: "short", year: "numeric" })}`,
+          description: TYPE_TEMPLATES.web_application.description,
+          assessmentType: "web_application",
+          ownerId: (me && assessors.some((u) => u.id === me.id) ? me.id : assessors[0]?.id) ?? "",
+          leadId: leads[0]?.id,
+          remediationOwnerId: fixers[0]?.id,
+          memberIds: [],
+          status: "planning",
+          startDate: inDays(0),
+          dueDate: inDays(14),
+          objectives: TYPE_TEMPLATES.web_application.objectives,
+          notes: "",
+        },
   });
   const members = watch("memberIds");
+  const assessmentType = watch("assessmentType");
+
+  // Changing the type swaps in its wording, unless you already wrote your own.
+  React.useEffect(() => {
+    if (initial) return;
+    const t = TYPE_TEMPLATES[assessmentType];
+    if (!dirtyFields.name) setValue("name", `${ASSESSMENT_TYPES[assessmentType]} ${new Date().toLocaleDateString(undefined, { month: "short", year: "numeric" })}`);
+    if (!dirtyFields.description) setValue("description", t.description);
+    if (!dirtyFields.objectives) setValue("objectives", t.objectives);
+  }, [assessmentType]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownerId = watch("ownerId");
   const leadId = watch("leadId");
   const fixerId = watch("remediationOwnerId");

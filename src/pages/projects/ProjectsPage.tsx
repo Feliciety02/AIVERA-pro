@@ -128,7 +128,7 @@ export default function ProjectsPage() {
   return (
     <ContentContainer>
       <PageHeader
-        title="Assessment Projects"
+        title="Projects"
         description="Plan and track security assessment engagements. Each project groups authorized targets, scans, findings and reports."
         actions={
           canManage && (

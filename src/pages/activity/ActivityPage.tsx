@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Loader2, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
+import { Download, Loader2,  ShieldCheck, ShieldX } from "lucide-react";
 import { IS_API, auditService, type AuditVerification } from "@/services";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
@@ -28,7 +28,7 @@ const ENTITY_LINK: Partial<Record<EntityType, (id: string) => string>> = {
 };
 
 export default function ActivityPage() {
-  useDocumentTitle("Activity Logs");
+  useDocumentTitle("Activity log");
   const loading = useInitialLoading();
   const lookups = useLookups();
   const activity = useDataStore((s) => s.activity);
@@ -84,7 +84,7 @@ export default function ActivityPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Activity Logs"
+        title="Activity log"
         description="Every action taken in AIVERA, newest first."
         actions={
           <Button variant="outline" size="sm" disabled={!rows.length} onClick={() => { downloadCSV("aivera-activity.csv", rows, [{ header: "Timestamp", value: (a) => a.timestamp }, { header: "Event", value: (a) => ACTIVITY_LABELS[a.type] }, { header: "User", value: (a) => lookups.users[a.userId]?.name ?? a.userId }, { header: "Entity type", value: (a) => a.entityType }, { header: "Entity", value: (a) => a.entityLabel }, { header: "Description", value: (a) => a.description }]); toast.success(`Exported ${rows.length} log entries`); }}>
@@ -92,13 +92,7 @@ export default function ActivityPage() {
           </Button>
         }
       />
-      {IS_API ? (
-        <LogIntegrity />
-      ) : (
-        <Callout tone="warning" icon={ShieldAlert} title="Demonstration log, not a secure audit trail">
-          In demo mode these entries live in your browser and can be edited or cleared. The full app keeps a tamper-evident log on the server.
-        </Callout>
-      )}
+      {IS_API && <LogIntegrity />}
       <Card>
         <div className="border-b border-border p-3">
           <FilterBar active={type !== ALL || userId !== ALL || entity !== ALL || !!q} onReset={() => { setQ(""); setType(ALL); setUserId(ALL); setEntity(ALL); }}>

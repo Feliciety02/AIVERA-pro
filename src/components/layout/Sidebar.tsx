@@ -47,8 +47,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                       <>
                         <item.icon className={cn("size-[18px] shrink-0 text-muted-foreground", isActive && "text-primary")} aria-hidden />
                         {!collapsed && <span className="truncate">{item.label}</span>}
-                        {item.to === "/my-work" && waiting > 0 && (
-                          <span className={cn("rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground", collapsed ? "absolute ml-6 -mt-5" : "ml-auto")} aria-label={`${waiting} waiting`}>{waiting}</span>
+                        {item.to === "/dashboard" && waiting > 0 && (
+                          <span className={cn("rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground", collapsed ? "absolute ml-6 -mt-5" : "ml-auto")} aria-label={`${waiting} waiting on you`}>{waiting}</span>
                         )}
                         {collapsed && <span className="sr-only">{item.label}</span>}
                       </>

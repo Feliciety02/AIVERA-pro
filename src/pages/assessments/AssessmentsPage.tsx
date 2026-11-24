@@ -1,12 +1,11 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, Bot, Hand } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Callout } from "@/components/shared/display";
 import { StatusBadge, ToneBadge, ToolBadge } from "@/components/security/badges";
 import { CardsSkeleton } from "@/components/shared/states";
 import { useDataStore } from "@/stores/dataStore";
@@ -15,7 +14,7 @@ import { ASSESSMENT_STATUS, CATEGORIES } from "@/lib/constants";
 import { percent } from "@/lib/utils";
 
 export default function AssessmentsPage() {
-  useDocumentTitle("Vulnerability Assessment");
+  useDocumentTitle("Checklists");
   const loading = useInitialLoading();
   const lookups = useLookups();
   const [params, setParams] = useSearchParams();
@@ -39,7 +38,7 @@ export default function AssessmentsPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Vulnerability Assessment"
+        title="Checklists"
         description="Guided, category-based assessment with checklists that separate automated checks from manual testing."
         actions={
           <Select value={projectId} onValueChange={(v) => setParams({ project: v }, { replace: true })}>
@@ -56,10 +55,6 @@ export default function AssessmentsPage() {
           </Select>
         }
       />
-      <Callout title="Automated vs. manual">
-        <span className="inline-flex items-center gap-1"><Bot className="size-3.5" /> Automated checks</span> map to a tool (results are imported or simulated in this phase).{" "}
-        <span className="inline-flex items-center gap-1"><Hand className="size-3.5" /> Manual tests</span> are performed and documented by the assessor. Six categories are emphasised for the initial demonstration; two are marked <ToneBadge tone="muted">Extended</ToneBadge>.
-      </Callout>
       {loading ? (
         <CardsSkeleton count={8} className="xl:grid-cols-4" />
       ) : (

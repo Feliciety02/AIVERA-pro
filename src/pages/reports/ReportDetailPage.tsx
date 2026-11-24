@@ -1,12 +1,12 @@
 import * as React from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { Download, FileCheck2, FilePen, Loader2, Printer, Send, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Callout } from "@/components/shared/display";
+import { DetailLayout, FactList, SidePanel } from "@/components/shared/DetailLayout";
 import { NotFoundState } from "@/components/shared/states";
 import { StatusBadge, ToneBadge } from "@/components/security/badges";
 import { ReportDocument } from "@/components/reports/ReportDocument";
@@ -15,7 +15,7 @@ import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
 import { useReportModel, usePdfExport } from "@/features/reports/useReport";
 import { REPORT_STATUS } from "@/lib/constants";
 import { can } from "@/lib/permissions";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { IS_API, reportService } from "@/services";
 
 type Decision = "approve" | "return";
@@ -62,48 +62,120 @@ export default function ReportDetailPage() {
     void act(() => (decision === "approve" ? reportService.approve(report.id, note.trim()) : reportService.sendBack(report.id, note.trim())), decision === "approve" ? "Report approved as final" : "Report sent back to the author");
   };
 
+  // One sentence that says where the report stands and who acts next.
+  const stage =
+    report.status === "final"
+      ? report.approvedBy
+        ? `Approved by ${lookups.users[report.approvedBy]?.name ?? "a lead"} on ${formatDateTime(report.approvedAt)}.`
+        : "Final. Ready to send."
+      : IS_API && report.status === "in_review"
+        ? canApprove
+          ? "Waiting for your approval. Critical and high findings in it must be signed off first."
+          : isAuthor
+            ? "With the lead for approval. You can edit it again if they send it back."
+            : "With a lead for approval."
+        : IS_API
+          ? "Draft. Submit it when the content is ready."
+          : "Draft. Mark it final when the content is ready.";
+
   return (
-    <ContentContainer>
+    <ContentContainer wide>
       <div className="no-print">
         <PageHeader
-          eyebrow={<span className="font-mono">{report.code}</span>}
-          title={report.title}
-          meta={<><StatusBadge status={report.status} map={REPORT_STATUS} />{!IS_API && <ToneBadge tone="warning">Generated from demonstration data</ToneBadge>}<span className="text-[11px] text-muted-foreground">{formatDateTime(report.createdAt)}</span></>}
-          actions={
+          eyebrow={
             <>
-              {IS_API ? (
-                <>
-                  {canWrite && report.status === "draft" && <Button size="sm" variant="outline" disabled={saving} onClick={() => act(() => reportService.submit(report.id), "Sent to the lead for approval")}><Send /> Submit for approval</Button>}
-                  {canApprove && report.status === "in_review" && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={() => setDecision("return")}><Undo2 /> Send back</Button>
-                      <Button size="sm" variant="outline" onClick={() => setDecision("approve")}><FileCheck2 /> Approve</Button>
-                    </>
-                  )}
-                </>
-              ) : (
-                canWrite && (
-                  <Button variant="outline" size="sm" onClick={() => { reportService.update(report.id, { status: report.status === "final" ? "draft" : "final" }); toast.success(report.status === "final" ? "Reverted to draft" : "Marked as final"); }}>
-                    {report.status === "final" ? <FilePen /> : <FileCheck2 />} {report.status === "final" ? "Revert to draft" : "Mark final"}
-                  </Button>
-                )
-              )}
-              <Button variant="outline" size="sm" onClick={() => { reportService.logExport(report.id, "print"); window.print(); }}><Printer /> Print</Button>
-              <Button size="sm" onClick={() => exportPdf(report)} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Download />} Download PDF</Button>
+              <Link to="/reports" className="hover:text-foreground">Reports</Link>
+              <span>/</span>
+              <span className="font-mono">{report.code}</span>
+            </>
+          }
+          title={report.title}
+          meta={
+            <>
+              <StatusBadge status={report.status} map={REPORT_STATUS} />
+              {!IS_API && <ToneBadge tone="warning">Demonstration data</ToneBadge>}
             </>
           }
         />
-        {IS_API && report.status === "in_review" && (
-          <Callout tone="info">{canApprove ? "This report is waiting for your approval. Critical and high findings in it must be signed off first." : isAuthor ? "With the lead for approval. You can edit it again if they send it back." : "With a lead for approval."}</Callout>
-        )}
-        {IS_API && report.status === "draft" && report.reviewNote && <Callout tone="warning" title="Sent back by the lead">{report.reviewNote}</Callout>}
-        {report.status === "final" && report.approvedBy && (
-          <p className="mb-3 text-xs text-muted-foreground">Approved by {lookups.users[report.approvedBy]?.name ?? "a lead"} on {formatDateTime(report.approvedAt)}{report.reviewNote ? `: ${report.reviewNote}` : ""}</p>
-        )}
       </div>
-      <div className="rounded-lg bg-muted/40 p-3 sm:p-6 print:bg-transparent print:p-0">
-        <ReportDocument model={model} />
-      </div>
+
+      <DetailLayout
+        aside={
+          <>
+            <SidePanel tone="primary" title="Status">
+              <p className="text-sm text-muted-foreground">{stage}</p>
+              {IS_API && report.status === "draft" && report.reviewNote && (
+                <p className="rounded-xl bg-warning/10 px-3.5 py-2.5 text-xs">
+                  <span className="font-medium">Sent back: </span>
+                  {report.reviewNote}
+                </p>
+              )}
+              {report.status === "final" && report.reviewNote && <p className="text-xs">{report.reviewNote}</p>}
+              <div className="space-y-2">
+                {IS_API ? (
+                  <>
+                    {canWrite && report.status === "draft" && (
+                      <Button className="w-full" disabled={saving} onClick={() => act(() => reportService.submit(report.id), "Sent to the lead for approval")}>
+                        <Send /> Submit for approval
+                      </Button>
+                    )}
+                    {canApprove && report.status === "in_review" && (
+                      <>
+                        <Button variant="success" className="w-full" onClick={() => setDecision("approve")}>
+                          <FileCheck2 /> Approve as final
+                        </Button>
+                        <Button variant="warning-outline" className="w-full" onClick={() => setDecision("return")}>
+                          <Undo2 /> Send back
+                        </Button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  canWrite && (
+                    <Button
+                      className="w-full"
+                      variant={report.status === "final" ? "outline" : "default"}
+                      onClick={() => {
+                        reportService.update(report.id, { status: report.status === "final" ? "draft" : "final" });
+                        toast.success(report.status === "final" ? "Reverted to draft" : "Marked as final");
+                      }}
+                    >
+                      {report.status === "final" ? <FilePen /> : <FileCheck2 />} {report.status === "final" ? "Revert to draft" : "Mark final"}
+                    </Button>
+                  )
+                )}
+              </div>
+            </SidePanel>
+
+            <SidePanel title="Download">
+              <Button className="w-full" variant={report.status === "final" ? "default" : "outline"} onClick={() => exportPdf(report)} disabled={busy}>
+                {busy ? <Loader2 className="animate-spin" /> : <Download />} Download PDF
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => { reportService.logExport(report.id, "print"); window.print(); }}>
+                <Printer /> Print
+              </Button>
+            </SidePanel>
+
+            <SidePanel title="Details">
+              <FactList
+                items={[
+                  { label: "Project", value: <Link to={`/projects/${report.projectId}`} className="hover:text-primary">{lookups.projects[report.projectId]?.code ?? "N/A"}</Link> },
+                  { label: "Websites", value: report.targetIds.map((id) => lookups.targets[id]?.name).filter(Boolean).join(", ") || "N/A" },
+                  { label: "Period", value: `${formatDate(report.periodStart)} – ${formatDate(report.periodEnd)}` },
+                  { label: "Findings", value: report.findingIds.length },
+                  { label: "Written by", value: lookups.users[report.createdBy]?.name ?? "N/A" },
+                  { label: "Created", value: formatDateTime(report.createdAt) },
+                ]}
+              />
+            </SidePanel>
+          </>
+        }
+        main={
+          <div className="rounded-2xl bg-muted/40 p-3 sm:p-6 print:bg-transparent print:p-0">
+            <ReportDocument model={model} />
+          </div>
+        }
+      />
 
       <Dialog open={!!decision} onOpenChange={(o) => !o && setDecision(null)}>
         <DialogContent>
@@ -114,7 +186,7 @@ export default function ReportDetailPage() {
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={decision === "approve" ? "Note (optional)" : "What needs changing"} aria-label="Note" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDecision(null)} disabled={saving}>Cancel</Button>
-            <Button onClick={decide} disabled={saving}>{saving && <Loader2 className="animate-spin" />} {decision === "approve" ? "Approve" : "Send back"}</Button>
+            <Button variant={decision === "approve" ? "success" : "warning"} onClick={decide} disabled={saving}>{saving && <Loader2 className="animate-spin" />} {decision === "approve" ? "Approve" : "Send back"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

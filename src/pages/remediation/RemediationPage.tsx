@@ -2,27 +2,23 @@ import * as React from "react";
 import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useSearchParams } from "react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
-import { AlarmClock, ArrowRight, Pencil, CircleCheck, ClipboardCheck, FlaskConical, Loader2, Play, Plus, RotateCcw, ShieldCheck, ShieldOff, Wrench, XCircle } from "lucide-react";
+import { AlarmClock,  Pencil, CircleCheck, ClipboardCheck,  Loader2, Play, Plus, RotateCcw, ShieldCheck, ShieldOff,  XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/input";
-import { Progress, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/misc";
+import { Progress } from "@/components/ui/misc";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
-import { Callout, KeyValue, MiniStat, SectionCard, UserChip } from "@/components/shared/display";
+import {  KeyValue,  UserChip } from "@/components/shared/display";
 import { EmptyState } from "@/components/shared/states";
 import { SeverityBadge, StatusBadge, ToneBadge, OriginBadge } from "@/components/security/badges";
 import { RemediationForm } from "@/components/forms/RemediationForm";
 import { RemediationEditDialog } from "@/components/forms/RemediationEditDialog";
-import { ChartCard, StackedBars } from "@/components/charts/charts";
 import { useDataStore } from "@/stores/dataStore";
-import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
+import { useCurrentUser, useDocumentTitle,  useLookups } from "@/hooks";
 import { REMEDIATION_STATUS, SEVERITIES, SEVERITY_META, VERIFICATION_STATUS } from "@/lib/constants";
 import { daysUntil, formatDate, formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -112,17 +108,17 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
               : <Button size="sm" onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. A Security Lead approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
             {task.status === "awaiting_retest" && (canRetest ? (
               <>
-                <Button size="sm" variant="outline" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Retest passed</Button>
-                <Button size="sm" variant="outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Retest failed</Button>
+                <Button size="sm" variant="success-outline" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Retest passed</Button>
+                <Button size="sm" variant="destructive-outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Retest failed</Button>
               </>
             ) : <p className="text-xs text-muted-foreground">Waiting for {lookups.users[task.retestAssigneeId ?? ""]?.name ?? "an assessor"} to retest.</p>)}
             {task.status === "pending_approval" && (canApprove ? (
               <>
-                <Button size="sm" onClick={() => open({ kind: "status", to: "resolved", title: "Approve and close", description: "You are approving that this fix is complete and checked. An AI recommendation alone is never enough.", requireNote: true })}><ShieldCheck /> Approve and close</Button>
-                <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "in_progress", title: "Send back", description: "Return the fix to its owner with what still needs doing.", requireNote: true })}><RotateCcw /> Send back</Button>
+                <Button size="sm" variant="success" onClick={() => open({ kind: "status", to: "resolved", title: "Approve and close", description: "You are approving that this fix is complete and checked. An AI recommendation alone is never enough.", requireNote: true })}><ShieldCheck /> Approve and close</Button>
+                <Button size="sm" variant="warning-outline" onClick={() => open({ kind: "status", to: "in_progress", title: "Send back", description: "Return the fix to its owner with what still needs doing.", requireNote: true })}><RotateCcw /> Send back</Button>
               </>
             ) : <p className="text-xs text-muted-foreground">Waiting for a Security Lead to approve closing it.</p>)}
-            {canApprove && !isClosed(task.status) && <Button size="sm" variant="ghost" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the system owner accepts this risk without a fix. A justification is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
+            {canApprove && !isClosed(task.status) && <Button size="sm" variant="warning-outline" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the system owner accepts this risk without a fix. A justification is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
             {canApprove && isClosed(task.status) && <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "open", title: "Reopen task", description: "Reopen this task (for example, the issue came back).", requireNote: true })}><RotateCcw /> Reopen</Button>}
           </div>
         </div>
@@ -181,7 +177,13 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes / justification" aria-label="Notes" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAction(null)} disabled={busy}>Cancel</Button>
-            <Button onClick={run} disabled={busy}>{busy && <Loader2 className="animate-spin" />} Confirm</Button>
+            <Button
+              variant={action?.kind === "retest" ? (action.result === "passed" ? "success" : "destructive") : action?.to === "resolved" ? "success" : action?.to === "in_progress" || action?.to === "accepted_risk" ? "warning" : "default"}
+              onClick={run}
+              disabled={busy}
+            >
+              {busy && <Loader2 className="animate-spin" />} {action?.kind === "status" ? action.title : action?.kind === "retest" ? `Save: retest ${action.result}` : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -191,8 +193,7 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
 }
 
 export default function RemediationPage() {
-  useDocumentTitle("Remediation Tracking");
-  const loading = useInitialLoading();
+  useDocumentTitle("Fixes");
   const user = useCurrentUser();
   const canEdit = can(user?.role, "manage_remediation");
   const lookups = useLookups();
@@ -227,8 +228,6 @@ export default function RemediationPage() {
   const overdue = tasks.filter((t) => !isClosed(t.status) && (daysUntil(t.dueDate) ?? 0) < 0).length;
   const closed = tasks.filter((t) => isClosed(t.status)).length;
   const eligible = findings.filter((f) => f.verificationStatus === "confirmed" && !tasks.some((t) => t.findingId === f.id && !isClosed(t.status)));
-  const bySeverity = SEVERITIES.map((s) => ({ name: SEVERITY_META[s].label, open: tasks.filter((t) => t.priority === s && !isClosed(t.status)).length, closed: tasks.filter((t) => t.priority === s && isClosed(t.status)).length }));
-  const byOwner = Object.values(lookups.users).map((u) => ({ name: u.name.split(" ")[0]!, open: tasks.filter((t) => t.ownerId === u.id && !isClosed(t.status)).length, closed: tasks.filter((t) => t.ownerId === u.id && isClosed(t.status)).length })).filter((r) => r.open + r.closed > 0);
 
   const openTask = (id: string | null) => {
     const n = new URLSearchParams(params);
@@ -237,41 +236,27 @@ export default function RemediationPage() {
     setParams(n, { replace: true });
   };
 
-  const columns: ColumnDef<RemediationTask, unknown>[] = [
-    { accessorKey: "code", header: "Task", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
-    { accessorKey: "title", header: "Title", cell: ({ row }) => <div className="min-w-56"><p className="truncate font-medium">{row.original.title}</p><p className="font-mono text-[11px] text-muted-foreground">{findingById[row.original.findingId]?.code}</p></div> },
-    { id: "priority", header: "Severity", accessorFn: (t) => SEVERITY_META[t.priority].rank, cell: ({ row }) => <SeverityBadge severity={row.original.priority} /> },
-    { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.status} map={REMEDIATION_STATUS} /> },
-    { id: "owner", header: "Owner", accessorFn: (t) => lookups.users[t.ownerId]?.name ?? "", cell: ({ row }) => <UserChip user={lookups.users[row.original.ownerId]} /> },
-    { accessorKey: "dueDate", header: "Due", cell: ({ row }) => <DueBadge task={row.original} /> },
-    { id: "retest", header: "Retest", accessorFn: (t) => t.retestResult, cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.retestRequired ? row.original.retestResult : "n/a"}</span> },
-  ];
 
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Remediation Tracking"
+        title="Fixes"
         description="Turn confirmed vulnerabilities into owned, dated fixes, resolved only through manual approval and, where required, a passed retest."
         actions={canEdit && <Button size="sm" onClick={() => setPickOpen(true)}><Plus /> New task</Button>}
       />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <MiniStat label="Total tasks" value={tasks.length} />
-        <MiniStat label="Open / in progress" value={tasks.filter((t) => t.status === "open" || t.status === "in_progress").length} tone="text-sev-medium" />
-        <MiniStat label="Awaiting retest" value={tasks.filter((t) => t.status === "awaiting_retest").length} tone="text-sev-low" />
-        <MiniStat label="Awaiting approval" value={tasks.filter((t) => t.status === "pending_approval").length} />
-        <MiniStat label="Overdue" value={overdue} tone={overdue ? "text-sev-critical" : undefined} />
-        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-          <p className="text-[11px] font-medium text-muted-foreground">Progress</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-primary">{percent(closed, tasks.length)}%</p>
-          <Progress value={percent(closed, tasks.length)} className="mt-1" />
-        </div>
+      {/* One line instead of six counters. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 text-sm">
+        <span><span className="font-semibold tabular-nums">{tasks.length - closed}</span> open</span>
+        <span className={cn(overdue > 0 && "text-sev-critical")}><span className="font-semibold tabular-nums">{overdue}</span> overdue</span>
+        <span className="flex min-w-40 flex-1 items-center gap-3">
+          <Progress value={percent(closed, tasks.length)} className="flex-1" />
+          <span className="font-semibold tabular-nums text-primary">{percent(closed, tasks.length)}% closed</span>
+        </span>
       </div>
-      <Callout icon={FlaskConical} tone="demo">Confirming a finding creates its fix task automatically, due by severity. The developer marks it ready, the assessor who confirmed it retests, and a Security Lead approves closing it. An AI suggestion never closes a fix.</Callout>
 
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-        <FilterBar active={status !== ALL || sev !== ALL || owner !== ALL || overdueOnly || !!q} onReset={() => { setStatus(ALL); setSev(ALL); setOwner(ALL); setOverdueOnly(false); setQ(""); }}>
+        <FilterBar active={sev !== ALL || owner !== ALL || overdueOnly || !!q} onReset={() => { setStatus(ALL); setSev(ALL); setOwner(ALL); setOverdueOnly(false); setQ(""); }}>
           <SearchInput value={q} onChange={setQ} placeholder="Search tasks" />
-          <FilterSelect label="Statuses" value={status} onChange={setStatus} options={ORDER.map((s) => ({ value: s, label: REMEDIATION_STATUS[s].label }))} />
           <FilterSelect label="Severities" value={sev} onChange={setSev} options={SEVERITIES.map((s) => ({ value: s, label: SEVERITY_META[s].label }))} />
           <FilterSelect label="Owners" value={owner} onChange={setOwner} options={Object.values(lookups.users).map((u) => ({ value: u.id, label: u.name }))} />
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -280,14 +265,7 @@ export default function RemediationPage() {
         </FilterBar>
       </div>
 
-      <Tabs defaultValue="board">
-        <TabsList>
-          <TabsTrigger value="board">Board by status</TabsTrigger>
-          <TabsTrigger value="list">Task list</TabsTrigger>
-          <TabsTrigger value="insights">By severity & owner</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-        </TabsList>
-        <TabsContent value="board">
+      {/* The board is the whole page: one column per step, click a card to work on it. */}
           <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             {ORDER.map((s) => {
               const col = rows.filter((t) => t.status === s);
@@ -317,38 +295,6 @@ export default function RemediationPage() {
               );
             })}
           </div>
-        </TabsContent>
-        <TabsContent value="list">
-          <Card>
-            <DataTable data={rows} columns={columns} getRowId={(t) => t.id} loading={loading} onRowClick={(t) => openTask(t.id)} initialSorting={[{ id: "dueDate", desc: false }]} caption="Remediation tasks" empty={<EmptyState icon={Wrench} title="No remediation tasks" description="Create tasks from confirmed findings." />} />
-          </Card>
-        </TabsContent>
-        <TabsContent value="insights" className="grid gap-4 lg:grid-cols-2">
-          <ChartCard title="Tasks by severity" summary={bySeverity.map((r) => `${r.name}: ${r.open} open, ${r.closed} closed`).join("; ")}>
-            <StackedBars data={bySeverity} xKey="name" series={[{ key: "open", name: "Open", color: "var(--sev-medium)", stack: "a" }, { key: "closed", name: "Closed", color: "var(--primary)", stack: "a" }]} />
-          </ChartCard>
-          <ChartCard title="Tasks by assigned owner" summary={byOwner.map((r) => `${r.name}: ${r.open} open, ${r.closed} closed`).join("; ")}>
-            <StackedBars data={byOwner} xKey="name" series={[{ key: "open", name: "Open", color: "var(--sev-medium)", stack: "a" }, { key: "closed", name: "Closed", color: "var(--primary)", stack: "a" }]} />
-          </ChartCard>
-        </TabsContent>
-        <TabsContent value="timeline">
-          <SectionCard title="Due-date timeline" description="Tasks ordered by due date">
-            <ol className="space-y-2">
-              {[...rows].sort((a, b) => a.dueDate.localeCompare(b.dueDate)).map((t) => (
-                <li key={t.id}>
-                  <button type="button" onClick={() => openTask(t.id)} className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-accent/50">
-                    <span className="w-24 shrink-0 text-xs text-muted-foreground">{formatDate(t.dueDate)}</span>
-                    <span className={cn("size-2.5 shrink-0 rounded-full", isClosed(t.status) ? "bg-primary" : (daysUntil(t.dueDate) ?? 0) < 0 ? "bg-sev-critical" : "bg-sev-medium")} />
-                    <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                    <StatusBadge status={t.status} map={REMEDIATION_STATUS} />
-                    <ArrowRight className="size-3.5 text-muted-foreground" />
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </SectionCard>
-        </TabsContent>
-      </Tabs>
 
       <Sheet open={!!selected} onOpenChange={(o) => !o && openTask(null)}>
         <SheetContent className="sm:max-w-xl">

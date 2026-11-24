@@ -49,7 +49,7 @@ function PickerRow({ label, value, onChange, options, placeholder, disabled }: {
 }
 
 export default function AIAnalystPage() {
-  useDocumentTitle("AI Security Analyst");
+  useDocumentTitle("AI analyst");
   const user = useCurrentUser();
   const lookups = useLookups();
   const [params, setParams] = useSearchParams();
@@ -116,7 +116,7 @@ export default function AIAnalystPage() {
   if (!can(user?.role, "use_ai"))
     return (
       <ContentContainer>
-        <PageHeader title="AI Security Analyst" />
+        <PageHeader title="AI analyst" />
         <Callout tone="warning" title="Not available for this demo role">{deniedReason(user?.role)}</Callout>
       </ContentContainer>
     );
@@ -124,7 +124,7 @@ export default function AIAnalystPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="AI Security Analyst"
+        title="AI analyst"
         description="An analysis workspace where AI assists interpretation and remediation planning. The assessor always makes the final call."
         meta={<span className="text-xs text-muted-foreground">Adapter: {aiIntegration?.status === "connected" ? aiIntegration.integrationType : analysisService.adapterLabel}</span>}
       />

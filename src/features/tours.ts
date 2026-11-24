@@ -34,11 +34,11 @@ export const WELCOME_TOUR: TourStep[] = [
   },
   { target: '[data-tour="next-step"]', title: "Start here every time", body: "This card always shows your next step and one button to do it. Follow it from top to bottom and you won't miss anything." },
   { target: menuLink("/targets"), title: "1 · Websites", body: "The websites you're allowed to test. Adding one takes four short steps, and AIVERA works out what may be tested.", keepIfHidden: true },
-  { target: menuLink("/scans"), title: "2 · Scans", body: "Every scan of your website. The easiest way to start one is the Scan this website button on the dashboard or on the website's page.", keepIfHidden: true },
+  { target: menuLink("/scans"), title: "2 · Scans", body: "Every scan of your website. The easiest way to start one is the Scan this website button on Home or on the website's page.", keepIfHidden: true },
   { target: menuLink("/findings"), title: "3 · Findings", body: "What the scans found. Look at the evidence and decide: real problem or false alarm. Only your decision counts.", keepIfHidden: true },
   { target: menuLink("/remediation"), title: "4 · Fixes", body: "A to-do list of fixes for confirmed problems: who fixes it, by when, and a retest to prove it's fixed.", keepIfHidden: true },
   { target: menuLink("/reports"), title: "5 · Reports", body: "Turn your confirmed findings, evidence and fixes into a PDF report.", keepIfHidden: true },
-  { target: '[data-tour="menu-mode"]', title: "Need more tools?", body: "The menu is in Simple mode. Click Show all tools for advanced pages like risk scoring, reconnaissance and the AI analyst. Replay any page's tutorial with the ? button at the top.", keepIfHidden: true },
+  { target: '[data-tour="menu-mode"]', title: "Need more tools?", body: "The menu is in Simple mode. Click Show all tools for extra pages like analytics, projects and checklists. Replay any page's tutorial with the ? button at the top.", keepIfHidden: true },
 ];
 
 interface PageTour {
@@ -55,12 +55,8 @@ export const PAGE_TOURS: PageTour[] = [
     steps: [
       { target: '[data-tour="next-step"]', title: "What to do next", body: "The steps of your assessment, with the current one highlighted. The button does the next step for you. When a step is done it turns green." },
       { target: '[data-tour="quick-scan"]', title: "Scan with one click", body: "Runs the security tools on your website inside the approved scope, with gentle settings. It asks you to confirm first, takes about two minutes, and AI explains the results." },
-      { target: statGrid("Assessment Projects"), title: "Assessment at a glance", body: "Eight live counters calculated from your data. \"Potential Findings\" includes everything not rejected, including unverified tool output. \"Confirmed Vulnerabilities\" counts only findings a person verified. Click any card to open the matching list." },
-      { target: { text: "Critical Vulnerabilities", selector: "p", closest: "[data-slot=card]" }, title: "Critical issues first", body: "Confirmed critical vulnerabilities. These are the most serious problems and should be fixed and reported first." },
-      { target: card("Vulnerability Severity Distribution"), title: "Severity distribution", body: "How the open findings split into Critical, High, Medium, Low and Info. Hover a slice to see exact numbers." },
-      { target: card("Finding Verification Status"), title: "Verification progress", body: "Pending and Needs Review mean a person still has to decide. Confirmed means it's a real vulnerability; Rejected means it was a false positive." },
-      { target: card("Pending Verification Queue"), title: "Your to-do list", body: "The newest findings still waiting for a decision. Click one to review its evidence and confirm or reject it. An \"AI notes\" tag means someone sent an AI analysis along with it." },
-      { target: card("Highest-Priority Risks"), title: "What to fix first", body: "Open confirmed risks sorted by risk score (likelihood × impact, 1 to 25). This is a simple ranking used by the project, it is not an official CVSS score." },
+      { target: statGrid("Websites ready to scan"), title: "Where things stand", body: "Four live numbers: websites you may scan, findings waiting for a decision, problems a person confirmed, and how many fixes are closed. Click any card to open the matching list." },
+      { target: card("Waiting on you"), title: "Your to-do list", body: "Everything assigned to you: findings to review, fixes, retests and approvals. Click a row to open it. Charts and trends are on the Analytics page." },
       { target: btn("New project"), title: "Start an assessment", body: "Everything begins with a project. Click here when you're ready to plan a new assessment." },
     ],
   },
@@ -102,7 +98,7 @@ export const PAGE_TOURS: PageTour[] = [
     steps: [
       { target: "main h1", title: "Project overview", body: "The project's name, ID, status and dates. Everything about this assessment is collected on this page." },
       { target: statGrid("Authorized targets"), title: "Progress numbers", body: "How many targets are authorized, how many scans ran, how many vulnerabilities are confirmed, how many still need a decision, and how much of the checklist is done." },
-      { target: TABS, title: "Tabs", body: "Overview shows objectives, team and checklist progress. The other tabs list this project's targets, scans, findings, reports and activity." },
+      { target: TABS, title: "Tabs", body: "Three tabs in work order: the overview with its websites, then scans and findings, then reports and activity." },
       { target: btn("Register target"), title: "Next step", body: "Register the web application you have written permission to test, and define exactly what may be tested." },
     ],
   },
@@ -110,11 +106,15 @@ export const PAGE_TOURS: PageTour[] = [
     key: "targets",
     match: /^\/targets$/,
     steps: [
-      { target: NOTE, title: "Authorized targets only", body: "Only register websites you have written permission to test. Registering stores the details; the only contact with the website is the optional scope detection (DNS, robots.txt and sitemap.xml)." },
       { target: statGrid("Registered"), title: "Authorization status", body: "Only targets that are Authorized and confirmed can be scanned or receive imported results. Pending, expired or revoked targets are blocked." },
       { target: 'main [aria-label="Authorization"]', title: "Filters", body: "Filter by authorization status, environment (development, staging, QA, lab) or project." },
       { target: btn("Register target"), title: "Register a target", body: "Add a new application, its proof of permission, and its testing scope." },
       { target: TABLE, title: "Target list", body: "Shows each target's environment, authorization, number of in-scope hosts and exclusions. Click a row to see its full scope." },
+      { target: 'main [aria-label="Websites view"]', title: "Two views", body: "Websites lists what you may test. Discovery shows the hosts, ports, services and pages found on them." },
+      { target: 'main [aria-label="Targets"]', title: "Choose a target", body: "Show discovery data for one target or all of them. The Origins filter separates imported, simulated and sample data." },
+      { target: TABS, title: "Discovery tabs", body: "Overview: counts, services and import history. Hosts & ports: which machines are up and their open ports. Web & DNS: pages and API routes found, and name records." },
+      { target: card("Open services"), title: "Open services", body: "How many open ports each service has, for example https or ssh. Unexpected services, like a database, often lead to findings." },
+      { target: btn("Import Nmap / ZAP report"), title: "Add discovery data", body: "Import an Nmap XML report to fill hosts, ports and services, or a ZAP report to fill endpoints. Only in-scope items are kept." },
     ],
   },
   {
@@ -135,30 +135,17 @@ export const PAGE_TOURS: PageTour[] = [
     key: "target-detail",
     match: /^\/targets\/[^/]+$/,
     steps: [
-      { target: '[data-tour="quick-scan"]', title: "Scan this website", body: "One button runs Nmap and OWASP ZAP inside the approved scope. If it can't run yet, the yellow note says exactly why and how to fix it. Advanced options opens the full 6-step scan wizard." },
-      { target: card("Authorization"), title: "Authorization record", body: "The permission status, reference, who confirmed it and when. If it isn't authorized, every scan and import for this target is blocked." },
-      { target: card("Scope visualization"), title: "What may be tested", body: "Green: hosts and paths you may test, plus allowed activities. Red: excluded paths, other hosts, categories not permitted, and activities that are never allowed (like denial-of-service)." },
-      { target: btn("Edit scope"), title: "Change the scope", body: "Update hosts, paths and categories when your permission changes. Every change is recorded in the activity log." },
-      { target: btn("Import tool output"), title: "Bring in real results", body: "Upload an Nmap XML or OWASP ZAP JSON report that you ran yourself on this target. Anything outside the scope is skipped." },
-      { target: btn("Configure demo scan"), title: "Plan a scan", body: "Opens the scan wizard with this target already selected." },
-    ],
-  },
-  {
-    key: "recon",
-    match: /^\/reconnaissance$/,
-    steps: [
-      { target: 'main [aria-label="Targets"]', title: "Choose a target", body: "Show discovery data for one target or all of them. The Origins filter separates imported, simulated and sample data." },
-      { target: TABS, title: "Discovery tabs", body: "Host Discovery: which machines are up and their IPs. Port Discovery: open or filtered ports. Service Identification: software and versions behind each port. DNS: name records. Endpoint Inventory: pages and API routes found. History: every import." },
-      { target: card("Open services"), title: "Open services", body: "How many open ports each service has, for example https or ssh. Unexpected services, like a database, often lead to findings." },
-      { target: btn("Import Nmap / ZAP report"), title: "Add discovery data", body: "Import an Nmap XML report to fill hosts, ports and services, or a ZAP report to fill endpoints. Only in-scope items are kept." },
+      { target: card("Permission to test", "h2"), title: "Permission first", body: "Whether this website may be tested, the authorization reference and who confirmed it. If it isn't authorized, every scan and import is blocked, and the button to record it appears here." },
+      { target: '[data-tour="quick-scan"]', title: "Scan this website", body: "One button runs Nmap and OWASP ZAP inside the approved scope. If it can't run yet, the note says exactly why and how to fix it." },
+      { target: card("Findings", "h2"), title: "What was found", body: "Findings from every scan of this website. Click one to review it." },
+      { target: card("Scope", "h2"), title: "What may be tested", body: "Left: hosts, paths, checks and activities you may test. Right: what must never be touched. Edit scope changes it, and every change is logged." },
+      { target: card("Details", "h2"), title: "Details", body: "Project, environment, counts and dates in one place." },
     ],
   },
   {
     key: "scans",
     match: /^\/scans$/,
     steps: [
-      { target: statGrid("Total scans"), title: "Scan counts", body: "Total, completed, failed and running scans, with how many were simulated or imported." },
-      { target: card("Result types"), title: "Know your data", body: "Imported = a real tool report you uploaded. Simulated = generated for practice, never real evidence. Live = future scans run by the backend. Every record carries one of these labels." },
       { target: btn("Import tool output"), title: "Use real tool results", body: "Run Nmap (e.g. nmap -sV -oX report.xml <host>) or OWASP ZAP yourself on your authorized target, export the report, and import it here. Findings arrive as Pending Verification." },
       { target: btn("New scan"), title: "Plan a scan", body: "A 6-step wizard. Since the scanners aren't connected yet, it runs a clearly labelled simulation instead of a real scan." },
       { target: TABLE, title: "Scan history", body: "Every scan with its target, tools, status, result type and number of findings. Click a row to see its output and findings." },
@@ -177,11 +164,9 @@ export const PAGE_TOURS: PageTour[] = [
     key: "scan-detail",
     match: /^\/scans\/[^/]+$/,
     steps: [
-      { target: "main h1", title: "Scan summary", body: "The labels show the status, the result type (Imported or Simulated) and which tools were used." },
-      { target: card("Progress"), title: "Progress", body: "How the scan went and any error message. Simulated scans show each stage they went through." },
-      { target: TABS, title: "Results", body: "Findings: what this scan found (all Pending Verification). Tool output: the raw report text. Configuration: the scope and limits that were used." },
-      { target: btn("Interpret results"), title: "Ask AI to explain", body: "Opens the AI Security Analyst to explain what this output means, what matters first, and what might be a false positive." },
-      { target: btn("Review"), title: "Review the findings", body: "Opens the findings from this scan so you can check the evidence and make a decision on each one." },
+      { target: card("Status", "h2"), title: "Status and next step", body: "How far the scan got, any error, and the one button you need next, usually Review findings." },
+      { target: card("Findings", "h2"), title: "Results", body: "What this scan found, all waiting for a decision. Raw tool output and the scan settings are folded below." },
+      { target: card("Details", "h2"), title: "Scan details", body: "Website, project, profile, tools, speed limits and who started it." },
     ],
   },
   {
@@ -189,7 +174,6 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/assessments$/,
     steps: [
       { target: 'main [role="combobox"]', title: "Choose a project", body: "The category cards below show this project's progress." },
-      { target: NOTE, title: "Automated vs. manual", body: "Automated checks come from tools like ZAP or the HTTP inspector. Manual tests are done and written down by you. Both live in the same checklist." },
       { target: { text: "Authentication and Login Security", selector: "h3", closest: "a" }, title: "A test category", body: "Each card is one security area (authentication, access control, injection…). It shows how many checks are done, how many findings exist, how many are confirmed, and how much evidence was reviewed. Click it to open the checklist." },
     ],
   },
@@ -225,25 +209,7 @@ export const PAGE_TOURS: PageTour[] = [
       { target: TABLE, title: "Findings register", body: "Each finding with its target, category, severity, tool, evidence count and status. Click a row to review it, or the eye icon for a quick look. Tick rows to assign or export them, confirming is never done in bulk." },
       { target: btn("Record manual finding"), title: "Found something yourself?", body: "Add a finding from manual testing, with your evidence. It starts as Pending Verification like any other finding." },
       { target: btn("Export CSV"), title: "Export", body: "Download the filtered list as a spreadsheet for your documentation." },
-    ],
-  },
-  {
-    key: "finding-detail",
-    match: /^\/findings\/[^/]+$/,
-    steps: [
-      { target: "main h1", title: "Finding summary", body: "The labels show the severity, verification status, source tool, and where the data came from (Imported, Simulated or User entered)." },
-      { target: card("Human verification"), title: "Your decision", body: "Confirm, Reject, Needs further review, or Reset to pending. Confirming asks for your notes, a reason, a tick that you reviewed the evidence, and a second confirmation. Confirmed findings get a risk record automatically." },
-      { target: tab("Technical Evidence"), title: "Evidence first", body: "Requests, responses and tool output that prove the issue. Mark each item Reviewed, and add your own notes with \"Add evidence note\"." },
-      { target: tab("AI Analysis"), title: "AI help", body: "Generate an explanation, priority, fix suggestions or test ideas for this finding. You can see exactly what was sent, and it never changes the status." },
-      { target: tab("Verification History"), title: "Decision history", body: "Every decision on this finding: who made it, when, the reason, and whether evidence was reviewed." },
-      { target: tab("Risk & Remediation"), title: "After confirming", body: "See the risk score and create a fix task with an owner, priority and due date." },
-    ],
-  },
-  {
-    key: "risks",
-    match: /^\/risks$/,
-    steps: [
-      { target: NOTE, title: "How risk is scored", body: "Risk = likelihood (1 to 5) × impact (1 to 5), giving 1 to 25. The starting value comes from the severity and an assessor can adjust it. It is a simple ranking, not an official CVSS score." },
+      { target: 'main [aria-label="Findings view"]', title: "Two views", body: "All findings lists everything to review. Risk priority ranks confirmed problems by risk so you know what to fix first." },
       { target: statGrid("Open risks"), title: "Risk summary", body: "Open risks, how many are critical or high, the average score, and how many are mitigated or accepted." },
       { target: card("Risk matrix"), title: "Risk matrix", body: "Each cell counts risks with that likelihood and impact. Top-right (red) is the most dangerous. Click a cell to filter the risk list below." },
       { target: card("Affected assets"), title: "Most affected targets", body: "Targets ranked by their highest open risk score." },
@@ -251,12 +217,23 @@ export const PAGE_TOURS: PageTour[] = [
     ],
   },
   {
+    key: "finding-detail",
+    match: /^\/findings\/[^/]+$/,
+    steps: [
+      { target: "main h1", title: "The finding", body: "What was found, how serious the tool thinks it is, and on which website." },
+      { target: 'section[aria-label="Is this a real problem?"]', title: "Decide here", body: "One recommendation, worked out automatically from the evidence and checked by AI in the background. The recommended answer is the filled button. You make the call; your notes are filled in for you." },
+      { target: card("Evidence", "h2"), title: "Check the evidence", body: "What the tool actually saw. Tick \"I reviewed this\" on the items you checked." },
+      { target: card("Details", "h2"), title: "Details", body: "Location, category, tool, dates and risk score, all in one list." },
+      { target: "main details", title: "More details", body: "Impact, the full fix, fix tasks and every past decision, folded away until you need them." },
+    ],
+  },
+  {
     key: "remediation",
     match: /^\/remediation$/,
     steps: [
-      { target: statGrid("Total tasks"), title: "Fix progress", body: "Open, awaiting retest, overdue, and the share of tasks closed. Overdue tasks also send a notification." },
+      { target: { text: "% closed", selector: "span", closest: "div" }, title: "Fix progress", body: "How many fixes are open, how many are overdue, and how many are closed." },
       { target: NOTE, title: "Closing rule", body: "A task is never resolved just because an AI suggested a fix. It needs a passed manual retest (if required) and an assessor's approval." },
-      { target: TABS, title: "Four views", body: "Board groups tasks by status. List is a sortable table. Insights shows tasks by severity and owner. Timeline orders tasks by due date." },
+      { target: "main .grid", title: "The board", body: "One column per step: open, in progress, awaiting retest, awaiting approval, then closed. Click a card to work on it." },
       { target: btn("New task"), title: "Create a fix task", body: "Pick a confirmed finding and give it an owner, priority, due date and fix recommendation. Then click the task to move it: Start work → Request retest → Record retest → Approve & resolve, or Accept risk." },
     ],
   },
@@ -283,9 +260,8 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/reports\/[^/]+$/,
     steps: [
       { target: "main article", title: "Report preview", body: "The full report: cover, scope and authorization, methodology, tools, findings summary, detailed verified findings with evidence, risks, fixes and conclusion." },
-      { target: btn("Mark final"), title: "Draft or final", body: "Mark it final when it's approved. Viewers can only see final reports." },
-      { target: btn("Download PDF"), title: "Download PDF", body: "Creates the PDF in your browser from the current data, with page numbers." },
-      { target: btn("Print"), title: "Print", body: "Prints the preview without the menus." },
+      { target: card("Status", "h2"), title: "Where it stands", body: "Draft, waiting for approval, or final, and the one action that moves it forward." },
+      { target: card("Download", "h2"), title: "Download or print", body: "Creates the PDF in your browser from the current data, with page numbers. Print leaves out the menus." },
     ],
   },
   {
@@ -319,10 +295,9 @@ export const PAGE_TOURS: PageTour[] = [
     key: "settings",
     match: /^\/settings$/,
     steps: [
-      { target: tab("Security Preferences"), title: "Safeguards", body: "Require a second confirmation before confirming a finding, require evidence review, hide sensitive values in evidence, and lock idle sessions." },
-      { target: tab("Assessment Defaults"), title: "Scan defaults", body: "The default scan profile, request rate, time limit and categories that the scan wizard starts with." },
-      { target: tab("Report Preferences"), title: "Report defaults", body: "The default template, whether to include unverified findings, the demo watermark, and the \"prepared by\" name." },
-      { target: tab("Appearance"), title: "Tutorials and theme", body: "Light or dark theme, table density, and the switches to turn these tutorials and the demo reminders on or off." },
+      { target: { text: "Appearance", selector: "h3", closest: "[data-slot=card]" }, title: "Your preferences", body: "Light or dark theme, table density, and the switches for the simple menu, tutorials and demo reminders. Notifications are just below." },
+      { target: tab("Workspace"), title: "Workspace defaults", body: "Administrators: scan defaults, report options and verification safeguards for everyone." },
+      { target: tab("Advanced"), title: "Advanced", body: "Administrators: integration settings and resetting the demo data." },
     ],
   },
 ];

@@ -18,11 +18,10 @@ export interface GuideStep {
  */
 export function DialogGuide({ guideKey, steps, inSheet }: { guideKey: string; steps: GuideStep[]; inSheet?: boolean }) {
   const key = `guide:${guideKey}`;
-  const enabled = useUIStore((s) => s.tutorialsEnabled);
-  const seen = useUIStore((s) => s.seenTours.includes(key));
   const finishTour = useUIStore((s) => s.finishTour);
   const setTutorialsEnabled = useUIStore((s) => s.setTutorialsEnabled);
-  const [active, setActive] = React.useState(() => enabled && !seen);
+  // Opt-in: popups open straight to the form; the guide is one click away.
+  const [active, setActive] = React.useState(false);
   const [index, setIndex] = React.useState(0);
   const ref = React.useRef<HTMLDivElement>(null);
   const step = steps[index];
@@ -49,11 +48,9 @@ export function DialogGuide({ guideKey, steps, inSheet }: { guideKey: string; st
 
   if (!active)
     return (
-      <div className="-mb-2 flex justify-end">
-        <button type="button" onClick={() => setActive(true)} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-          <CircleHelp className="size-3.5" /> Show guide
-        </button>
-      </div>
+      <button type="button" onClick={() => setActive(true)} className={cn("absolute top-4 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground", inSheet ? "right-14" : "right-12")}>
+        <CircleHelp className="size-3.5" /> Guide
+      </button>
     );
 
   if (!step) return null;

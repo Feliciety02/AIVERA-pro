@@ -268,11 +268,18 @@ export function ScanWizard({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field id="rps" label="Request rate limit (req/s)" hint="1 to 20. Respect the owner's agreed limit.">
-                  <Input id="rps" type="number" min={1} max={20} value={rps} onChange={(e) => setRps(Number(e.target.value))} />
+                {/* Presets instead of free numbers: same choices as Settings, nothing to type or get wrong. */}
+                <Field id="rps" label="Request rate limit" hint="Respect the owner's agreed limit.">
+                  <Select value={String(rps)} onValueChange={(v) => setRps(Number(v))}>
+                    <SelectTrigger id="rps"><SelectValue /></SelectTrigger>
+                    <SelectContent>{[...new Set([1, 2, 5, 10, 20, rps])].sort((a, b) => a - b).map((n) => <SelectItem key={n} value={String(n)}>{n} req/s{n <= 2 ? " (gentle)" : ""}</SelectItem>)}</SelectContent>
+                  </Select>
                 </Field>
-                <Field id="time" label="Time limit (minutes)" hint="5 to 240">
-                  <Input id="time" type="number" min={5} max={240} value={timeLimit} onChange={(e) => setTimeLimit(Number(e.target.value))} />
+                <Field id="time" label="Time limit">
+                  <Select value={String(timeLimit)} onValueChange={(v) => setTimeLimit(Number(v))}>
+                    <SelectTrigger id="time"><SelectValue /></SelectTrigger>
+                    <SelectContent>{[...new Set([5, 15, 30, 60, 120, 240, timeLimit])].sort((a, b) => a - b).map((n) => <SelectItem key={n} value={String(n)}>{n < 60 ? `${n} min` : `${n / 60} h`}</SelectItem>)}</SelectContent>
+                  </Select>
                 </Field>
                 <Field id="conc" label="Max concurrency">
                   <Select value={String(concurrency)} onValueChange={(v) => setConcurrency(Number(v))}>

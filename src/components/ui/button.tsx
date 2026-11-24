@@ -15,6 +15,12 @@ const buttonVariants = cva(
         ghost: "text-foreground hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         subtle: "bg-primary/10 text-primary hover:bg-primary/15",
+        /* Colour says what the button does: green = approve / safe, red = problem / remove, amber = send back / pause. */
+        success: "bg-success text-success-foreground hover:bg-success/90 hover:shadow-sm",
+        warning: "bg-warning text-warning-foreground hover:bg-warning/90 hover:shadow-sm",
+        "success-outline": "border border-success/45 bg-transparent text-success hover:bg-success/10",
+        "destructive-outline": "border border-destructive/45 bg-transparent text-destructive hover:bg-destructive/10",
+        "warning-outline": "border border-warning/45 bg-transparent text-warning hover:bg-warning/10",
       },
       size: {
         default: "h-9 px-4 py-2",

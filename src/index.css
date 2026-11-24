@@ -33,12 +33,14 @@
   --accent-foreground: #202124;
   --cyan: #12858a;
   --success: #188038;
+  --success-foreground: #ffffff;
   --destructive: #d93025;
   --destructive-foreground: #ffffff;
   --border: #e1e5ea;
   --input: #c4c7c5;
   --ring: #0b57d0;
   --warning: #b06000;
+  --warning-foreground: #ffffff;
 
   --sev-critical: #d93025;
   --sev-high: #e8710a;
@@ -75,12 +77,14 @@
   --accent-foreground: #e8eaed;
   --cyan: #78d9ec;
   --success: #81c995;
+  --success-foreground: #202124;
   --destructive: #f28b82;
   --destructive-foreground: #202124;
   --border: #303236;
   --input: #5f6368;
   --ring: #8ab4f8;
   --warning: #fdd663;
+  --warning-foreground: #202124;
 
   --sev-critical: #f28b82;
   --sev-high: #fcad70;
@@ -96,6 +100,7 @@
   --font-sans: "Roboto", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Consolas, Menlo, monospace;
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-landing-accent: var(--landing-accent);
   --color-landing-deep: var(--landing-deep);
 
@@ -125,6 +130,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
 
   --color-sev-critical: var(--sev-critical);
   --color-sev-high: var(--sev-high);

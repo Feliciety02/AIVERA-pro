@@ -1,7 +1,7 @@
-import { Copy, FileCode2, FileInput, FileOutput, NotebookPen, ListTree, Eye, EyeOff } from "lucide-react";
+import { Copy, FileCode2, FileInput, FileOutput, NotebookPen, ListTree } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Switch, Hint } from "@/components/ui/misc";
+import { Checkbox, Hint } from "@/components/ui/misc";
 import { CodeBlock } from "@/components/shared/display";
 import { EmptyState } from "@/components/shared/states";
 import { useDataStore } from "@/stores/dataStore";
@@ -10,7 +10,6 @@ import { copyToClipboard, cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 import { findingService } from "@/services";
 import type { Evidence, EvidenceType } from "@/types";
-import { OriginBadge, ToolBadge } from "./badges";
 
 const TYPE_META: Record<EvidenceType, { label: string; icon: typeof FileCode2 }> = {
   http_request: { label: "HTTP request", icon: FileOutput },
@@ -41,9 +40,6 @@ export function EvidenceViewer({ evidence, canReview }: { evidence: Evidence[]; 
             <div className="mb-2.5 flex flex-wrap items-center gap-2">
               <meta.icon className="size-4 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium">{e.title}</p>
-              <span className="text-[11px] text-muted-foreground">{meta.label}</span>
-              <ToolBadge tool={e.source} />
-              <OriginBadge origin={e.dataOrigin} />
               <span className="ml-auto flex items-center gap-2">
                 <Hint label="Copy evidence">
                   <Button
@@ -59,16 +55,15 @@ export function EvidenceViewer({ evidence, canReview }: { evidence: Evidence[]; 
                     <Copy />
                   </Button>
                 </Hint>
-                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Switch checked={e.reviewed} disabled={!canReview} onCheckedChange={(v) => { findingService.markEvidenceReviewed(e.id, v); toast.success(v ? "Evidence marked reviewed" : "Evidence marked unreviewed"); }} aria-label="Reviewed" />
-                  {e.reviewed ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
-                  {e.reviewed ? "Reviewed" : "Not reviewed"}
+                <label className={cn("flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs", e.reviewed ? "border-primary/40 bg-primary/8 text-primary" : "border-border text-muted-foreground", canReview && "cursor-pointer hover:border-primary/40")}>
+                  <Checkbox checked={e.reviewed} disabled={!canReview} onCheckedChange={(v) => { findingService.markEvidenceReviewed(e.id, v === true); toast.success(v ? "Evidence marked reviewed" : "Evidence marked unreviewed"); }} />
+                  I reviewed this
                 </label>
               </span>
             </div>
             <CodeBlock label={e.title}>{content}</CodeBlock>
             <p className="mt-1.5 text-[10.5px] text-muted-foreground">
-              Captured {formatDateTime(e.capturedAt)} · <span className="font-mono">{e.id}</span>
+              {meta.label} · captured {formatDateTime(e.capturedAt)}
               {e.reviewedBy && ` · reviewed by ${lookups.users[e.reviewedBy]?.name ?? e.reviewedBy}`}
               {maskOn && " · sensitive values masked"}
             </p>

@@ -130,6 +130,8 @@ export function TargetForm({
     const t = setTimeout(() => {
       const d = detectFromAddress(parsed.href);
       if (!dirtyFields.name) setValue("name", nameFromHost(parsed.hostname));
+      // The owner defaults to the site's own team; change it if someone else is responsible.
+      if (!dirtyFields.owner) setValue("owner", `${nameFromHost(parsed.hostname)} team`, { shouldValidate: !!errors.owner });
       if (!dirtyFields.environment && d.environmentHint) setValue("environment", d.environmentHint);
       const cur = getValues("scope");
       setValue("scope", { ...cur, inScopeHosts: d.inScopeHosts.map((s) => s.value), allowedPaths: d.allowedPaths.map((s) => s.value) }, { shouldValidate: !!errors.scope });
@@ -266,7 +268,7 @@ export function TargetForm({
           {/* 4, Details */}
           <FormSection title="4. Details" description="Who owns the website, and which assessment it belongs to.">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="owner" label="Website owner" required error={errors.owner?.message} hint="The team or person responsible for it.">
+              <Field id="owner" label="Website owner" required error={errors.owner?.message} hint="Filled in from the address, change it if someone else is responsible.">
                 <Input id="owner" placeholder="e.g. UMERCH3.0 developer" {...register("owner")} {...aria("owner")} />
               </Field>
               <Field
