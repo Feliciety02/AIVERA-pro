@@ -1,6 +1,7 @@
 import type { ActivityType, EntityType, Notification } from "@/types";
 import { newId, prisma } from "./db.ts";
 import { sealPending } from "./auditChain.ts";
+import { sendUrgentEmail } from "./mail.ts";
 
 /**
  * Appends an activity log entry and seals it into the tamper-evident chain.
@@ -25,4 +26,5 @@ export async function notify(n: Omit<Notification, "id" | "createdAt" | "read" |
   const base = { title: n.title, message: n.message, tone: n.tone, link: n.link ?? null, createdAt: new Date(), read: false };
   if (!recipients) return void (await prisma.notification.create({ data: { id: newId("ntf"), ...base } }));
   for (const userId of [...new Set(recipients)]) await prisma.notification.create({ data: { id: newId("ntf"), userId, ...base } });
+  void sendUrgentEmail(n.title, n.message, n.link, recipients).catch((e) => console.error("[mail] urgent delivery failed", e));
 }

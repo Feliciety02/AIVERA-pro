@@ -35,7 +35,7 @@ Commands are written for **Windows PowerShell**, which this project was built on
 | **npm** | comes with Node | Installs packages and runs the scripts. |
 | **Git** | any recent | To get and update the code. |
 
-The database is **SQLite**. It is a single file (`server/prisma/dev.db`), so there is nothing extra to install.
+The database is **SQLite**, so there is nothing extra to install. The default path is `server/prisma/dev.db`. If the project is in OneDrive, set `DATABASE_URL` in `server/.env` to an absolute path outside OneDrive, such as `file:C:/Users/YOU/AppData/Local/AIVERA/dev.db`.
 
 ### Optional, depending on what you want to show
 
@@ -360,7 +360,7 @@ All five should finish without errors.
 
 ## 10. Data: backups, reset, audit log
 
-**Stop the API and back up** before anything that changes the database (schema changes, `db:seed`, `db:dedupe -- --apply`):
+**Stop the API and back up** before anything that changes the database (schema changes, `db:seed`, `db:dedupe -- --apply`). The commands below use the default path; use the `DATABASE_URL` path in `server/.env` if you moved the database:
 
 ```powershell
 New-Item -ItemType Directory -Force server\prisma\backups | Out-Null
@@ -400,7 +400,11 @@ npm run db:dedupe              # preview
 npm run db:dedupe -- --apply   # apply (back up first)
 ```
 
-**Activity log integrity.** Every activity entry is sealed into a hash chain. **Activity** shows a "Log integrity" check, which reports an edited, deleted or cut-off entry. The chain relies on `AIVERA_AUDIT_KEY` and on the anchor file `server/prisma/dev.db.audit-anchor.json`. Keep both with the database when you copy or move it.
+**Activity log integrity.** Every activity entry is sealed into a hash chain. **Activity** shows a "Log integrity" check, which reports an edited, deleted or cut-off entry. The chain relies on `AIVERA_AUDIT_KEY` and on the `.audit-anchor.json` file next to the configured database. Keep both with the database when you copy or move it.
+
+**Move a live database out of OneDrive:** stop the API, move the SQLite file and its `.audit-anchor.json` companion to a folder under local app data, then set `DATABASE_URL` to its absolute `file:` path in `server/.env`. Run `npm run db:migrate` and restart the API. Check `/api/health` and Activity → Log integrity before removing any old backup.
+
+**Urgent email:** set `AIVERA_SMTP_HOST`, `AIVERA_SMTP_PORT`, `AIVERA_SMTP_USER`, `AIVERA_SMTP_PASSWORD`, and `AIVERA_SMTP_FROM` in `server/.env`. Also set `AIVERA_APP_URL` to an address recipients can open. With SMTP configured, only critical sign-off, overdue fix, and new account approval notices are emailed. Other notices remain inside AIVERA.
 
 ---
 
