@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { toastLink } from "@/lib/toastLink";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CodeBlock, KeyValue } from "@/components/shared/display";
+import { CodeBlock, KeyValue, IconChip } from "@/components/shared/display";
 import { Collapsible } from "@/components/shared/DetailLayout";
 import { copyToClipboard } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
@@ -53,9 +53,7 @@ const TITLE: Record<AIAnalysis["mode"], string> = {
 function Heading({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
     <h4 className="flex items-center gap-2 text-sm font-semibold">
-      <span className="flex size-7 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary">
-        <Icon className="size-4" aria-hidden />
-      </span>
+      <IconChip icon={Icon} size="sm" />
       {children}
     </h4>
   );

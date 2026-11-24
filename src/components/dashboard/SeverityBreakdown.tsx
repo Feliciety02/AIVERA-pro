@@ -9,8 +9,9 @@ export function SeverityBreakdown({ findings }: { findings: VulnerabilityFinding
   const open = findings.filter((f) => f.verificationStatus !== "rejected");
   const counts = SEVERITIES.map((s) => ({ s, n: open.filter((f) => f.severity === s).length }));
   const total = open.length;
+  const unchecked = open.filter((f) => f.verificationStatus === "pending" || f.verificationStatus === "needs_review").length;
   return (
-    <SectionCard title="Findings by severity" icon={PieChart}>
+    <SectionCard title="How serious are the findings?" icon={PieChart}>
       {total === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">No findings yet. Run a scan to see them here.</p>
       ) : (
@@ -33,6 +34,7 @@ export function SeverityBreakdown({ findings }: { findings: VulnerabilityFinding
               </li>
             ))}
           </ul>
+          {unchecked > 0 && <p className="text-xs text-muted-foreground">{unchecked === total ? "None of these have" : `${unchecked} of these ${unchecked === 1 ? "hasn't" : "haven't"}`} been checked by a person yet, so they may not be real problems.</p>}
         </div>
       )}
     </SectionCard>

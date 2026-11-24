@@ -1,8 +1,9 @@
 import * as React from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, FileText, Loader2, Plus } from "lucide-react";
+import { Download, FileText, Loader2 } from "lucide-react";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { AddButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/DataTable";
@@ -30,6 +31,7 @@ export default function ReportsPage() {
   const canWrite = can(user?.role, "generate_reports");
   const allReports = useDataStore((s) => s.reports);
   const findings = useDataStore((s) => s.findings);
+  const confirmedCount = findings.filter((f) => f.verificationStatus === "confirmed").length;
   const severityOf = React.useMemo(() => new Map(findings.map((f) => [f.id, f.severity])), [findings]);
   // People who don't write reports only see approved ones (the server applies the same rule).
   const reports = React.useMemo(() => (!canWrite ? allReports.filter((r) => r.status === "final") : allReports), [allReports, canWrite]);
@@ -92,9 +94,17 @@ export default function ReportsPage() {
 
   return (
     <ContentContainer wide>
-      <PageHeader title="Reports" actions={canWrite && <Button size="sm" onClick={() => setCreateOpen(true)}><Plus /> Create report</Button>} />
+      <PageHeader title="Reports" actions={canWrite && <AddButton disabled={!confirmedCount} onClick={() => setCreateOpen(true)}>New report</AddButton>} />
+      {canWrite && !confirmedCount && (
+        <EmptyState
+          icon={FileText}
+          title="Nothing to report yet"
+          description="A report only lists problems a person confirmed. Check the findings first."
+          action={<Button asChild><Link to="/findings?status=unverified">Review findings</Link></Button>}
+        />
+      )}
 
-      <Card>
+      {(reports.length > 0 || !canWrite || confirmedCount > 0) && <Card>
         {reports.length > 0 && (
           <div className="border-b border-border p-3">
             <FilterBar active={status !== ALL || !!q} onReset={() => { setQ(""); setStatus(ALL); }}>
@@ -111,9 +121,9 @@ export default function ReportsPage() {
           onRowClick={(r) => navigate(`/reports/${r.id}`)}
           initialSorting={[{ id: "createdAt", desc: true }]}
           caption="Reports"
-          empty={<EmptyState icon={FileText} title="No reports yet" description={canWrite ? "Create one from the findings people confirmed." : "Reports appear here once an administrator approves them."} action={canWrite ? <Button size="sm" onClick={() => setCreateOpen(true)}><Plus /> Create report</Button> : undefined} />}
+          empty={<EmptyState icon={FileText} title="No reports yet" description={canWrite ? "Create one from the findings people confirmed." : "Reports appear here once an administrator approves them."} action={canWrite ? <AddButton onClick={() => setCreateOpen(true)}>New report</AddButton> : undefined} />}
         />
-      </Card>
+      </Card>}
 
       {canWrite && <CreateReportDialog open={createOpen} onOpenChange={setCreateOpen} initialProjectId={params.get("project") ?? undefined} />}
     </ContentContainer>

@@ -54,7 +54,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [starting, setStarting] = React.useState(false);
   const lastScan = useDataStore((s) =>
-    s.scans.filter((x) => x.targetId === target.id && x.dataOrigin !== "simulated" && x.status === "completed").sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""))[0],
+    s.scans.filter((x) => x.targetId === target.id && x.status === "completed").sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""))[0],
   );
   const lastScanFindings = useDataStore((s) => (lastScan ? s.findings.filter((f) => f.scanId === lastScan.id).length : 0));
   const pendingCount = useDataStore((s) => s.findings.filter((f) => f.targetId === target.id && awaitsReview(f)).length);

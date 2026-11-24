@@ -10,7 +10,7 @@ export const DIALOG_GUIDES = {
     { target: "#imp-target", title: "1. Pick the website", body: "Only websites with confirmed permission that belong to a project are listed. The report is checked against this website's scope." },
     { target: "[data-guide=imp-format]", title: "2. Choose the report type", body: "Nmap XML lists computers, open ports and services. ZAP JSON lists web problems such as missing security headers or injection. Pick the one that matches your file." },
     { target: "[data-guide=imp-file]", title: "3. Add the report", body: "Click “Choose file…” to upload it, or paste its text in the box below. No report yet? “Load synthetic sample” fills in a practice report for this website." },
-    { target: "[data-guide=imp-submit]", title: "4. Preview, then import", body: "“Parse & preview” shows what will be added and lists anything outside the scope that will be skipped. Imported findings start as Pending Verification until a person checks them." },
+    { target: "[data-guide=imp-submit]", title: "4. Preview, then import", body: "“Parse & preview” shows what will be added and lists anything outside the scope that will be skipped. Imported findings start as “Not checked yet” until a person checks them." },
   ],
   remediationTask: [
     { title: "One fix task", body: "Everything about fixing one confirmed vulnerability: what to do, who is doing it, and proof that it was fixed." },

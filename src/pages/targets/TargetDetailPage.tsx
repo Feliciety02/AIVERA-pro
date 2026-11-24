@@ -3,13 +3,13 @@ import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useNavigate, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { FileUp, Loader2, Pencil, ShieldCheck, ShieldOff, ShieldAlert, SlidersHorizontal, Trash2 } from "lucide-react";
+import { FileUp, Loader2, ShieldCheck, ShieldOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { DeleteButton, EditButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/misc";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Callout } from "@/components/shared/display";
 import { ContentCard, DetailLayout, FactList, SidePanel } from "@/components/shared/DetailLayout";
@@ -19,7 +19,7 @@ import { FindingRow } from "@/components/dashboard/widgets";
 import { ScopeEditor } from "@/components/forms/ScopeEditor";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
-import { ASSET_TYPES, AUTHORIZATION_STATUS, CATEGORIES, DATA_ORIGIN, ENVIRONMENTS, SCAN_STATUS } from "@/lib/constants";
+import { AUTHORIZATION_STATUS, CATEGORIES, DATA_ORIGIN, ENVIRONMENTS, SCAN_STATUS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { IS_API, targetService } from "@/services";
@@ -49,7 +49,7 @@ export default function TargetDetailPage() {
   if (!target)
     return (
       <ContentContainer>
-        <NotFoundState entity="Target" backTo="/targets" backLabel="Back to targets" />
+        <NotFoundState entity="Website" backTo="/targets" backLabel="Back to websites" />
       </ContentContainer>
     );
 
@@ -78,6 +78,7 @@ export default function TargetDetailPage() {
   };
   const confirmed = findings.filter((f) => f.verificationStatus === "confirmed").length;
   const discovery = all.hosts.filter((h) => h.targetId === target.id).length + all.endpoints.filter((e) => e.targetId === target.id).length + all.dns.filter((d) => d.targetId === target.id).length;
+  const project = target.projectId ? lookups.projects[target.projectId] : undefined;
   const recentScans = [...scans].sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
 
   return (
@@ -86,8 +87,12 @@ export default function TargetDetailPage() {
         eyebrow={
           <>
             <Link to="/targets" className="hover:text-foreground">Websites</Link>
-            <span>/</span>
-            <span>{ASSET_TYPES[target.assetType]}</span>
+            {project && (
+              <>
+                <span>/</span>
+                <Link to={`/projects/${project.id}`} className="hover:text-foreground">{project.name}</Link>
+              </>
+            )}
           </>
         }
         title={target.name}
@@ -99,11 +104,7 @@ export default function TargetDetailPage() {
         }
         actions={
           canManage && (
-            <Button variant="outline" size="sm" asChild>
-              <Link to={`/targets/${target.id}/edit`}>
-                <Pencil /> Edit website
-              </Link>
-            </Button>
+            <EditButton to={`/targets/${target.id}/edit`}>Edit website</EditButton>
           )
         }
       />
@@ -155,21 +156,19 @@ export default function TargetDetailPage() {
               title="Details"
               footer={
                 canManage && (
-                  <button type="button" className="inline-flex items-center gap-1.5 text-sev-critical hover:underline" onClick={() => setDeleteOpen(true)}>
-                    <Trash2 className="size-3.5" aria-hidden /> Delete website and its history
-                  </button>
+                  <DeleteButton className="my-1 w-full" onClick={() => setDeleteOpen(true)}>Delete website</DeleteButton>
                 )
               }
             >
               <FactList
                 items={[
-                  { label: "Project", value: target.projectId ? <Link to={`/projects/${target.projectId}`} className="hover:text-primary">{lookups.projects[target.projectId]?.code}</Link> : "None" },
+                  { label: "Project", value: target.projectId ? <Link to={`/projects/${target.projectId}`} className="hover:text-primary">{lookups.projects[target.projectId]?.name}</Link> : "None" },
                   { label: "Environment", value: ENVIRONMENTS[target.environment] },
                   { label: "Findings", value: <Link to={`/findings?target=${target.id}`} className="hover:text-primary">{findings.length} ({confirmed} confirmed)</Link> },
-                  { label: "Discovery", value: <Link to="/targets?view=discovery" className="hover:text-primary">{discovery} records</Link> },
-                  target.dataOrigin !== "real" ? { label: "Data", value: DATA_ORIGIN[target.dataOrigin].label } : null,
+                  { label: "Discovery", value: <Link to="/targets?view=discovery" className="hover:text-primary">{discovery === 1 ? "1 item found" : `${discovery} items found`}</Link> },
+                  target.dataOrigin === "simulated" || target.dataOrigin === "imported" ? { label: "Data", value: DATA_ORIGIN[target.dataOrigin].label } : null,
                   { label: "Registered", value: formatDate(target.createdAt) },
-                  target.testingNotes ? { label: "Testing notes", value: <span className="text-xs text-muted-foreground">{target.testingNotes}</span> } : null,
+                  target.testingNotes ? { label: "Notes for testers", value: <span className="text-xs text-muted-foreground">{target.testingNotes}</span> } : null,
                 ]}
               />
             </SidePanel>
@@ -227,11 +226,9 @@ export default function TargetDetailPage() {
             </ContentCard>
 
             <ContentCard
-              title="Scope"
+              title="What may be tested"
               action={canManage && (
-                <Button variant="ghost" size="sm" onClick={editScope}>
-                  <SlidersHorizontal /> Edit scope
-                </Button>
+                <EditButton onClick={editScope}>Edit scope</EditButton>
               )}
             >
               <div className="grid gap-5 md:grid-cols-2">
@@ -239,19 +236,19 @@ export default function TargetDetailPage() {
                   <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <ShieldCheck className="size-3.5" aria-hidden /> May be tested
                   </p>
-                  <ScopeList label="Hosts" items={target.scope.inScopeHosts} mono />
-                  <ScopeList label="Paths" items={target.scope.allowedPaths} mono />
-                  <ScopeList label="Checks" items={target.scope.allowedCategories.map((c) => CATEGORIES.find((x) => x.id === c)?.short ?? c)} />
-                  <ScopeList label="Activities" items={target.scope.allowedActivities} empty="None declared" />
+                  <ScopeList label="Website addresses" items={target.scope.inScopeHosts} mono />
+                  <ScopeList label="Pages" items={target.scope.allowedPaths} mono />
+                  <ScopeList label="Kinds of check" items={target.scope.allowedCategories.map((c) => CATEGORIES.find((x) => x.id === c)?.short ?? c)} />
+                  <ScopeList label="Actions" items={target.scope.allowedActivities} empty="None listed" />
                 </div>
                 <div className="space-y-3">
                   <p className="flex items-center gap-1.5 text-xs font-semibold text-sev-critical">
                     <ShieldOff className="size-3.5" aria-hidden /> Must not be tested
                   </p>
-                  <ScopeList label="Paths" items={target.scope.excludedPaths} mono empty="No exclusions" />
-                  {outCats.length > 0 && <ScopeList label="Checks" items={outCats.map((c) => c.short)} />}
-                  <ScopeList label="Activities" items={target.scope.restrictedActivities} empty="None declared" />
-                  <p className="text-xs text-muted-foreground">Any host not listed, including third-party services and CDNs.</p>
+                  <ScopeList label="Pages" items={target.scope.excludedPaths} mono empty="None" />
+                  {outCats.length > 0 && <ScopeList label="Kinds of check" items={outCats.map((c) => c.short)} />}
+                  <ScopeList label="Actions" items={target.scope.restrictedActivities} empty="None listed" />
+                  <p className="text-xs text-muted-foreground">Any other website, including outside services this site uses.</p>
                 </div>
               </div>
             </ContentCard>
@@ -348,52 +345,29 @@ function ScopeList({ label, items, mono, empty }: { label: string; items: string
   );
 }
 
-/** Shown for targets registered without a project: testing needs one. */
+/** Shown for older websites saved without a project: testing needs one, so offer to create it. */
 function AddToProject({ targetId, canManage }: { targetId: string; canManage: boolean }) {
-  const projects = useDataStore((s) => s.projects).filter((p) => p.status !== "archived");
-  const [projectId, setProjectId] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const run = async (fn: () => Promise<unknown>, done: string) => {
-    setBusy(true);
-    try {
-      await fn();
-      toast.success(done);
-    } catch (e) {
-      // Server errors are already shown by api(); only local errors (e.g. demo mode) need a toast here.
-      if (!IS_API) toast.error("Not saved", { description: (e as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <Callout tone="info" title="Not in a project yet">
-      <p>Scans and findings are grouped by project. Give this website its own project, or add it to an existing one if it is part of the same assessment.</p>
-      {canManage && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {IS_API && (
-            <Button size="sm" className="rounded-full" disabled={busy} onClick={() => run(() => targetService.createOwnProject(targetId), "Project created for this website")}>
-              Create its own project
-            </Button>
-          )}
-          <span className="text-xs text-muted-foreground">{IS_API ? "or" : ""}</span>
-          <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger className="h-8 w-64 bg-background" aria-label="Existing project">
-              <SelectValue placeholder="Add to an existing project" />
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.code} · {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {projectId && (
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => targetService.update(targetId, { projectId }), "Added to project")}>
-              Add
-            </Button>
-          )}
-        </div>
+      <p>Websites are tested inside a project. {canManage && IS_API ? "Create a project for this website to start testing it." : "Ask an administrator to create a project for it."}</p>
+      {canManage && IS_API && (
+        <Button
+          size="sm"
+          className="mt-2"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await targetService.createOwnProject(targetId);
+              toast.success("Project created for this website");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy && <Loader2 className="animate-spin" />} Create its project
+        </Button>
       )}
     </Callout>
   );

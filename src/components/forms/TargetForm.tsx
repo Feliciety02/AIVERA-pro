@@ -86,6 +86,7 @@ export function TargetForm({
   onCancel: () => void;
   submitLabel: string;
 }) {
+  const fixedProject = projects.find((p) => p.id === (initial?.projectId ?? defaultProjectId));
   const {
     register,
     control,
@@ -291,7 +292,10 @@ export function TargetForm({
                 <Controller
                   control={control}
                   name="projectId"
-                  render={({ field }) => (
+                  render={({ field }) => fixedProject ? (
+                    // Added from inside a project, so the project is already decided.
+                    <p id="projectId" className="flex h-9 items-center truncate rounded-md border border-border bg-muted/40 px-3 text-sm">{fixedProject.code} · {fixedProject.name}</p>
+                  ) : (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger id="projectId"><SelectValue /></SelectTrigger>
                       <SelectContent>

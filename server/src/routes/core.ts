@@ -194,7 +194,8 @@ router.post("/projects", requirePermission("manage_projects"), async (req, res) 
   if (rest.leadId === undefined) rest.leadId = can(me(req).role, "signoff_findings") ? me(req).id : await pickLeadForNewProject();
   await checkTeamRoles(rest.leadId, rest.remediationOwnerId);
   const p = await inTransactionWithCodeRetry(async (tx) => tx.project.create({
-    data: { ...rest, id: newId("prj"), code: await nextProjectCode(tx), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", members: { create: [...new Set([...memberIds, b.ownerId, ...(rest.leadId ? [rest.leadId] : []), ...(rest.remediationOwnerId ? [rest.remediationOwnerId] : [])])].map((userId) => ({ userId })) } },
+    data: { ...rest, id: newId("prj"), code: await nextProjectCode(tx), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", // The owner is recorded as owner, not as a member.
+    members: { create: [...new Set([...memberIds, ...(rest.leadId ? [rest.leadId] : []), ...(rest.remediationOwnerId ? [rest.remediationOwnerId] : [])])].filter((id) => id !== b.ownerId).map((userId) => ({ userId })) } },
     include: { members: true },
   }));
   await log(me(req).id, "project_created", "project", p.id, p.code, `Created project ${p.name}`);
@@ -206,11 +207,12 @@ router.patch("/projects/:id", requirePermission("manage_projects"), async (req, 
   await assertProjectAccess(me(req), param(req));
   const { memberIds, ...rest } = b;
   await checkTeamRoles(rest.leadId, rest.remediationOwnerId);
+  const ownerId = rest.ownerId ?? (await prisma.project.findUnique({ where: { id: param(req) }, select: { ownerId: true } }))?.ownerId;
   const p = await prisma.project.update({
     where: { id: param(req) },
     data: {
       ...rest, startDate: b.startDate ? new Date(b.startDate) : undefined, dueDate: b.dueDate ? new Date(b.dueDate) : undefined,
-      members: memberIds ? { deleteMany: {}, create: [...new Set(memberIds)].map((userId) => ({ userId })) } : undefined,
+      members: memberIds ? { deleteMany: {}, create: [...new Set(memberIds)].filter((id) => id !== ownerId).map((userId) => ({ userId })) } : undefined,
     },
     include: { members: true },
   });
@@ -300,7 +302,7 @@ async function createProjectForTarget(tx: Tx, name: string, url: string, userId:
       assessmentType: "web_application", ownerId: userId, status: "planning",
       startDate: start, dueDate: new Date(start.getTime() + 30 * 86400_000),
       objectives: `Find, verify and fix security weaknesses in ${name} within the approved scope.`, notes: "",
-      leadId, dataOrigin: "user_created", members: { create: [...new Set([userId, ...(leadId ? [leadId] : [])])].map((id) => ({ userId: id })) },
+      leadId, dataOrigin: "user_created", members: { create: leadId && leadId !== userId ? [{ userId: leadId }] : [] },
     },
   });
 }
@@ -372,7 +374,7 @@ router.patch("/targets/:id", requirePermission("manage_targets"), async (req, re
     where: { id: cur.id },
     data: { ...rest, ...(scope ? M.scopeColumns(scope) : {}), ...(confirmedNow ? { authorizationConfirmedBy: me(req).id, authorizationConfirmedAt: new Date() } : {}) },
   });
-  await log(me(req).id, "target_updated", "target", t.id, t.name, `Updated target ${t.name}`);
+  await log(me(req).id, "target_updated", "target", t.id, t.name, `Updated website ${t.name}`);
   res.json(M.toTarget(t));
 });
 

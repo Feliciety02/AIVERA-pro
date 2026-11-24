@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
-import { Download, Eye, FileCheck2, FileX2, Hand, ShieldAlert, UserPlus } from "lucide-react";
+import { Download, Eye, FileCheck2, FileX2, ShieldAlert, UserPlus } from "lucide-react";
 import { ManualFindingDialog } from "@/components/forms/ManualFindingDialog";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
@@ -10,6 +10,7 @@ import { ViewSwitch, useView } from "@/components/shared/ViewSwitch";
 import { RisksView } from "@/pages/risks/RisksPage";
 
 const VIEWS = [{ value: "list", label: "All findings" }, { value: "risks", label: "Risk priority" }] as const;
+import { AddButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Hint } from "@/components/ui/misc";
@@ -19,17 +20,17 @@ import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
 import { EmptyState } from "@/components/shared/states";
 import { MiniStat, UserChip } from "@/components/shared/display";
-import { SeverityBadge, StatusBadge, ToolBadge, OriginBadge } from "@/components/security/badges";
+import { SeverityBadge, StatusBadge } from "@/components/security/badges";
 import { FindingPreview } from "@/components/security/FindingPreview";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
-import { CATEGORIES, CATEGORY_BY_ID, DATA_ORIGIN, SEVERITIES, SEVERITY_META, SOURCE_LABEL, VERIFICATION_STATUS } from "@/lib/constants";
+import { CATEGORY_BY_ID, DATA_ORIGIN, SEVERITIES, SEVERITY_META, SOURCE_LABEL, VERIFICATION_STATUS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "@/lib/csv";
 import { can } from "@/lib/permissions";
 import { findingService } from "@/services";
-import type { FindingSource, VerificationStatus, VulnerabilityFinding } from "@/types";
+import type { VerificationStatus, VulnerabilityFinding } from "@/types";
 
 const STATUS_TONE: Partial<Record<VerificationStatus, string>> = { pending: "text-sev-medium", needs_review: "text-cyan", confirmed: "text-sev-high" };
 
@@ -87,34 +88,28 @@ export default function FindingsPage() {
 
   const columns = React.useMemo<ColumnDef<VulnerabilityFinding, unknown>[]>(
     () => [
-      { accessorKey: "code", header: "Finding ID", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
       {
         accessorKey: "title",
-        header: "Vulnerability",
+        header: "Finding",
         cell: ({ row }) => (
           <div className="min-w-60 max-w-md">
             <p className="truncate font-medium">{row.original.title}</p>
-            <p className="truncate font-mono text-[11px] text-muted-foreground">{row.original.affectedAsset}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              <span className="font-mono">{row.original.code}</span> · {lookups.targets[row.original.targetId]?.name ?? "Unknown website"}
+              {row.original.dataOrigin === "simulated" && " · practice"}
+            </p>
+            {/* On a phone the other columns are off screen, so the two that matter sit here too. */}
+            <div className="mt-1 flex flex-wrap gap-1.5 sm:hidden">
+              <SeverityBadge severity={row.original.severity} />
+              <StatusBadge status={row.original.verificationStatus} map={VERIFICATION_STATUS} />
+            </div>
           </div>
         ),
       },
-      { id: "target", header: "Target", accessorFn: (f) => lookups.targets[f.targetId]?.name ?? "", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs">{getValue() as string}</span> },
-      { accessorKey: "category", header: "Category", cell: ({ row }) => <span className="whitespace-nowrap text-xs">{CATEGORY_BY_ID[row.original.category].short}</span> },
       { id: "severity", header: "Severity", accessorFn: (f) => SEVERITY_META[f.severity].rank, cell: ({ row }) => <SeverityBadge severity={row.original.severity} /> },
-      { accessorKey: "sourceTool", header: "Source Tool", cell: ({ row }) => <ToolBadge tool={row.original.sourceTool} /> },
-      {
-        id: "evidence",
-        header: "Evidence",
-        accessorFn: (f) => evidenceCount[f.id]?.total ?? 0,
-        cell: ({ row }) => {
-          const e = evidenceCount[row.original.id];
-          return e ? <span className="whitespace-nowrap text-xs"><span className="font-semibold">{e.total}</span> <span className="text-muted-foreground">({e.reviewed} reviewed)</span></span> : <span className="text-xs text-muted-foreground">None</span>;
-        },
-      },
-      { accessorKey: "verificationStatus", header: "Verification", cell: ({ row }) => <StatusBadge status={row.original.verificationStatus} map={VERIFICATION_STATUS} /> },
-      { accessorKey: "dataOrigin", header: "Origin", cell: ({ row }) => <OriginBadge origin={row.original.dataOrigin} /> },
-      { id: "assessor", header: "Assessor", accessorFn: (f) => lookups.users[f.assignedAssessorId]?.name ?? "", cell: ({ row }) => <UserChip user={lookups.users[row.original.assignedAssessorId]} /> },
-      { accessorKey: "discoveredAt", header: "Discovered", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(getValue() as string)}</span> },
+      { accessorKey: "verificationStatus", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.verificationStatus} map={VERIFICATION_STATUS} /> },
+      { id: "assessor", header: "Tester", accessorFn: (f) => lookups.users[f.assignedAssessorId]?.name ?? "", cell: ({ row }) => <UserChip user={lookups.users[row.original.assignedAssessorId]} /> },
+      { accessorKey: "discoveredAt", header: "Found", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(getValue() as string)}</span> },
       {
         id: "quick",
         header: () => <span className="sr-only">Quick view</span>,
@@ -164,9 +159,7 @@ export default function FindingsPage() {
               <Download /> Export CSV
             </Button>
             {canVerify && (
-              <Button size="sm" onClick={() => setManualOpen(true)}>
-                <Hand /> Record manual finding
-              </Button>
+              <AddButton onClick={() => setManualOpen(true)}>Add manual finding</AddButton>
             )}
           </>
         }
@@ -176,24 +169,20 @@ export default function FindingsPage() {
         <RisksView />
       ) : (
         <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {(["pending", "needs_review", "confirmed", "rejected"] as VerificationStatus[]).map((s) => (
           <button key={s} type="button" aria-pressed={get("status") === s} onClick={() => set("status")(get("status") === s ? ALL : s)} className={cn("rounded-2xl text-left transition-shadow hover:shadow-md", get("status") === s && "ring-2 ring-primary")}>
             <MiniStat label={VERIFICATION_STATUS[s].label} value={findings.filter((f) => f.verificationStatus === s).length} tone={STATUS_TONE[s]} />
           </button>
         ))}
-        <MiniStat label="Practice results" value={findings.filter((f) => f.dataOrigin === "simulated").length} tone="text-sev-medium" />
       </div>
       <Card>
         <div className="space-y-2 border-b border-border p-3">
           <FilterBar active={active} onReset={() => { setQ(""); setParams({}, { replace: true }); }}>
-            <SearchInput value={q} onChange={setQ} placeholder="Search title, ID, asset, CWE" />
-            <FilterSelect label="Statuses" value={get("status")} onChange={set("status")} options={[{ value: "unverified", label: "Unverified (pending + review)" }, ...(Object.keys(VERIFICATION_STATUS) as VerificationStatus[]).map((k) => ({ value: k, label: VERIFICATION_STATUS[k].label }))]} />
+            <SearchInput value={q} onChange={setQ} placeholder="Search findings" />
+            <FilterSelect label="Statuses" value={get("status")} onChange={set("status")} options={[{ value: "unverified", label: "Waiting for a decision" }, ...(Object.keys(VERIFICATION_STATUS) as VerificationStatus[]).map((k) => ({ value: k, label: VERIFICATION_STATUS[k].label }))]} />
             <FilterSelect label="Severities" value={get("severity")} onChange={set("severity")} options={SEVERITIES.map((s) => ({ value: s, label: SEVERITY_META[s].label }))} />
-            <FilterSelect label="Categories" value={get("category")} onChange={set("category")} options={CATEGORIES.map((c) => ({ value: c.id, label: c.short }))} />
-            <FilterSelect label="Tools" value={get("tool")} onChange={set("tool")} options={(Object.keys(SOURCE_LABEL) as FindingSource[]).map((t) => ({ value: t, label: SOURCE_LABEL[t] }))} />
-            <FilterSelect label="Origins" value={get("origin")} onChange={set("origin")} options={(["imported", "simulated", "user_created", "synthetic"] as const).map((o) => ({ value: o, label: DATA_ORIGIN[o].label }))} />
-            <FilterSelect label="Assessors" value={get("assessor")} onChange={set("assessor")} options={assessors.map((u) => ({ value: u.id, label: u.name }))} />
+            <FilterSelect label="Testers" value={get("assessor")} onChange={set("assessor")} options={assessors.map((u) => ({ value: u.id, label: u.name }))} />
           </FilterBar>
           {scopeChips.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
@@ -235,10 +224,9 @@ export default function FindingsPage() {
               <Button size="sm" variant="outline" className="h-7" onClick={() => exportRows(selected, "aivera-findings-selected.csv")}>
                 <Download /> Export selected
               </Button>
-              <span className="text-[11px] text-muted-foreground">Bulk confirmation is intentionally unavailable, each finding needs an individual human decision.</span>
             </>
           )}
-          empty={<EmptyState icon={ShieldAlert} title="No findings match" description="Adjust filters, or run a demo simulation from the Scans page." action={<Button size="sm" variant="outline" asChild><Link to="/scans/new">Configure demo scan</Link></Button>} />}
+          empty={<EmptyState icon={ShieldAlert} title="No findings match" description="Clear the filters, or scan a website to find some." action={<Button size="sm" variant="outline" asChild><Link to="/scans/new">New scan</Link></Button>} />}
         />
       </Card>
 

@@ -81,7 +81,8 @@ export function RecentActivity({ items, users, limit = 8 }: { items: ActivityLog
   if (!items.length) return <EmptyState compact title="No activity yet" />;
   return (
     <ol className="relative space-y-3.5 before:absolute before:top-1 before:bottom-1 before:left-[11px] before:w-px before:bg-border">
-      {items.slice(0, limit).map((a) => {
+      {/* The same action on the same thing twice in a row is shown once. */}
+      {items.filter((a, i) => { const p = items[i - 1]; return !p || p.type !== a.type || p.entityId !== a.entityId || p.userId !== a.userId; }).slice(0, limit).map((a) => {
         const { icon: Icon, tone } = activityIcon(a.type);
         return (
           <li key={a.id} className="relative flex gap-3">

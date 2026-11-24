@@ -46,7 +46,7 @@ function Tracker({ finding, task }: { finding: VulnerabilityFinding; task?: Reme
   if (finding.verificationStatus === "rejected")
     return (
       <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3 text-sm">
-        <X className="size-4 text-muted-foreground" aria-hidden /> Rejected as a false positive. No remediation required.
+        <X className="size-4 text-muted-foreground" aria-hidden /> Marked not a problem. Nothing to fix.
       </div>
     );
   return <StepTracker steps={STEPS} at={stage(finding, task)} />;

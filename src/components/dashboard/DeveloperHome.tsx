@@ -5,7 +5,7 @@ import { AlarmClock, ArrowRight, CircleCheckBig, Hourglass, ListTodo, PartyPoppe
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/widgets";
-import { SectionCard } from "@/components/shared/display";
+import { SectionCard, IconChip } from "@/components/shared/display";
 import { SeverityBadge, StatusBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useLookups } from "@/hooks";
@@ -73,9 +73,7 @@ export function DeveloperHome() {
       >
         {todo.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary">
-              <PartyPopper className="size-6" aria-hidden />
-            </span>
+            <IconChip icon={PartyPopper} size="lg" />
             <p className="font-medium">You're all caught up</p>
             <p className="text-sm text-muted-foreground">New fixes show up here when the security team confirms a problem.</p>
           </div>
@@ -90,6 +88,7 @@ export function DeveloperHome() {
                     <span className="w-1 self-stretch rounded-full" style={{ background: SEVERITY_META[t.priority].color }} aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{t.title.replace(/^Fix: /, "")}</span>
+                      {t.description && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{t.description}</span>}
                       <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <SeverityBadge severity={t.priority} />
                         <span className="font-mono">{t.code}</span>

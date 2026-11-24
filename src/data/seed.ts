@@ -51,7 +51,7 @@ export const seedProjects: Project[] = [
   {
     id: "prj-umerch", code: "AIV-2026-001", name: "UMERCH3.0 Security Assessment",
     description: "Security assessment of UMERCH3.0, the UM Merchandise Management System (Laravel + React), running locally for testing.",
-    assessmentType: "web_application", ownerId: "usr-assessor", leadId: "usr-admin", remediationOwnerId: "usr-developer", memberIds: ["usr-admin", "usr-assessor", "usr-developer"], status: "planning",
+    assessmentType: "web_application", ownerId: "usr-assessor", leadId: "usr-admin", remediationOwnerId: "usr-developer", memberIds: ["usr-admin", "usr-developer"], status: "planning",
     startDate: SETUP_DATE, dueDate: "2026-12-12T00:00:00Z",
     objectives: "Check UMERCH3.0's login and OTP verification, customer and admin access control, product and inventory pages, order handling, exposed files and configuration (for example debug routes), and security headers.",
     notes: "Local copy only (http://127.0.0.1:8000). Do not test the university's live store without written permission from ERIAO.",

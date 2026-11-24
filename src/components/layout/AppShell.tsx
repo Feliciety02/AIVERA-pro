@@ -73,8 +73,8 @@ export function PageHeader({
         <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-foreground sm:text-[28px]">{title}</h1>
         {meta && <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div>}
       </div>
-      {/* Buttons wrap instead of pushing the page wider than the screen. */}
-      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 lg:max-w-[60%] lg:justify-end">{actions}</div>}
+      {/* Buttons wrap instead of pushing the page wider than the screen. Every header button is the same size. */}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 lg:max-w-[60%] lg:justify-end [&_[data-slot=button]]:h-9 [&_[data-slot=button]]:px-4 [&_[data-slot=button]]:text-sm">{actions}</div>}
     </div>
   );
 }

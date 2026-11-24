@@ -69,7 +69,7 @@ export interface StatusMeta {
 export const PROJECT_STATUS: Record<ProjectStatus, StatusMeta> = {
   draft: { label: "Draft", tone: "muted" },
   planning: { label: "Planning", tone: "info" },
-  in_progress: { label: "In Progress", tone: "cyan" },
+  in_progress: { label: "Being fixed", tone: "cyan" },
   under_review: { label: "Under Review", tone: "warning" },
   completed: { label: "Completed", tone: "primary" },
   archived: { label: "Archived", tone: "neutral" },
@@ -85,19 +85,19 @@ export const SCAN_STATUS: Record<ScanStatus, StatusMeta> = {
 };
 
 export const VERIFICATION_STATUS: Record<VerificationStatus, StatusMeta> = {
-  pending: { label: "Pending Verification", tone: "warning" },
+  pending: { label: "Not checked yet", tone: "warning" },
   confirmed: { label: "Confirmed", tone: "danger" },
-  rejected: { label: "Rejected", tone: "neutral" },
-  needs_review: { label: "Needs Further Review", tone: "info" },
+  rejected: { label: "Not a problem", tone: "neutral" },
+  needs_review: { label: "Needs another look", tone: "info" },
 };
 
 export const REMEDIATION_STATUS: Record<RemediationStatus, StatusMeta> = {
-  open: { label: "Open", tone: "warning" },
+  open: { label: "To do", tone: "warning" },
   in_progress: { label: "In Progress", tone: "cyan" },
-  awaiting_retest: { label: "Awaiting Retest", tone: "info" },
-  pending_approval: { label: "Awaiting Approval", tone: "info" },
-  resolved: { label: "Resolved", tone: "primary" },
-  accepted_risk: { label: "Accepted Risk", tone: "neutral" },
+  awaiting_retest: { label: "Waiting for a recheck", tone: "info" },
+  pending_approval: { label: "Waiting for approval", tone: "info" },
+  resolved: { label: "Fixed", tone: "primary" },
+  accepted_risk: { label: "Left as is", tone: "neutral" },
 };
 
 /** Days to fix a confirmed finding, by severity. Used for automatic fix tasks. */
@@ -138,11 +138,11 @@ export const MITIGATION_STATUS: Record<MitigationStatus, StatusMeta> = {
 };
 
 export const DATA_ORIGIN: Record<DataOrigin, StatusMeta & { description: string }> = {
-  synthetic: { label: "Synthetic", tone: "muted", description: "Fictional sample record included with the demo dataset." },
-  simulated: { label: "SIMULATED", tone: "warning", description: "Produced by the in-browser demo simulation. No real scan was performed." },
+  synthetic: { label: "Sample", tone: "muted", description: "Fictional sample record included with the demo dataset." },
+  simulated: { label: "Practice", tone: "warning", description: "Produced by the in-browser demo simulation. No real scan was performed." },
   imported: { label: "Imported", tone: "cyan", description: "Tool output imported from a file (bundled synthetic sample or a report you supplied). Parsed in the browser, AIVERA did not run the tool or contact the host." },
-  user_created: { label: "User Entered", tone: "info", description: "Entered manually by a user in this demo session." },
-  real: { label: "Live Result", tone: "primary", description: "Found by a real scan the AIVERA server ran against this website, inside its approved scope." },
+  user_created: { label: "Added by hand", tone: "info", description: "Entered manually by a user in this demo session." },
+  real: { label: "Live", tone: "primary", description: "Found by a real scan the AIVERA server ran against this website, inside its approved scope." },
 };
 
 /* --------------------------------- Labels -------------------------------- */

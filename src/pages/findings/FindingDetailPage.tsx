@@ -29,7 +29,7 @@ import { awaitsReview } from "@/features/scanLifecycle";
 const aiRequested = new Set<string>();
 
 /** Uses the same words as the buttons. */
-const SAVED_TEXT: Record<VerificationStatus, string> = { confirmed: "Recorded as a confirmed vulnerability.", rejected: "Recorded as a false positive.", needs_review: "Flagged for further review.", pending: "Decision withdrawn." };
+const SAVED_TEXT: Record<VerificationStatus, string> = { confirmed: "Recorded as a confirmed vulnerability.", rejected: "Recorded as a false positive.", needs_review: "Marked for another look.", pending: "Decision withdrawn." };
 
 /** First sentence only: the page shows a verdict, not an essay. */
 const firstSentence = (t: string) => (t.match(/^.*?[.!?](\s|$)/)?.[0] ?? t).trim();
@@ -46,6 +46,7 @@ export default function FindingDetailPage() {
   const canAI = can(user?.role, "use_ai");
   const canRemediate = can(user?.role, "manage_remediation");
   const lookups = useLookups();
+  const scans = useDataStore((s) => s.scans);
   const finding = useDataStore((s) => s.findings.find((f) => f.id === findingId));
   useDocumentTitle(finding?.code ?? "Finding");
   const all = useDataStore(useShallow((s) => ({ evidence: s.evidence, verifications: s.verifications, analyses: s.aiAnalyses, remediation: s.remediation, risks: s.risks, findings: s.findings })));
@@ -131,8 +132,8 @@ export default function FindingDetailPage() {
   const aiLine = analysis ? firstSentence(analysis.interpretation || analysis.explanation) : "";
   // Fixed order, colour = meaning: red means "this is a problem", green means "this is safe".
   const choices = [
-    { status: "confirmed" as const, label: "Confirm vulnerability", icon: ShieldAlert, solid: "destructive" as const },
-    { status: "rejected" as const, label: "False positive", icon: ShieldCheck, solid: "success" as const },
+    { status: "confirmed" as const, label: "Yes, it's a real problem", icon: ShieldAlert, solid: "outline" as const },
+    { status: "rejected" as const, label: "No, not a problem", icon: ShieldCheck, solid: "outline" as const },
   ];
   const blockedReason = locked ? "Signed off by the project lead. The lead must return it before the decision can change." : deniedReason(user?.role);
   const canDecide = canVerify && !locked;
@@ -180,7 +181,7 @@ export default function FindingDetailPage() {
             {current === "confirmed" ? <ShieldAlert className="size-[18px]" /> : <ShieldCheck className="size-[18px]" />}
           </span>
           <div className="min-w-0 text-sm">
-            <p className="font-semibold">{current === "confirmed" ? "Confirmed vulnerability" : "False positive"}</p>
+            <p className="font-semibold">{current === "confirmed" ? "Confirmed: a real problem" : "Not a problem"}</p>
             {history[0] && <p className="text-xs text-muted-foreground">{lookups.users[history[0].assessorId]?.name ?? "Unknown"} · {formatDateTime(history[0].decidedAt)}</p>}
             {history[0]?.decisionReason && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{history[0].decisionReason}</p>}
           </div>
@@ -190,7 +191,7 @@ export default function FindingDetailPage() {
         (aiState !== "idle" || analysis) && (
           <div className="rounded-xl bg-muted/50 px-3.5 py-3 text-sm" aria-live="polite">
             <p className="flex flex-col items-start gap-1">
-              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-500/12 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                 <Sparkles className="size-3" aria-hidden /> AI assessment
               </span>
               <span className="text-[11px] text-muted-foreground">Advisory only. The tester makes the final decision.</span>
@@ -225,11 +226,11 @@ export default function FindingDetailPage() {
           .map((c) => {
             const button = decided ? (
               <Button variant="outline" size="sm" className="w-full justify-start" disabled={!canDecide} onClick={() => setDecision(c.status)}>
-                <c.icon className={c.status === "confirmed" ? "text-destructive" : "text-success"} /> {c.status === "confirmed" ? "Confirmed vulnerability" : "False positive"}
+                <c.icon className={c.status === "confirmed" ? "text-destructive" : "text-success"} /> {c.status === "confirmed" ? "It's a real problem" : "Not a problem"}
               </Button>
             ) : (
-              <Button className="h-11 w-full" variant={c.solid} disabled={!canDecide} onClick={() => setDecision(c.status)}>
-                <c.icon /> {c.label}
+              <Button className="h-11 w-full justify-start text-foreground" variant={c.solid} disabled={!canDecide} onClick={() => setDecision(c.status)}>
+                <c.icon className={c.status === "confirmed" ? "text-destructive" : "text-success"} /> {c.label}
               </Button>
             );
             return canDecide ? (
@@ -243,7 +244,7 @@ export default function FindingDetailPage() {
         {canDecide &&
           (current !== "needs_review" ? (
             <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setDecision("needs_review")}>
-              <CircleHelp className="text-warning" /> Needs further review
+              <CircleHelp className="text-warning" /> Not sure, needs another look
             </Button>
           ) : (
             <p className="flex h-8 items-center gap-1.5 px-1 text-xs text-warning">
@@ -318,13 +319,13 @@ export default function FindingDetailPage() {
                     ),
                   },
                   { label: "Found on", value: formatDate(finding.discoveredAt) },
-                  { label: "Assessor", value: <UserChip user={lookups.users[finding.assignedAssessorId]} /> },
-                  project ? { label: "Project", value: <Link to={`/projects/${project.id}`} className="hover:text-primary">{project.code}</Link> } : null,
-                  finding.scanId ? { label: "Scan", value: <Link to={`/scans/${finding.scanId}`} className="font-mono text-xs hover:text-primary">{finding.scanId}</Link> } : null,
+                  { label: "Tester", value: <UserChip user={lookups.users[finding.assignedAssessorId]} /> },
+                  project ? { label: "Project", value: <Link to={`/projects/${project.id}`} className="hover:text-primary">{project.name}</Link> } : null,
+                  finding.scanId ? { label: "Scan", value: <Link to={`/scans/${finding.scanId}`} className="hover:text-primary">{scans.find((x) => x.id === finding.scanId)?.name ?? "Open scan"}</Link> } : null,
                   risk
                     ? { label: "Risk score", value: <span style={{ color: RISK_LEVEL_META[riskLevel(risk)].color }} className="font-semibold">{riskScore(risk.likelihood, risk.impact)} · {RISK_LEVEL_META[riskLevel(risk)].label}</span> }
                     : null,
-                  finding.cwe || finding.owasp ? { label: "References", value: [finding.cwe, finding.owasp].filter(Boolean).join(" · ") } : null,
+                  finding.cwe || finding.owasp ? { label: "Reference codes", value: [finding.cwe, finding.owasp].filter(Boolean).join(" · ") } : null,
                 ]}
               />
             </SidePanel>
@@ -343,6 +344,7 @@ export default function FindingDetailPage() {
             </ContentCard>
 
             <ContentCard title="Evidence" count={evidence.length} action={evidence.length > 0 && <span className="text-xs text-muted-foreground">{reviewed} of {evidence.length} reviewed</span>}>
+              {evidence.length > 0 && <p className="mb-3 text-xs text-muted-foreground">What the tool saw when it checked the website. A tester reads this to decide whether the problem is real.</p>}
               <EvidenceViewer evidence={evidence} canReview={canVerify} />
               {canVerify && <div className="mt-4"><AddEvidenceForm findingId={finding.id} /></div>}
             </ContentCard>

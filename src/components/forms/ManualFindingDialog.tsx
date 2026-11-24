@@ -40,7 +40,7 @@ export interface ManualFindingDefaults {
   checklistRef?: { assessmentId: string; itemId: string };
 }
 
-/** Records a finding observed during manual testing. It always starts as Pending Verification. */
+/** Records a finding observed during manual testing. It always starts as "Not checked yet". */
 export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: boolean; onOpenChange: (o: boolean) => void; defaults?: ManualFindingDefaults }) {
   const navigate = useNavigate();
   const allTargets = useDataStore((s) => s.targets);
@@ -92,7 +92,7 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
       return;
     }
     const f = await findingService.createManual({ ...v, affectedAsset: v.affectedAsset || target?.url || "", impact: v.impact || "Not assessed yet.", remediation: v.remediation || "To be decided after verification.", checklistRef: defaults?.checklistRef });
-    toast.success(`Recorded ${f.code}`, { description: "Added as Pending Verification. A separate verification decision is still required." });
+    toast.success(`Recorded ${f.code}`, { description: "Added as “Not checked yet”. A tester still has to check it." });
     onOpenChange(false);
     navigate(`/findings/${f.id}`);
   };
@@ -101,7 +101,7 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
     <Dialog open={open} onOpenChange={(o) => !isSubmitting && onOpenChange(o)}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Hand className="size-4" /> Record manual finding</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Hand className="size-4" /> Add manual finding</DialogTitle>
           <DialogDescription>Something you found yourself. It starts as unverified until someone confirms it.</DialogDescription>
         </DialogHeader>
         <form id="manual-finding" onSubmit={handleSubmit(submit)} className="grid gap-4" noValidate>

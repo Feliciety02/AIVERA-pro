@@ -6,6 +6,27 @@ import { cn, initials } from "@/lib/utils";
 import { useUIStore } from "@/stores/sessionStore";
 import type { User } from "@/types";
 
+/**
+ * The small tinted square that holds an icon or a letter, used for section headings, list rows and
+ * empty states. Size: sm for card titles, md for list rows, lg for page-level cards.
+ * The colour defaults to primary; pass any theme colour (e.g. "var(--success)").
+ */
+export function IconChip({ icon: Icon, children, size = "md", color = "var(--primary)", className }: { icon?: LucideIcon; children?: React.ReactNode; size?: "sm" | "md" | "lg"; color?: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex shrink-0 items-center justify-center font-semibold",
+        { sm: "size-7 rounded-lg text-xs [&>svg]:size-4", md: "size-9 rounded-xl text-sm [&>svg]:size-4", lg: "size-12 rounded-full text-base [&>svg]:size-6" }[size],
+        className,
+      )}
+      style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}
+    >
+      {Icon ? <Icon /> : children}
+    </span>
+  );
+}
+
 /** Card with a header row (title, actions). */
 export function SectionCard({
   title,
@@ -29,11 +50,7 @@ export function SectionCard({
       <CardHeader className={cn(flush && "border-b border-border pb-3")}>
         <div className="min-w-0">
           <CardTitle className="flex items-center gap-2">
-            {Icon && (
-              <span className="flex size-7 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary">
-                <Icon className="size-4" aria-hidden />
-              </span>
-            )}
+            {Icon && <IconChip icon={Icon} size="sm" />}
             {title}
           </CardTitle>
         </div>

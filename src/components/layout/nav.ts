@@ -39,12 +39,14 @@ export function navLabel(item: NavItem, role?: UserRole) {
 
 export function visibleNav(groups: NavGroup[], role?: UserRole, allows?: (p: Permission) => boolean): NavGroup[] {
   return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => (!i.roles || (role && i.roles.includes(role))) && (!i.requires || !!allows?.(i.requires))) }))
+    .map((g) => ({ ...g, label: (role && g.labelFor?.[role]) ?? g.label, items: g.items.filter((i) => (!i.roles || (role && i.roles.includes(role))) && (!i.requires || !!allows?.(i.requires))) }))
     .filter((g) => g.items.length);
 }
 
 export interface NavGroup {
   label: string;
+  /** A different group name for some roles. */
+  labelFor?: Partial<Record<UserRole, string>>;
   items: NavItem[];
 }
 
@@ -84,6 +86,7 @@ export const NAV: NavGroup[] = [
   },
   {
     label: "Admin",
+    labelFor: { remediation_owner: "Account" },
     items: [
       { label: "Activity log", to: "/activity", icon: Activity, roles: ADMIN },
       { label: "Users", to: "/users", icon: Users, roles: ADMIN },
@@ -102,7 +105,7 @@ export const SIMPLE_NAV: NavGroup[] = [
     label: "Your assessment",
     items: [
       { label: "Home", to: "/dashboard", icon: Gauge },
-      { label: "Projects", to: "/projects", icon: FolderKanban, roles: ADMIN },
+      { label: "Projects", to: "/projects", icon: FolderKanban, roles: TEAM },
       { label: "Websites", to: "/targets", icon: Target, labelFor: { remediation_owner: "My websites" } },
       { label: "Scans", to: "/scans", icon: ScanLine, roles: TEAM },
       { label: "Findings", to: "/findings", icon: ShieldAlert, roles: TEAM },

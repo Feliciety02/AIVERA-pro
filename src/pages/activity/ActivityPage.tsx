@@ -98,7 +98,6 @@ export default function ActivityPage() {
             <SearchInput value={q} onChange={setQ} placeholder="Search descriptions" />
             <FilterSelect label="Event types" value={type} onChange={setType} options={(Object.keys(ACTIVITY_LABELS) as ActivityType[]).map((k) => ({ value: k, label: ACTIVITY_LABELS[k] }))} />
             <FilterSelect label="Users" value={userId} onChange={setUserId} options={Object.values(lookups.users).map((u) => ({ value: u.id, label: u.name }))} />
-            <FilterSelect label="Entities" value={entity} onChange={setEntity} options={(["project", "target", "scan", "finding", "remediation", "report", "risk", "assessment", "user", "settings", "system"] as EntityType[]).map((e) => ({ value: e, label: e }))} />
             <DateRangeFilter value={range} onChange={setRange} />
           </FilterBar>
         </div>

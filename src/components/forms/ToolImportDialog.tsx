@@ -103,7 +103,7 @@ export function ToolImportDialog({ open, onOpenChange, defaultTargetId }: { open
     setBusy(true);
     try {
       const r = await importService.importFor(target.id, preview.parsed, text, fileName);
-      toast.success(`Imported as ${r.scanCode}`, { description: `${r.findingCount} finding(s) added as Pending Verification. ${r.skippedCount} out-of-scope item(s) skipped.` });
+      toast.success(`Imported as ${r.scanCode}`, { description: `${r.findingCount} finding(s) added as "Not checked yet". ${r.skippedCount} item(s) outside what may be tested were skipped.` });
       onOpenChange(false);
       navigate(`/scans/${r.scanId}`);
     } catch (e) {

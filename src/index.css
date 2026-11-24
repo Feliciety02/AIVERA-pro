@@ -42,7 +42,7 @@
   --warning: #b06000;
   --warning-foreground: #ffffff;
 
-  --sev-critical: #9b1c47;
+  --sev-critical: #7b2cbf;
   --sev-high: #d93025;
   --sev-medium: #e8710a;
   --sev-low: #d9a400;
@@ -86,7 +86,7 @@
   --warning: #fdd663;
   --warning-foreground: #202124;
 
-  --sev-critical: #f07aa0;
+  --sev-critical: #c39bf2;
   --sev-high: #f28b82;
   --sev-medium: #fcad70;
   --sev-low: #fdd663;

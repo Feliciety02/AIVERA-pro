@@ -25,7 +25,7 @@ export default function TargetFormPage() {
   if (editing && !target)
     return (
       <ContentContainer>
-        <NotFoundState entity="Target" backTo="/targets" backLabel="Back to targets" />
+        <NotFoundState entity="Website" backTo="/projects" backLabel="Back to projects" />
       </ContentContainer>
     );
 
@@ -45,7 +45,7 @@ export default function TargetFormPage() {
   return (
     <ContentContainer className="max-w-5xl">
       <PageHeader
-        title={editing ? `Edit ${target?.name}` : "Register a website to test"}
+        title={editing ? `Edit ${target?.name}` : "Add website"}
       />
       {!can(user?.role, "manage_targets") ? (
         <Callout tone="warning" title="Not permitted for this demo role">

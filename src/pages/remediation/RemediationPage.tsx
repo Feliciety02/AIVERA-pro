@@ -3,9 +3,10 @@ import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { AlarmClock, ArrowRight, CalendarClock, ChevronDown, Pencil, CircleCheck, ClipboardCheck, Loader2, Play, Plus, RotateCcw, ShieldAlert, ShieldCheck, ShieldOff, UserRound, Wrench, XCircle } from "lucide-react";
+import { AlarmClock, ArrowRight, CalendarClock, ChevronDown, CircleCheck, ClipboardCheck, Loader2, Play, RotateCcw, ShieldAlert, ShieldCheck, ShieldOff, UserRound, Wrench, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { AddButton, EditButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { NoteChips } from "@/components/forms/choices";
@@ -208,7 +209,7 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
         {hasActions && (
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1">
-              {canManage && !isClosed(task.status) && <Button variant="ghost" className="text-muted-foreground" onClick={() => setEditOpen(true)}><Pencil /> Edit</Button>}
+              {canManage && !isClosed(task.status) && <EditButton onClick={() => setEditOpen(true)} />}
               {canApprove && !isClosed(task.status) && <Button variant="ghost" className="text-muted-foreground" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the website owner accepts this risk without a fix. A reason is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
             </div>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2 [&>button]:min-w-32">
@@ -263,6 +264,7 @@ export default function RemediationPage() {
   useDocumentTitle("Fixes");
   const user = useCurrentUser();
   const canEdit = can(user?.role, "manage_remediation");
+  const isOwner = user?.role === "remediation_owner";
   const lookups = useLookups();
   const [params, setParams] = useSearchParams();
   const { tasks, findings } = useDataStore(useShallow((s) => ({ tasks: s.remediation, findings: s.findings })));
@@ -307,8 +309,8 @@ export default function RemediationPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Fixes"
-        actions={canEdit && <Button size="sm" onClick={() => setPickOpen(true)}><Plus /> New task</Button>}
+        title={isOwner ? "My fixes" : "Fixes"}
+        actions={canEdit && <AddButton onClick={() => setPickOpen(true)}>New task</AddButton>}
       />
       {/* One line instead of six counters. */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 text-sm">
@@ -324,7 +326,7 @@ export default function RemediationPage() {
         <FilterBar active={sev !== ALL || owner !== ALL || overdueOnly || !!q} onReset={() => { setStatus(ALL); setSev(ALL); setOwner(ALL); setOverdueOnly(false); setQ(""); }}>
           <SearchInput value={q} onChange={setQ} placeholder="Search tasks" />
           <FilterSelect label="Severities" value={sev} onChange={setSev} options={SEVERITIES.map((s) => ({ value: s, label: SEVERITY_META[s].label }))} />
-          <FilterSelect label="Owners" value={owner} onChange={setOwner} options={Object.values(lookups.users).map((u) => ({ value: u.id, label: u.name }))} />
+          {!isOwner && <FilterSelect label="Owners" value={owner} onChange={setOwner} options={Object.values(lookups.users).map((u) => ({ value: u.id, label: u.name }))} />}
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input type="checkbox" checked={overdueOnly} onChange={(e) => setOverdueOnly(e.target.checked)} className="accent-[var(--primary)]" /> Overdue only
           </label>
@@ -332,8 +334,15 @@ export default function RemediationPage() {
       </div>
 
       {/* The board is the whole page: one column per step, click a card to work on it. */}
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-            {ORDER.map((s) => {
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={Wrench}
+              title={tasks.length ? "No tasks match these filters" : "No fix tasks yet"}
+              description={tasks.length ? "Clear the filters to see every task." : isOwner ? "When a tester confirms a problem on your website, the fix shows up here." : "A task is made for each confirmed problem."}
+            />
+          ) : (
+          <div className="grid gap-3 md:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]">
+            {ORDER.filter((s) => rows.some((t) => t.status === s)).map((s) => {
               const col = rows.filter((t) => t.status === s);
               return (
                 <div key={s} className="flex min-h-40 flex-col rounded-lg border border-border bg-muted/20">
@@ -342,7 +351,6 @@ export default function RemediationPage() {
                     <span className="text-xs font-semibold tabular-nums text-muted-foreground">{col.length}</span>
                   </div>
                   <div className="flex-1 space-y-2 p-2">
-                    {col.length === 0 && <p className="rounded-lg border border-dashed border-border py-6 text-center text-[11px] text-muted-foreground">Nothing here</p>}
                     {col.map((t) => (
                       <button key={t.id} type="button" onClick={() => openTask(t.id)} className="relative w-full overflow-hidden rounded-xl border border-border bg-card p-2.5 pl-3.5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
                         <span className="absolute inset-y-0 left-0 w-1" style={{ background: SEVERITY_META[t.priority].color }} aria-hidden />
@@ -362,6 +370,7 @@ export default function RemediationPage() {
               );
             })}
           </div>
+          )}
 
       <Sheet open={!!selected} onOpenChange={(o) => !o && openTask(null)}>
         <SheetContent className="sm:max-w-xl">

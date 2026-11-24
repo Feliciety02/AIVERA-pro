@@ -2,22 +2,21 @@ import * as React from "react";
 import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useShallow } from "zustand/react/shallow";
-import { Check, Minus,  UserCog } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { Collapsible } from "@/components/shared/DetailLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable";
-import { Callout, KeyValue, MiniStat, SectionCard, UserChip } from "@/components/shared/display";
+import { Callout, KeyValue, UserChip } from "@/components/shared/display";
 import { ToneBadge } from "@/components/security/badges";
 import { ChoiceCard } from "@/components/forms/fields";
-import { NAV } from "@/components/layout/nav";
 import { useDataStore } from "@/stores/dataStore";
-import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
+import { useCurrentUser, useDocumentTitle, useInitialLoading } from "@/hooks";
 import { ROLE_META } from "@/lib/constants";
 import { can, PERMISSION_LABELS, permissionsFor, ROLE_ORDER, type Permission } from "@/lib/permissions";
 import { formatDate, formatRelative } from "@/lib/format";
@@ -94,10 +93,8 @@ export default function UsersPage() {
   useDocumentTitle("Users");
   const loading = useInitialLoading();
   const me = useCurrentUser();
-  const lookups = useLookups();
-  const { users, activity } = useDataStore(useShallow((s) => ({ users: s.users, activity: s.activity })));
+  const users = useDataStore((s) => s.users);
   const [editing, setEditing] = React.useState<User | null>(null);
-  const [previewRole, setPreviewRole] = React.useState<UserRole>("remediation_owner");
 
   if (!can(me?.role, "manage_users"))
     return (
@@ -108,76 +105,55 @@ export default function UsersPage() {
     );
 
   const columns: ColumnDef<User, unknown>[] = [
-    { accessorKey: "name", header: "User", cell: ({ row }) => <div><UserChip user={row.original} showTitle /></div> },
-    { accessorKey: "email", header: "Email", cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{getValue() as string}</span> },
+    {
+      accessorKey: "name",
+      header: "User",
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <UserChip user={row.original} />
+          <p className="mt-0.5 truncate pl-8 text-[11px] text-muted-foreground">{row.original.email}</p>
+        </div>
+      ),
+    },
     { accessorKey: "role", header: "Role", cell: ({ row }) => <ToneBadge tone={ROLE_META[row.original.role].tone}>{ROLE_META[row.original.role].label}</ToneBadge> },
-    { accessorKey: "status", header: "Account Status", cell: ({ row }) => <ToneBadge tone={STATUS_TONE[row.original.status]} dot>{row.original.status}</ToneBadge> },
-    { id: "projects", header: "Assigned Projects", accessorFn: (u) => u.assignedProjectIds.length, cell: ({ row }) => <span className="text-xs">{row.original.assignedProjectIds.map((id) => lookups.projects[id]?.code).filter(Boolean).join(", ") || "N/A"}</span> },
-    { id: "activity", header: "Activity", accessorFn: (u) => activity.filter((a) => a.userId === u.id).length, cell: ({ getValue }) => <span className="text-xs tabular-nums">{getValue() as number} actions</span> },
+    { accessorKey: "status", header: "Status", cell: ({ row }) => <ToneBadge tone={STATUS_TONE[row.original.status]} dot>{row.original.status}</ToneBadge> },
     { accessorKey: "lastActiveAt", header: "Last active", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(getValue() as string)}</span> },
   ];
 
   const allPerms = Object.keys(PERMISSION_LABELS) as Permission[];
-  const visibleNav = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.requires || can(previewRole, i.requires)) })).filter((g) => g.items.length);
 
   return (
     <ContentContainer wide>
       <PageHeader title="Users" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <MiniStat label="Users" value={users.length} />
-        {ROLES.map((r) => <MiniStat key={r} label={ROLE_META[r].label} value={users.filter((u) => u.role === r).length} />)}
-      </div>
       <Card>
         <DataTable data={users} columns={columns} getRowId={(u) => u.id} loading={loading} onRowClick={setEditing} caption="Users" />
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <SectionCard title="Roles & permissions">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Permission</TableHead>
-                {ROLES.map((r) => <TableHead key={r} className="text-center">{ROLE_META[r].label}</TableHead>)}
+      <Collapsible title="What each role can do" hint={`${ROLES.length} roles`}>
+        <ul className="mb-4 space-y-1.5 text-sm text-muted-foreground">
+          {ROLES.map((r) => <li key={r}><span className="font-medium text-foreground">{ROLE_META[r].label}:</span> {ROLE_META[r].description}</li>)}
+        </ul>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Permission</TableHead>
+              {ROLES.map((r) => <TableHead key={r} className="text-center">{ROLE_META[r].label}</TableHead>)}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {allPerms.map((p) => (
+              <TableRow key={p}>
+                <TableCell className="text-xs">{PERMISSION_LABELS[p]}</TableCell>
+                {ROLES.map((r) => (
+                  <TableCell key={r} className="text-center">
+                    {permissionsFor(r).includes(p) ? <Check className="mx-auto size-4 text-primary" aria-label="Allowed" /> : <Minus className="mx-auto size-4 text-muted-foreground/50" aria-label="Not allowed" />}
+                  </TableCell>
+                ))}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allPerms.map((p) => (
-                <TableRow key={p}>
-                  <TableCell className="text-xs">{PERMISSION_LABELS[p]}</TableCell>
-                  {ROLES.map((r) => (
-                    <TableCell key={r} className="text-center">
-                      {permissionsFor(r).includes(p) ? <Check className="mx-auto size-4 text-primary" aria-label="Allowed" /> : <Minus className="mx-auto size-4 text-muted-foreground/50" aria-label="Not allowed" />}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
-            {ROLES.map((r) => <li key={r}><span className="font-medium text-foreground">{ROLE_META[r].label}:</span> {ROLE_META[r].description}</li>)}
-          </ul>
-        </SectionCard>
-        <SectionCard title="Role-based navigation demo" icon={UserCog} actions={
-          <Select value={previewRole} onValueChange={(v) => setPreviewRole(v as UserRole)}>
-            <SelectTrigger className="h-8 w-40 text-xs" aria-label="Preview role"><SelectValue /></SelectTrigger>
-            <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_META[r].label}</SelectItem>)}</SelectContent>
-          </Select>
-        }>
-          <div className="rounded-lg border border-border bg-sidebar p-3">
-            {visibleNav.map((g) => (
-              <div key={g.label} className="mb-3 last:mb-0">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">{g.label}</p>
-                <ul className="space-y-0.5">
-                  {g.items.map((i) => (
-                    <li key={i.to} className="flex items-center gap-2 rounded px-2 py-1 text-xs text-sidebar-foreground"><i.icon className="size-3.5 text-muted-foreground" /> {i.label}</li>
-                  ))}
-                </ul>
-              </div>
             ))}
-          </div>
-          <p className="mt-3 text-[11px] text-muted-foreground">Switch persona via the user menu → “Switch demo account” to experience it.</p>
-        </SectionCard>
-      </div>
+          </TableBody>
+        </Table>
+      </Collapsible>
 
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <SheetContent>

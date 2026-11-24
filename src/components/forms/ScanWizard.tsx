@@ -215,7 +215,7 @@ export function ScanWizard({
           {target && (
             <details className="group rounded-xl border border-border">
               <summary className="flex cursor-pointer list-none items-center justify-between px-3.5 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-                More settings <span className="text-xs font-normal text-muted-foreground">{rps} req/s · {timeLimit} min · {effectiveCategories.length} categories</span>
+                More settings <span className="text-xs font-normal text-muted-foreground">Up to {rps} request{rps === 1 ? "" : "s"} a second · stops after {timeLimit} min · {effectiveCategories.length} kind{effectiveCategories.length === 1 ? "" : "s"} of check</span>
               </summary>
               <div className="space-y-4 border-t border-border p-3.5">
                 <Field id="scan-name" label="Scan name"><Input id="scan-name" value={name} onChange={(e) => setName(e.target.value)} /></Field>
@@ -223,7 +223,7 @@ export function ScanWizard({
                   <Field id="rps" label="Request rate">
                     <Select value={String(rps)} onValueChange={(v) => setRps(Number(v))}>
                       <SelectTrigger id="rps"><SelectValue /></SelectTrigger>
-                      <SelectContent>{[...new Set([1, 2, 5, 10, 20, rps])].sort((a, b) => a - b).map((n) => <SelectItem key={n} value={String(n)}>{n} req/s{n <= 2 ? " (gentle)" : ""}</SelectItem>)}</SelectContent>
+                      <SelectContent>{[...new Set([1, 2, 5, 10, 20, rps])].sort((a, b) => a - b).map((n) => <SelectItem key={n} value={String(n)}>{n} request{n === 1 ? "" : "s"}/second{n <= 2 ? " (gentle)" : ""}</SelectItem>)}</SelectContent>
                     </Select>
                   </Field>
                   <Field id="time" label="Time limit">
@@ -252,7 +252,7 @@ export function ScanWizard({
                   </label>
                 )}
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium">Test categories</p>
+                  <p className="text-xs font-medium">Kinds of check</p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {CATEGORIES.filter((c) => target.scope.allowedCategories.includes(c.id)).map((c) => (
                       <ChoiceCard key={c.id} checked={categories.includes(c.id)} onToggle={() => setCategories(toggle(categories, c.id))} title={c.name} />

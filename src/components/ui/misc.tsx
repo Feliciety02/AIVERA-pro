@@ -167,8 +167,15 @@ function PopoverContent({ className, align = "center", sideOffset = 6, ...props 
 }
 
 /* --------------------------------- Avatar -------------------------------- */
-// Solid avatar colours in the style of Google account avatars.
-const avatarTones = ["bg-[#1a73e8] text-white", "bg-[#188038] text-white", "bg-[#e8710a] text-white", "bg-[#9334e6] text-white", "bg-[#d93025] text-white", "bg-[#12858a] text-white"];
+// Tinted avatar colours from the theme, so they work in light and dark mode. Red is left out so
+// a person never looks like an error.
+const avatarTones = [
+  "bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] text-primary",
+  "bg-[color-mix(in_srgb,var(--success)_16%,transparent)] text-success",
+  "bg-[color-mix(in_srgb,var(--cyan)_16%,transparent)] text-cyan",
+  "bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-warning",
+  "bg-[color-mix(in_srgb,var(--sev-high)_14%,transparent)] text-sev-high",
+];
 
 function Avatar({ initials, className, seed = 0 }: { initials: string; className?: string; seed?: number }) {
   return (

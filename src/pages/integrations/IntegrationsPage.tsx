@@ -4,7 +4,7 @@ import { Bot, ChevronDown, Globe, Loader2, Network, Plug, Radar, RefreshCw, Scan
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/widgets";
-import { SectionCard } from "@/components/shared/display";
+import { SectionCard, IconChip } from "@/components/shared/display";
 import { ToneBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useDocumentTitle } from "@/hooks";
@@ -126,9 +126,7 @@ function IntegrationRow({ i }: { i: Integration }) {
         className="grid w-full items-center gap-x-4 gap-y-2 px-6 py-4 text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_150px_auto]"
       >
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary">
-            <Icon className="size-[18px]" aria-hidden />
-          </span>
+          <IconChip icon={Icon} />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{i.name}</p>
             <p className="line-clamp-2 text-xs text-muted-foreground">{i.purpose}</p>

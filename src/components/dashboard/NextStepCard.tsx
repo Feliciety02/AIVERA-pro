@@ -20,7 +20,7 @@ interface Step {
 
 /**
  * "What to do next": shows where the assessment stands and one button for the next step.
- * Only real results count; simulated practice data is ignored.
+ * Practice results count too, so the steps agree with the numbers on Home.
  */
 export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
   const { targets, scans, findings, remediation, reports } = useDataStore(
@@ -29,8 +29,8 @@ export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
 
   const ready = targets.find((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed && t.projectId);
   const anyTarget = targets[0];
-  const realScans = scans.filter((s) => s.dataOrigin !== "simulated" && s.status === "completed");
-  const realFindings = findings.filter((f) => f.dataOrigin !== "simulated");
+  const realScans = scans.filter((s) => s.status === "completed");
+  const realFindings = findings;
   const toReview = realFindings.filter((f) => f.verificationStatus === "pending" || f.verificationStatus === "needs_review");
   const confirmed = realFindings.filter((f) => f.verificationStatus === "confirmed");
   const withoutFix = confirmed.filter((f) => !remediation.some((t) => t.findingId === f.id));
@@ -64,7 +64,7 @@ export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
       done: reviewDone,
       title: toReview.length ? `Review ${toReview.length} finding${toReview.length === 1 ? "" : "s"}` : "Wait for findings",
       body: toReview.length
-        ? "Review the evidence for each finding and record whether it is a confirmed vulnerability or a false positive. Only a tester's decision counts."
+        ? "Look at what the scan found and decide for each one: is it a real problem, or not? Only a person's decision counts."
         : "The scans haven't produced any findings yet. Run another scan, or record something you found by hand.",
       action: toReview.length ? { label: "Start reviewing", to: "/findings?status=unverified" } : { label: "Open findings", to: "/findings" },
     },
@@ -99,7 +99,7 @@ export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
             <span
               className={cn(
                 "flex size-6 items-center justify-center rounded-full border text-[11px] font-medium",
-                s.done ? "border-success bg-success text-white dark:text-slate-950" : i === current ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                s.done ? "border-success bg-success text-success-foreground" : i === current ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
               )}
               aria-hidden
             >

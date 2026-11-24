@@ -1,8 +1,9 @@
 import * as React from "react";
 import { Link } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, BarChart3, CircleCheckBig, Globe, Inbox, Plus, ScanLine, Timer, Wrench } from "lucide-react";
+import { ArrowRight, BarChart3, CircleCheckBig, Globe, Inbox, Timer, Wrench } from "lucide-react";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { AddButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/misc";
 import { StatCard, RecentActivity } from "@/components/dashboard/widgets";
@@ -78,16 +79,8 @@ function TeamHome() {
             </Button>
             {can(user?.role, "manage_projects") && !simpleMode && (
               <>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/scans/new">
-                    <ScanLine /> New scan
-                  </Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link to="/projects/new">
-                    <Plus /> New project
-                  </Link>
-                </Button>
+                <AddButton to="/scans/new">New scan</AddButton>
+                <AddButton to="/projects/new">New project</AddButton>
               </>
             )}
           </>
@@ -101,9 +94,9 @@ function TeamHome() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Websites ready to scan" value={m.authorizedTargets} icon={Globe} accent="var(--primary)" tooltip="Websites with confirmed permission that can be scanned. Registering a website never contacts it." sub={`of ${m.registeredTargets} added`} to="/targets" />
-          <StatCard label="Findings to review" value={m.pendingVerification} icon={Timer} accent="var(--sev-medium)" tooltip="Findings awaiting a tester's decision: confirmed vulnerability or false positive." sub="awaiting a decision" to="/findings?status=unverified" />
-          <StatCard label="Confirmed problems" value={m.confirmed} icon={CircleCheckBig} accent="var(--sev-high)" tone={m.criticalConfirmed ? "text-sev-critical" : undefined} tooltip="Findings a person confirmed after checking the evidence. AI suggestions never count here." sub={m.criticalConfirmed ? `${m.criticalConfirmed} critical` : "none critical"} to="/findings?status=confirmed" />
-          <StatCard label="Fixes closed" value={`${m.remediationProgress}%`} icon={Wrench} accent="var(--success)" tooltip="Share of fix tasks resolved (with approval) or accepted as a risk." sub={<Progress value={m.remediationProgress} className="h-1 w-24" />} to="/remediation" />
+          <StatCard label="Not checked yet" value={m.pendingVerification} icon={Timer} accent="var(--sev-medium)" tooltip="Possible problems the scan found that no person has checked yet." sub="waiting for a tester" to="/findings?status=unverified" />
+          <StatCard label="Confirmed problems" value={m.confirmed} icon={CircleCheckBig} accent="var(--sev-high)" tone={m.criticalConfirmed ? "text-sev-critical" : undefined} tooltip="Problems a person checked and confirmed are real. AI suggestions never count here." sub={m.criticalConfirmed ? `${m.criticalConfirmed} critical` : "none critical"} to="/findings?status=confirmed" />
+          <StatCard label="Fixes closed" value={`${m.remediationProgress}%`} icon={Wrench} accent="var(--success)" tooltip="Share of fixes that are done, or closed on purpose without a fix." sub={<Progress value={m.remediationProgress} className="h-1 w-24" />} to="/remediation" />
         </div>
       )}
 
@@ -122,7 +115,17 @@ function TeamHome() {
             )
           }
         >
-          {work.total === 0 ? <EmptyState compact icon={Inbox} title="Nothing waiting on you" description="New assignments show up here." className="border-0" /> : <MyWorkList work={work} limit={3} />}
+          {work.total === 0 ? (
+            <EmptyState
+              compact
+              icon={Inbox}
+              title="Nothing assigned to you"
+              description={m.pendingVerification ? `${m.pendingVerification} finding${m.pendingVerification === 1 ? " is" : "s are"} with another tester.` : "New assignments show up here."}
+              className="border-0"
+            />
+          ) : (
+            <MyWorkList work={work} limit={3} />
+          )}
         </SectionCard>
         <div className="space-y-4">
         <SeverityBreakdown findings={s.findings} />

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Callout, SectionCard } from "@/components/shared/display";
+import { Callout, SectionCard, IconChip } from "@/components/shared/display";
 import { EmptyState } from "@/components/shared/states";
 import { AIAnalysisPanel } from "@/components/security/AIAnalysisPanel";
 import { AINotice } from "@/components/security/AINotice";
@@ -41,7 +41,6 @@ const MODE_ICON: Record<AIMode, LucideIcon> = {
   assessment_summary: FileText,
 };
 /** The icon chip every list row in the app uses (Integrations, Websites). */
-const ROW_CHIP = "flex size-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary";
 
 const SCAN_KIND: Record<string, string> = { simulated: "Practice scan", real: "Real scan", imported: "Imported" };
 
@@ -148,9 +147,7 @@ export default function AIAnalystPage() {
                     on ? "border-primary bg-primary/8 font-medium ring-1 ring-primary" : "border-border bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                   )}
                 >
-                  <span className={ROW_CHIP}>
-                    <Icon className="size-[18px]" aria-hidden />
-                  </span>
+                  <IconChip icon={Icon} />
                   <span className="leading-tight">{ASK[m.id]}</span>
                 </button>
               );
@@ -214,9 +211,7 @@ export default function AIAnalystPage() {
                   }}
                   className={cn("flex w-full items-center gap-3 px-6 py-3 text-left text-sm transition-colors hover:bg-accent/40", current?.id === a.id && "bg-accent/40 font-medium")}
                 >
-                  <span className={ROW_CHIP}>
-                    <Icon className="size-[18px]" aria-hidden />
-                  </span>
+                  <IconChip icon={Icon} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{a.title}</span>
                     <span className="block text-xs font-normal text-muted-foreground">{ASK[a.mode]}</span>

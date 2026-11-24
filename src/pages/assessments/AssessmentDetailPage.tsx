@@ -170,7 +170,7 @@ export default function AssessmentDetailPage() {
             <SectionCard title={`Related findings (${related.length})`}>
               {related.length ? <div className="-mx-2">{related.map((f) => <FindingRow key={f.id} finding={f} target={lookups.targets[f.targetId]?.name} />)}</div> : <p className="text-xs text-muted-foreground">No findings in this category yet.</p>}
             </SectionCard>
-            <Callout>A failed checklist item does not create a finding automatically. Use <strong>Record finding</strong> on the item to document it with evidence; it then enters the verification queue as Pending Verification.</Callout>
+            <Callout>A failed checklist item does not create a finding automatically. Use <strong>Record finding</strong> on the item to document it with evidence; it then waits for a tester as "Not checked yet".</Callout>
           </div>
         </div>
       )}

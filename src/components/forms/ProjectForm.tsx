@@ -124,10 +124,11 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
   const leadId = watch("leadId");
   const fixerId = watch("remediationOwnerId");
 
-  // The owner, lead and remediation owner are always on the team.
+  // The lead and website owner are always members. The project owner is shown as owner, never as a member.
   React.useEffect(() => {
-    const missing = [ownerId, leadId, fixerId].filter((id): id is string => !!id && !members.includes(id));
-    if (missing.length) setValue("memberIds", [...members, ...missing], { shouldDirty: true });
+    const missing = [leadId, fixerId].filter((id): id is string => !!id && id !== ownerId && !members.includes(id));
+    const withoutOwner = members.filter((id) => id !== ownerId);
+    if (missing.length || withoutOwner.length !== members.length) setValue("memberIds", [...withoutOwner, ...missing], { shouldDirty: true });
   }, [ownerId, leadId, fixerId, members, setValue]);
 
   const err = (k: keyof ProjectFormValues) => errors[k]?.message as string | undefined;
@@ -239,15 +240,15 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
               <p className="text-xs font-medium">Assigned members</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {users
-                  .filter((u) => u.status !== "suspended")
+                  .filter((u) => u.status !== "suspended" && u.id !== ownerId)
                   .map((u) => (
                     <ChoiceCard
                       key={u.id}
                       checked={members.includes(u.id)}
-                      disabled={u.id === ownerId || u.id === leadId || u.id === fixerId}
+                      disabled={u.id === leadId || u.id === fixerId}
                       onToggle={() => setValue("memberIds", members.includes(u.id) ? members.filter((m) => m !== u.id) : [...members, u.id], { shouldDirty: true })}
                       title={u.name}
-                      description={`${u.title}${u.id === ownerId ? " · owner" : u.id === leadId ? " · lead" : u.id === fixerId ? " · fixes" : ""}`}
+                      description={`${u.title}${u.id === leadId ? " · lead" : u.id === fixerId ? " · fixes" : ""}`}
                     />
                   ))}
               </div>

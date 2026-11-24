@@ -16,7 +16,7 @@ export const toUser = (u: P.User): T.User => ({
 
 export const toProject = (p: P.Project & { members: P.ProjectMember[] }): T.Project => ({
   id: p.id, code: p.code, name: p.name, description: p.description, assessmentType: p.assessmentType as T.AssessmentType,
-  ownerId: p.ownerId, memberIds: p.members.map((m) => m.userId), leadId: p.leadId ?? undefined, remediationOwnerId: p.remediationOwnerId ?? undefined, status: p.status as T.ProjectStatus,
+  ownerId: p.ownerId, memberIds: p.members.map((m) => m.userId).filter((id) => id !== p.ownerId), leadId: p.leadId ?? undefined, remediationOwnerId: p.remediationOwnerId ?? undefined, status: p.status as T.ProjectStatus,
   statusBeforeArchive: (p.statusBeforeArchive ?? undefined) as T.ProjectStatus | undefined,
   startDate: req(p.startDate), dueDate: req(p.dueDate), objectives: p.objectives, notes: p.notes,
   createdAt: req(p.createdAt), updatedAt: req(p.updatedAt), dataOrigin: p.dataOrigin as T.DataOrigin,

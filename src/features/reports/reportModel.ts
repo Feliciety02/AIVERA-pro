@@ -81,7 +81,7 @@ export function buildReportModel(report: Report, s: ReportSource): ReportModel |
     project,
     targets,
     owner: s.users.find((u) => u.id === project.ownerId),
-    assessors: s.users.filter((u) => project.memberIds.includes(u.id) && can(u.role, "verify_findings")),
+    assessors: s.users.filter((u) => (u.id === project.ownerId || project.memberIds.includes(u.id)) && can(u.role, "verify_findings")),
     verified,
     excluded,
     unverified,

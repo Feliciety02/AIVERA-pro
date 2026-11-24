@@ -35,10 +35,10 @@ export const WELCOME_TOUR: TourStep[] = [
   { target: '[data-tour="next-step"]', title: "Start here every time", body: "This card always shows your next step and one button to do it. Follow it from top to bottom and you won't miss anything." },
   { target: menuLink("/targets"), title: "1 · Websites", body: "The websites you're allowed to test. Adding one takes four short steps, and AIVERA works out what may be tested.", keepIfHidden: true },
   { target: menuLink("/scans"), title: "2 · Scans", body: "Every scan of your website. The easiest way to start one is the Scan this website button on Home or on the website's page.", keepIfHidden: true },
-  { target: menuLink("/findings"), title: "3 · Findings", body: "What the scans found. Review the evidence and record each one as a confirmed vulnerability or a false positive. Only a tester's decision counts.", keepIfHidden: true },
+  { target: menuLink("/findings"), title: "3 · Findings", body: "What the scans found. Review the evidence and decide for each one: is it a real problem, or not? Only a person's decision counts.", keepIfHidden: true },
   { target: menuLink("/remediation"), title: "4 · Fixes", body: "A to-do list of fixes for confirmed problems: who fixes it, by when, and a retest to prove it's fixed.", keepIfHidden: true },
   { target: menuLink("/reports"), title: "5 · Reports", body: "Turn your confirmed findings, evidence and fixes into a PDF report.", keepIfHidden: true },
-  { target: '[data-tour="menu-mode"]', title: "Need more tools?", body: "The menu is in Simple mode. Click Show all tools for extra pages like analytics, projects and checklists. Replay any page's tutorial with the ? button at the top.", keepIfHidden: true },
+  { target: '[data-tour="menu-mode"]', title: "Need more tools?", body: "The menu is in Simple mode. Click Show all tools for extra pages like analytics and checklists. Replay any page's tutorial with the ? button at the top.", keepIfHidden: true },
 ];
 
 interface PageTour {
@@ -142,7 +142,7 @@ export const PAGE_TOURS: PageTour[] = [
     key: "scans",
     match: /^\/scans$/,
     steps: [
-      { target: btn("Import tool output"), title: "Use real tool results", body: "Run Nmap (e.g. nmap -sV -oX report.xml <host>) or OWASP ZAP yourself on your authorized target, export the report, and import it here. Findings arrive as Pending Verification." },
+      { target: btn("Import tool output"), title: "Use real tool results", body: "Run Nmap (e.g. nmap -sV -oX report.xml <host>) or OWASP ZAP yourself on your authorized target, export the report, and import it here. Findings arrive as “Not checked yet”." },
       { target: btn("New scan"), title: "Start a scan", body: "One screen: pick the website, tick that you'll stay in scope, and start. In demo mode it runs a clearly labelled practice scan." },
       { target: TABLE, title: "Scan history", body: "Every scan with its target, tools, status, result type and number of findings. Click a row to see its output and findings." },
     ],
@@ -180,7 +180,7 @@ export const PAGE_TOURS: PageTour[] = [
       { target: card("Manual testing"), title: "Manual tests", body: "Checks you perform yourself with test accounts, inside the scope, for example trying another user's order ID." },
       { target: 'main [aria-label^="Result for"]', title: "Record each result", body: "Choose Not tested, Pass, Fail (issue observed) or Not applicable. It saves straight away." },
       { target: 'main textarea[aria-label="Observation"]', title: "Write what you saw", body: "Describe what you tested and what happened, plus where the evidence is. Click Save notes when done." },
-      { target: btn("Record finding"), title: "Found a problem?", body: "Turns this check into a finding with your evidence. It starts as Pending Verification and the check is marked Fail." },
+      { target: btn("Record finding"), title: "Found a problem?", body: "Turns this check into a finding with your evidence. It starts as “Not checked yet” and the check is marked Fail." },
       { target: card("Assessment details"), title: "Status and assessor", body: "Set the category status (not started, in progress, completed, blocked) and who is responsible for it." },
     ],
   },
@@ -199,10 +199,10 @@ export const PAGE_TOURS: PageTour[] = [
     key: "findings",
     match: /^\/findings$/,
     steps: [
-      { target: statGrid("Pending Verification"), title: "Verification status", body: "Pending: no decision yet. Needs Further Review: unsure, needs more checks. Confirmed: a real vulnerability. Rejected: a false positive. Click a box to show only those findings." },
-      { target: 'main [aria-label="Severities"]', title: "Filters", body: "Filter by status, severity, category, source tool, data origin (Imported, Simulated, User entered) or assessor. Filters stay in the address, so you can share the view." },
-      { target: TABLE, title: "Findings register", body: "Each finding with its target, category, severity, tool, evidence count and status. Click a row to review it, or the eye icon for a quick look. Tick rows to assign or export them, confirming is never done in bulk." },
-      { target: btn("Record manual finding"), title: "Found something yourself?", body: "Add a finding from manual testing, with your evidence. It starts as Pending Verification like any other finding." },
+      { target: 'main [aria-label="Statuses"]', title: "Status", body: "Not checked yet: no decision. Needs another look: unsure. Confirmed: a real problem. Not a problem: the tool was wrong." },
+      { target: 'main [aria-label="Severities"]', title: "Filters", body: "Narrow the list by severity or tester. Filters stay in the address, so you can share the view." },
+      { target: TABLE, title: "Findings register", body: "Each finding with its website, severity, status and tester. Click a row to review it, or the eye icon for a quick look." },
+      { target: btn("Add manual finding"), title: "Found something yourself?", body: "Add a finding from your own testing, with your evidence. It starts as “Not checked yet” like any other finding." },
       { target: btn("Export CSV"), title: "Export", body: "Download the filtered list as a spreadsheet for your documentation." },
       { target: 'main [aria-label="Findings view"]', title: "Two views", body: "All findings lists everything to review. Risk priority ranks confirmed problems by risk so you know what to fix first." },
       { target: statGrid("Open risks"), title: "Risk summary", body: "Open risks, how many are critical or high, the average score, and how many are mitigated or accepted." },
@@ -216,7 +216,7 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/findings\/[^/]+$/,
     steps: [
       { target: "main h1", title: "The finding", body: "What was found, how serious the tool thinks it is, and on which website." },
-      { target: 'section[aria-label="Verification decision"]', title: "Record the decision", body: "Red confirms the vulnerability; green marks it as a false positive. The AI assessment, when shown, is advisory only. Verification notes are pre-filled for you." },
+      { target: 'section[aria-label="Verification decision"]', title: "Record the decision", body: "Answer the question: is it a real problem, or not? The AI view, when shown, is only advice. Notes are pre-filled for you." },
       { target: card("Evidence", "h2"), title: "Check the evidence", body: "What the tool actually saw. Tick \"I reviewed this\" on the items you checked." },
       { target: card("Details", "h2"), title: "Details", body: "Location, category, tool, dates and risk score, all in one list." },
       { target: "main details", title: "More details", body: "Impact, the full fix, fix tasks and every past decision, folded away until you need them." },

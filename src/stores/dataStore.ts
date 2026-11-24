@@ -287,7 +287,7 @@ export const useDataStore = create<DataStore>()(
           }),
         }));
         const t = get().targets.find((x) => x.id === id);
-        if (t) get().log("target_updated", "target", id, t.name, `Updated target ${t.name}`);
+        if (t) get().log("target_updated", "target", id, t.name, `Updated website ${t.name}`);
       },
       updateScope: (id, scope) => {
         set((s) => ({ targets: s.targets.map((t) => (t.id === id ? { ...t, scope, updatedAt: nowISO() } : t)) }));
@@ -582,7 +582,7 @@ export const useDataStore = create<DataStore>()(
       /* --------------------------------- AI --------------------------------- */
       addAnalysis: (analysis) => {
         set((s) => ({ aiAnalyses: [analysis, ...s.aiAnalyses], integrations: s.integrations.map((i) => (i.id === "ai_service" ? { ...i, lastUsedAt: analysis.generatedAt } : i)) }));
-        get().log("ai_analysis_generated", analysis.findingId ? "finding" : "project", analysis.findingId ?? analysis.projectId, analysis.title, "Generated sample AI analysis (demo adapter, not an LLM)");
+        get().log("ai_analysis_generated", analysis.findingId ? "finding" : "project", analysis.findingId ?? analysis.projectId, analysis.title, "Created a practice AI explanation");
       },
       setAnalysisStatus: (id, status) => set((s) => ({ aiAnalyses: s.aiAnalyses.map((a) => (a.id === id ? { ...a, status } : a)) })),
 

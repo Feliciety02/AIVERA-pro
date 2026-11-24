@@ -1,23 +1,23 @@
 import * as React from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus,  Target as TargetIcon } from "lucide-react";
+import { Target as TargetIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { ViewSwitch, useView } from "@/components/shared/ViewSwitch";
 import { DiscoveryView } from "@/pages/reconnaissance/ReconPage";
 
 const VIEWS = [{ value: "list", label: "Websites" }, { value: "discovery", label: "Discovery" }] as const;
-import { Button } from "@/components/ui/button";
+import { AddButton } from "@/components/shared/actions";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
 import { EmptyState } from "@/components/shared/states";
-import {  MiniStat } from "@/components/shared/display";
-import { StatusBadge, OriginBadge } from "@/components/security/badges";
+import { IconChip } from "@/components/shared/display";
+import { StatusBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
-import { ASSET_TYPES, AUTHORIZATION_STATUS, ENVIRONMENTS } from "@/lib/constants";
+import { AUTHORIZATION_STATUS } from "@/lib/constants";
 import { formatRelative } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import type { AuthorizationStatus, Target } from "@/types";
@@ -31,7 +31,6 @@ export default function TargetsPage() {
   const { targets, findings } = useDataStore(useShallow((s) => ({ targets: s.targets, findings: s.findings })));
   const [q, setQ] = React.useState("");
   const [auth, setAuth] = React.useState(ALL);
-  const [env, setEnv] = React.useState(ALL);
   const [project, setProject] = React.useState(ALL);
 
   const rows = React.useMemo(() => {
@@ -39,11 +38,10 @@ export default function TargetsPage() {
     return targets.filter(
       (t) =>
         (auth === ALL || t.authorizationStatus === auth) &&
-        (env === ALL || t.environment === env) &&
         (project === ALL || t.projectId === project) &&
         (!term || [t.name, t.url, t.owner].some((f) => f.toLowerCase().includes(term))),
     );
-  }, [targets, q, auth, env, project]);
+  }, [targets, q, auth, project]);
 
   const columns = React.useMemo<ColumnDef<Target, unknown>[]>(
     () => [
@@ -52,9 +50,7 @@ export default function TargetsPage() {
         header: "Website",
         cell: ({ row }) => (
           <div className="flex min-w-52 items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-sm font-semibold text-primary" aria-hidden>
-              {row.original.name.trim().charAt(0).toUpperCase() || "?"}
-            </span>
+            <IconChip>{row.original.name.trim().charAt(0).toUpperCase() || "?"}</IconChip>
             <div className="min-w-0">
               <p className="font-medium">{row.original.name}</p>
               <p className="font-mono text-[11px] text-muted-foreground">{row.original.url}</p>
@@ -62,53 +58,39 @@ export default function TargetsPage() {
           </div>
         ),
       },
-      { id: "project", header: "Project", accessorFn: (t) => (t.projectId && lookups.projects[t.projectId]?.code) || "N/A", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
-      { accessorKey: "assetType", header: "Asset type", cell: ({ row }) => <span className="text-xs">{ASSET_TYPES[row.original.assetType]}</span> },
-      { accessorKey: "environment", header: "Environment", cell: ({ row }) => <span className="text-xs">{ENVIRONMENTS[row.original.environment]}</span> },
-      { accessorKey: "authorizationStatus", header: "Authorization", cell: ({ row }) => <StatusBadge status={row.original.authorizationStatus} map={AUTHORIZATION_STATUS} /> },
-      { id: "scope", header: "Scope", accessorFn: (t) => t.scope.inScopeHosts.length, cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.scope.inScopeHosts.length} hosts · {row.original.scope.excludedPaths.length} exclusions</span> },
-      { id: "findings", header: "Findings", accessorFn: (t) => findings.filter((f) => f.targetId === t.id).length },
-      { id: "origin", header: "Origin", accessorFn: (t) => t.dataOrigin, cell: ({ row }) => <OriginBadge origin={row.original.dataOrigin} /> },
+      { id: "project", header: "Project", accessorFn: (t) => (t.projectId && lookups.projects[t.projectId]?.name) || "", cell: ({ getValue }) => <span className="block max-w-56 truncate text-sm">{(getValue() as string) || <span className="text-muted-foreground">None</span>}</span> },
+      { accessorKey: "authorizationStatus", header: "Permission", cell: ({ row }) => <StatusBadge status={row.original.authorizationStatus} map={AUTHORIZATION_STATUS} /> },
+      { id: "findings", header: user?.role === "remediation_owner" ? "Confirmed problems" : "Findings", accessorFn: (t) => findings.filter((f) => f.targetId === t.id && (user?.role !== "remediation_owner" || f.verificationStatus === "confirmed")).length, cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
       { accessorKey: "updatedAt", header: "Updated", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(getValue() as string)}</span> },
     ],
-    [lookups.projects, findings],
+    [lookups.projects, findings, user?.role],
   );
 
-  const view = useView(VIEWS);
-  const authorized = targets.filter((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed).length;
+  const isOwner = user?.role === "remediation_owner";
+  const chosenView = useView(VIEWS);
+  const view = isOwner ? "list" : chosenView;
 
   return (
     <ContentContainer wide={view === "discovery"}>
       <PageHeader
-        title="Websites"
+        title={user?.role === "remediation_owner" ? "My websites" : "Websites"}
         actions={
           can(user?.role, "manage_targets") && (
-            <Button size="sm" asChild>
-              <Link to="/targets/new">
-                <Plus /> Add website
-              </Link>
-            </Button>
+            <AddButton to="/targets/new">Add website</AddButton>
           )
         }
       />
-      <ViewSwitch options={VIEWS} label="Websites view" />
+      {!isOwner && <ViewSwitch options={VIEWS} label="Websites view" />}
       {view === "discovery" ? (
         <DiscoveryView />
       ) : (
         <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Registered" value={targets.length} />
-        <MiniStat label="Authorized & confirmed" value={authorized} tone="text-primary" />
-        <MiniStat label="Pending authorization" value={targets.filter((t) => t.authorizationStatus === "pending").length} tone="text-sev-medium" />
-        <MiniStat label="Expired / revoked" value={targets.filter((t) => t.authorizationStatus === "expired" || t.authorizationStatus === "revoked").length} tone="text-sev-critical" />
-      </div>
       <Card>
         <div className="border-b border-border p-3">
-          <FilterBar active={auth !== ALL || env !== ALL || project !== ALL || !!q} onReset={() => { setQ(""); setAuth(ALL); setEnv(ALL); setProject(ALL); }}>
+          <FilterBar active={auth !== ALL || project !== ALL || !!q} onReset={() => { setQ(""); setAuth(ALL); setProject(ALL); }}>
             <SearchInput value={q} onChange={setQ} placeholder="Search name, URL, owner" />
-            <FilterSelect label="Authorization" value={auth} onChange={setAuth} options={(Object.keys(AUTHORIZATION_STATUS) as AuthorizationStatus[]).map((k) => ({ value: k, label: AUTHORIZATION_STATUS[k].label }))} />
-            <FilterSelect label="Environments" value={env} onChange={setEnv} options={Object.entries(ENVIRONMENTS).map(([value, label]) => ({ value, label }))} />
-            <FilterSelect label="Projects" value={project} onChange={setProject} options={Object.values(lookups.projects).map((p) => ({ value: p.id, label: p.code }))} />
+            <FilterSelect label="Permission" value={auth} onChange={setAuth} options={(Object.keys(AUTHORIZATION_STATUS) as AuthorizationStatus[]).map((k) => ({ value: k, label: AUTHORIZATION_STATUS[k].label }))} />
+            <FilterSelect label="Projects" value={project} onChange={setProject} options={Object.values(lookups.projects).map((p) => ({ value: p.id, label: p.name }))} />
           </FilterBar>
         </div>
         <DataTable

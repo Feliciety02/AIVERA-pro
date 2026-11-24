@@ -1,10 +1,11 @@
 import * as React from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Archive, FolderKanban, MoreHorizontal, Pencil, Plus, RotateCcw, Eye } from "lucide-react";
+import { Archive, FolderKanban, MoreHorizontal, Pencil, RotateCcw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
+import { AddButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -12,12 +13,12 @@ import { DataTable } from "@/components/shared/DataTable";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
 import { EmptyState } from "@/components/shared/states";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { UserChip } from "@/components/shared/display";
-import { StatusBadge } from "@/components/security/badges";
+import { IconChip, UserChip } from "@/components/shared/display";
+import { StatusBadge, ToneBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
 import { ASSESSMENT_TYPES, PROJECT_STATUS } from "@/lib/constants";
-import { formatDate, formatRelative } from "@/lib/format";
+import { formatRelative } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { projectService } from "@/services";
 import type { Project, ProjectStatus } from "@/types";
@@ -54,9 +55,9 @@ export default function ProjectsPage() {
         (status === ALL || p.status === status) &&
         (owner === ALL || p.ownerId === owner) &&
         (type === ALL || p.assessmentType === type) &&
-        (!term || [p.name, p.code, p.description].some((f) => f.toLowerCase().includes(term))),
+        (!term || [p.name, p.code, p.description, ...targets.filter((t) => t.projectId === p.id).flatMap((t) => [t.name, t.url])].some((f) => f.toLowerCase().includes(term))),
     );
-  }, [projects, q, status, owner, type, showArchived]);
+  }, [projects, targets, q, status, owner, type, showArchived]);
 
   const columns = React.useMemo<ColumnDef<Project, unknown>[]>(
     () => [
@@ -64,19 +65,39 @@ export default function ProjectsPage() {
         accessorKey: "name",
         header: "Project",
         cell: ({ row }) => (
-          <div className="min-w-56 max-w-sm">
-            <p className="truncate font-medium">{row.original.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{row.original.description}</p>
+          <div className="flex min-w-56 max-w-sm items-center gap-3">
+            <IconChip icon={FolderKanban} />
+            <div className="min-w-0">
+              <p className="truncate font-medium">{row.original.name}</p>
+              <p className="truncate font-mono text-[11px] text-muted-foreground">{row.original.code}</p>
+            </div>
           </div>
         ),
       },
-      { accessorKey: "code", header: "Identifier", cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string}</span> },
-      { id: "owner", header: "Assigned Assessor", accessorFn: (p) => lookups.users[p.ownerId]?.name ?? "", cell: ({ row }) => <UserChip user={lookups.users[row.original.ownerId]} /> },
-      { id: "targets", header: "Targets", accessorFn: (p) => targets.filter((t) => t.projectId === p.id).length, cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
-      { id: "findings", header: "Findings", accessorFn: (p) => findings.filter((f) => f.projectId === p.id).length, cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
+      {
+        id: "websites",
+        header: "Websites",
+        accessorFn: (p) => targets.filter((t) => t.projectId === p.id).length,
+        cell: ({ row }) => {
+          const sites = targets.filter((t) => t.projectId === row.original.id);
+          if (!sites.length) return <span className="text-xs text-muted-foreground">None yet</span>;
+          return (
+            <div className="max-w-56">
+              <p className="truncate text-sm">{sites[0].name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{sites.length > 1 ? `and ${sites.length - 1} more` : sites[0].url}</p>
+            </div>
+          );
+        },
+      },
+      { id: "owner", header: "Owner", accessorFn: (p) => lookups.users[p.ownerId]?.name ?? "", cell: ({ row }) => <UserChip user={lookups.users[row.original.ownerId]} /> },
+      {
+        id: "findings",
+        header: "To verify",
+        accessorFn: (p) => findings.filter((f) => f.projectId === p.id && (f.verificationStatus === "pending" || f.verificationStatus === "needs_review")).length,
+        cell: ({ getValue }) => (getValue() as number) ? <ToneBadge tone="warning">{getValue() as number}</ToneBadge> : <span className="text-xs text-muted-foreground">0</span>,
+      },
       { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.status} map={PROJECT_STATUS} /> },
-      { accessorKey: "createdAt", header: "Created", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(getValue() as string)}</span> },
-      { accessorKey: "updatedAt", header: "Last Updated", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(getValue() as string)}</span> },
+      { accessorKey: "updatedAt", header: "Updated", cell: ({ getValue }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(getValue() as string)}</span> },
       {
         id: "actions",
         header: () => <span className="sr-only">Actions</span>,
@@ -125,17 +146,14 @@ export default function ProjectsPage() {
   const assessors = Object.values(lookups.users).filter((u) => can(u.role, "verify_findings"));
   const filtersActive = status !== ALL || owner !== ALL || type !== ALL || !!q;
 
+
   return (
     <ContentContainer>
       <PageHeader
         title="Projects"
         actions={
           canManage && (
-            <Button size="sm" asChild>
-              <Link to="/projects/new">
-                <Plus /> New project
-              </Link>
-            </Button>
+            <AddButton to="/projects/new">New project</AddButton>
           )
         }
       />
@@ -150,7 +168,7 @@ export default function ProjectsPage() {
               setType(ALL);
             }}
           >
-            <SearchInput value={q} onChange={setQ} placeholder="Search name, ID, description" />
+            <SearchInput value={q} onChange={setQ} placeholder="Search projects or websites" />
             <FilterSelect label="Statuses" value={status} onChange={setStatus} options={(Object.keys(PROJECT_STATUS) as ProjectStatus[]).map((k) => ({ value: k, label: PROJECT_STATUS[k].label }))} />
             <FilterSelect label="Testers" value={owner} onChange={setOwner} options={assessors.map((u) => ({ value: u.id, label: u.name }))} />
             <FilterSelect label="Types" value={type} onChange={setType} options={Object.entries(ASSESSMENT_TYPES).map(([value, label]) => ({ value, label }))} />
@@ -172,8 +190,8 @@ export default function ProjectsPage() {
             <EmptyState
               icon={FolderKanban}
               title={projects.length ? "No projects match these filters" : "No projects yet"}
-              description={projects.length ? "Try clearing filters or enabling archived projects." : "Create your first assessment project to start registering authorized targets."}
-              action={canManage && !projects.length ? <Button size="sm" asChild><Link to="/projects/new"><Plus /> New project</Link></Button> : undefined}
+              description={projects.length ? "Try clearing filters or showing archived projects." : "Create a project, then add the websites you have permission to test."}
+              action={canManage && !projects.length ? <AddButton to="/projects/new">New project</AddButton> : undefined}
             />
           }
         />

@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Loader2, NotebookPen, Plus } from "lucide-react";
+import { Loader2, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
+import { AddButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/forms/fields";
@@ -16,9 +17,7 @@ export function AddEvidenceForm({ findingId }: { findingId: string }) {
 
   if (!open)
     return (
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Plus /> Add evidence note
-      </Button>
+      <AddButton onClick={() => setOpen(true)}>Add evidence note</AddButton>
     );
 
   const save = async () => {
