@@ -19,8 +19,12 @@ export default function ScanWizardPage() {
   const initialTarget = params.get("target") ?? undefined;
   const initialProject = params.get("project") ?? (initialTarget ? targets.find((t) => t.id === initialTarget)?.projectId : undefined);
   const [liveAvailable, setLiveAvailable] = React.useState(false);
+  const [egressIsolated, setEgressIsolated] = React.useState(false);
   const checkLive = React.useCallback(() => {
-    if (IS_API) void scanService.automatedCapabilities().then((c) => setLiveAvailable(c.enabled)).catch(() => setLiveAvailable(false));
+    if (IS_API) void scanService.automatedCapabilities().then((c) => {
+          setLiveAvailable(c.enabled);
+          setEgressIsolated(!!c.egressIsolated);
+        }).catch(() => setLiveAvailable(false));
   }, []);
   React.useEffect(checkLive, [checkLive]);
 
@@ -39,6 +43,7 @@ export default function ScanWizardPage() {
           initialProjectId={initialProject}
           initialTargetId={initialTarget}
           liveAvailable={liveAvailable}
+          egressIsolated={egressIsolated}
           onCheckLive={checkLive}
           onStart={async (r) => {
             const scan = await scanService.startRealAssessment(r);

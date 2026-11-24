@@ -2,10 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Target } from "@/types";
 import { zapPlan } from "./automatedAssessment.ts";
-import { assertEgressAllowed, externalScanIsolationReady, isInternalAddress } from "./egress.ts";
+import { assertEgressAllowed, isInternalAddress } from "./egress.ts";
 import { workerEnv } from "./workerClient.ts";
 import { inspectorAlerts } from "./inspector.ts";
-import { isLoopbackUrl } from "@/features/scanPermissions";
+import { isLoopbackUrl, toolsNeedingIsolation } from "@/features/scanPermissions";
 import { open, seal } from "./secretBox.ts";
 
 const target = (url: string) => ({ url, scope: { allowedPaths: ["/"], excludedPaths: [] } }) as unknown as Target;
@@ -37,10 +37,11 @@ test("egress blocks unlisted hosts and names that resolve inward", async () => {
   await assert.rejects(assertEgressAllowed("http://localtest.me", new Set(["localtest.me"])), /internal address|did not resolve|ENOTFOUND|EAI_AGAIN/);
 });
 
-test("external scans stay disabled without network isolation attestation", () => {
-  assert.equal(externalScanIsolationReady("http://127.0.0.1:8000", false), true);
-  assert.equal(externalScanIsolationReady("https://example.org", false), false);
-  assert.equal(externalScanIsolationReady("https://example.org", true), true);
+test("Nmap and ZAP need network isolation for hosted sites; the header check does not", () => {
+  assert.deepEqual(toolsNeedingIsolation("http://127.0.0.1:8000", ["nmap", "owasp_zap", "http_inspector"], false), []);
+  assert.deepEqual(toolsNeedingIsolation("https://example.org", ["nmap", "owasp_zap", "http_inspector"], false), ["nmap", "owasp_zap"]);
+  assert.deepEqual(toolsNeedingIsolation("https://example.org", ["http_inspector"], false), []);
+  assert.deepEqual(toolsNeedingIsolation("https://example.org", ["owasp_zap"], true), []);
 });
 
 test("scan worker gets no database URL or secrets", () => {

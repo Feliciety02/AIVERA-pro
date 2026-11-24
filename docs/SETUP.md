@@ -212,7 +212,7 @@ Restart the API after changing this file.
 |---|---|
 | `AIVERA_LIVE_SCANS_ENABLED` | `true` to allow real scans. `false` blocks them all. |
 | `AIVERA_ALLOWED_SCAN_HOSTS` | Exact hosts the server may contact, comma separated. Nothing else can be scanned. |
-| `AIVERA_SCAN_EGRESS_ISOLATED` | Keep `false` for loopback labs. For an external target, set `true` only after an OS-level firewall or isolated VM/container network limits worker egress to that approved host and port. The flag is an attestation, not a firewall. |
+| `AIVERA_SCAN_EGRESS_ISOLATED` | Keep `false` for loopback labs. The header and TLS inspector works on hosted sites without it. To let Nmap and ZAP scan an external target, set `true` only after an OS-level firewall or isolated VM/container network limits worker egress to that approved host and port. The flag is an attestation, not a firewall. |
 | `AIVERA_TRUST_PROXY` | Set `true` only behind a trusted reverse proxy; otherwise client IPs come directly from the connection. |
 | `AIVERA_NMAP_PATH` | Full path to `nmap.exe` if it is not on PATH. Use forward slashes. |
 | `AIVERA_ZAP_PATH` | ZAP install folder (the one with `zap-<version>.jar`). Empty means use Docker. |
@@ -278,7 +278,7 @@ AIVERA_ZAP_PATH=C:/Program Files/ZAP/Zed Attack Proxy
 ```
 
 Adjust the two paths to where Nmap and ZAP are installed on your computer, then restart the API.
-External targets remain blocked until the worker has network-level isolation and `AIVERA_SCAN_EGRESS_ISOLATED=true`. The local `127.0.0.1` lab does not need that flag.
+On a hosted website (anything not on `127.0.0.1`/`localhost`), the HTTP security inspector runs right away: it makes one request to the approved URL and TLS handshakes to the same host, nothing else. Nmap and OWASP ZAP can reach further (ports, followed links), so they stay blocked on hosted sites until the worker has network-level isolation and `AIVERA_SCAN_EGRESS_ISOLATED=true`. The local `127.0.0.1` lab does not need that flag.
 
 ### 7.2 What each website needs
 

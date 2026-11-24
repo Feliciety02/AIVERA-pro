@@ -80,11 +80,26 @@ export function App() {
       )}
       {toastsEnabled && (
         <Toaster
-          theme={theme === "light" ? "light" : "dark"}
+          // "system" follows the OS like the rest of the app (it used to fall through to dark).
+          theme={theme}
           position="bottom-right"
-          richColors
           closeButton
-          toastOptions={{ classNames: { toast: "!border-border !text-[13px]" } }}
+          toastOptions={{
+            // A light card in the app's own colours; the type shows as a coloured icon and edge.
+            classNames: {
+              toast: "!rounded-2xl !border !border-border !bg-card !text-foreground !shadow-lg !text-[13px] !gap-3 !py-3.5 !pl-4 !pr-5 !border-l-4",
+              title: "!font-semibold !text-foreground",
+              description: "!text-muted-foreground !leading-relaxed",
+              icon: "!mt-0.5 !self-start",
+              closeButton: "!bg-card !border-border !text-muted-foreground hover:!text-foreground",
+              actionButton: "!rounded-full !bg-primary !text-primary-foreground !font-medium",
+              cancelButton: "!rounded-full !bg-muted !text-foreground",
+              success: "!border-l-[var(--success)] [&_[data-icon]]:!text-[var(--success)]",
+              error: "!border-l-[var(--sev-high)] [&_[data-icon]]:!text-[var(--sev-high)]",
+              warning: "!border-l-[var(--warning)] [&_[data-icon]]:!text-[var(--warning)]",
+              info: "!border-l-[var(--primary)] [&_[data-icon]]:!text-[var(--primary)]",
+            },
+          }}
         />
       )}
     </TooltipProvider>

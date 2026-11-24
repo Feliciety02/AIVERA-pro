@@ -12,6 +12,20 @@ export const TOOL_ACTIVITY: Record<LiveTool, string> = {
   http_inspector: "Security header review",
 };
 
+/**
+ * Tools whose only traffic is to the approved URL itself: the HTTP inspector makes one GET (no
+ * redirects followed) and TLS handshakes to the same host and port. They are safe against a
+ * hosted site without a firewalled scan network. Nmap probes ports and ZAP follows links, so
+ * those still need an isolated network before they touch anything but this machine.
+ */
+export const SELF_CONTAINED_TOOLS: LiveTool[] = ["http_inspector"];
+
+/** Tools that may not run against this URL until the scan network is isolated. */
+export function toolsNeedingIsolation(url: string, tools: LiveTool[], isolated: boolean): LiveTool[] {
+  if (isolated || isLoopbackUrl(url)) return [];
+  return tools.filter((t) => !SELF_CONTAINED_TOOLS.includes(t));
+}
+
 /** Needed (with ZAP) for the active profile, which sends attack payloads. Loopback hosts only. */
 export const ACTIVE_SCAN_ACTIVITY = "Active scanning (local lab copy only)";
 /** Needed for scans that send a stored test-account session. */

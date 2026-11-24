@@ -118,7 +118,7 @@ export const targetService = {
 };
 
 export const scanService = {
-  async automatedCapabilities(): Promise<{ enabled: boolean; tools: string[]; profiles: string[] }> {
+  async automatedCapabilities(): Promise<{ enabled: boolean; tools: string[]; profiles: string[]; egressIsolated?: boolean }> {
     if (!IS_API) return { enabled: false, tools: [], profiles: [] };
     return api("/scans/automated/capabilities");
   },

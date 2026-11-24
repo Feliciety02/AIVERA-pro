@@ -14,10 +14,10 @@ import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { parseNmapXmlServer } from "../nmap.ts";
 import { aiConfigured, analyzeWithGemini } from "../ai/gemini.ts";
-import { approvedScanHosts, externalScanIsolationReady } from "../egress.ts";
+import { approvedScanHosts, egressIsolated } from "../egress.ts";
 import { runToolInWorker } from "../workerClient.ts";
 import { open as openSecret } from "../secretBox.ts";
-import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, toolPermitted, urlHostInScope, type LiveTool } from "@/features/scanPermissions";
+import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, toolPermitted, toolsNeedingIsolation, urlHostInScope, type LiveTool } from "@/features/scanPermissions";
 import { uniqueFindings } from "@/features/scanLifecycle";
 import { assertProjectAccess, assignNewFindings, createFixTask, projectLeads, promptReportWhenReviewed } from "../workflowRules.ts";
 import { can } from "@/lib/permissions";
@@ -103,7 +103,7 @@ export const LIVE_TOOLS: LiveTool[] = ["nmap", "owasp_zap", "http_inspector"];
 const TOOL_LABEL: Record<LiveTool, string> = { nmap: "Nmap", owasp_zap: "OWASP ZAP", http_inspector: "the HTTP security inspector" };
 
 router.get("/scans/automated/capabilities", (_req, res) => {
-  res.json({ enabled: liveScansEnabled() && approvedScanHosts().size > 0, tools: LIVE_TOOLS, profiles: ["passive", "baseline", "standard"], isolatedWorker: true });
+  res.json({ enabled: liveScansEnabled() && approvedScanHosts().size > 0, tools: LIVE_TOOLS, profiles: ["passive", "baseline", "standard"], isolatedWorker: true, egressIsolated: egressIsolated() });
 });
 
 /**
@@ -112,8 +112,11 @@ router.get("/scans/automated/capabilities", (_req, res) => {
  */
 export function assertAutomatedRunAllowed(target: Awaited<ReturnType<typeof authorizedTarget>>, config: ScanConfig, hasCredential: boolean) {
   if (!liveScansEnabled()) fail(503, "Live scanning is disabled. Set AIVERA_LIVE_SCANS_ENABLED=true on a dedicated lab server.");
-  if (!externalScanIsolationReady(target.url))
-    fail(503, "External live scans require an isolated worker network with firewall rules for the approved host and port. Set AIVERA_SCAN_EGRESS_ISOLATED=true only after configuring that network.");
+  // The header and TLS check only ever contacts the approved URL, so it may run against a hosted
+  // site. Nmap and ZAP can reach further, so they need a firewalled scan network first.
+  const needIsolation = toolsNeedingIsolation(target.url, config.tools as LiveTool[], egressIsolated());
+  if (needIsolation.length)
+    fail(503, `${needIsolation.map((t) => TOOL_LABEL[t]).join(" and ")} can only scan a hosted website from an isolated scan network (firewall limited to the approved host). Run the scan with the HTTP security inspector only, or set AIVERA_SCAN_EGRESS_ISOLATED=true after setting up that network.`);
   if (!approvedScanHosts().has(new URL(target.url).hostname.replace(/^\[|\]$/g, "").toLowerCase())) fail(403, "The target host is not on the server administrator's live scan allowlist.");
   if (!urlHostInScope(target.url, target.scope.inScopeHosts)) fail(400, "The target host must be explicitly in scope.");
   if (config.tools.some((tool) => !LIVE_TOOLS.includes(tool as LiveTool))) fail(400, "Automated runs support Nmap, OWASP ZAP and the HTTP security inspector only.");

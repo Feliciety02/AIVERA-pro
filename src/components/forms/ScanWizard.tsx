@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChoiceCard, Field } from "./fields";
 import { ChoiceChips } from "./choices";
 import { CATEGORIES, SCAN_PROFILES, TOOL_META } from "@/lib/constants";
-import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, missingScanActivities, standardScanActivities, toolPermitted, type LiveTool } from "@/features/scanPermissions";
+import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, missingScanActivities, standardScanActivities, toolPermitted, toolsNeedingIsolation, type LiveTool } from "@/features/scanPermissions";
 import { IS_API, automationService, targetService, type ScanCredentialStatus } from "@/services";
 import { cn } from "@/lib/utils";
 import type { ApplicationSettings, AssessmentCategoryId, OutputFormat, Project, ScanConfig, ScanProfile, ScanTool, Target } from "@/types";
@@ -36,6 +36,7 @@ export function ScanWizard({
   initialProjectId,
   initialTargetId,
   liveAvailable,
+  egressIsolated = false,
   onCheckLive,
   onStart,
   onSimulate,
@@ -47,6 +48,8 @@ export function ScanWizard({
   initialProjectId?: string;
   initialTargetId?: string;
   liveAvailable: boolean;
+  /** The server's scan network is firewalled, so Nmap and ZAP may reach hosted sites. */
+  egressIsolated?: boolean;
   /** Re-checks whether live scanning is enabled on the server. */
   onCheckLive?: () => void;
   onStart: (r: ScanWizardResult) => Promise<void>;
@@ -95,7 +98,9 @@ export function ScanWizard({
     setCategories((cs) => (cs.filter((c) => target.scope.allowedCategories.includes(c)).length ? cs : target.scope.allowedCategories));
     if (!IS_API) return;
     // Offer the server tools this website's scope allows, plus the standard ones AIVERA adds itself.
-    const allowed = LIVE_TOOLS.filter((t) => toolPermitted(t, [...target.scope.allowedActivities, ...missingScanActivities(target.url, target.scope.allowedActivities)]));
+    const permitted = LIVE_TOOLS.filter((t) => toolPermitted(t, [...target.scope.allowedActivities, ...missingScanActivities(target.url, target.scope.allowedActivities)]));
+    const blocked = toolsNeedingIsolation(target.url, permitted, egressIsolated);
+    const allowed = permitted.filter((t) => !blocked.includes(t));
     if (allowed.length) setTools(allowed);
     setAuthenticated(false);
     void automationService.credential(target.id).then(setCredential).catch(() => setCredential({ configured: false }));
@@ -120,6 +125,14 @@ export function ScanWizard({
   }
   // Standard activities the chosen tools need are added to the scope automatically when the scan
   // starts. Only a tool AIVERA deliberately leaves out (port scanning on shared hosting) blocks.
+  if (IS_API && target) {
+    const blocked = toolsNeedingIsolation(target.url, liveTools as LiveTool[], egressIsolated);
+    if (blocked.length)
+      liveBlockers.push({
+        text: `${blocked.map((t) => TOOL_META[t].label).join(" and ")} can't scan a hosted website until the server's scan network is isolated (AIVERA_SCAN_EGRESS_ISOLATED). The header and TLS check works without it.`,
+        fix: { label: "Use the header check", run: () => setTools(["http_inspector"]) },
+      });
+  }
   const autoAdd = target ? missingScanActivities(target.url, target.scope.allowedActivities).filter((a) => liveTools.some((t) => TOOL_ACTIVITY[t] === a)) : [];
   if (IS_API && target)
     for (const t of liveTools)

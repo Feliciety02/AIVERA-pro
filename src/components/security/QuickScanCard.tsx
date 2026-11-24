@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDataStore } from "@/stores/dataStore";
 import { IS_API, scanService, targetService } from "@/services";
 import { formatRelative } from "@/lib/format";
-import { hasActivity, missingScanActivities, standardScanActivities, toolPermitted, type LiveTool } from "@/features/scanPermissions";
+import { hasActivity, missingScanActivities, standardScanActivities, toolPermitted, toolsNeedingIsolation, type LiveTool } from "@/features/scanPermissions";
 import { awaitsReview } from "@/features/scanLifecycle";
 import { useCurrentUser } from "@/hooks";
 import { can } from "@/lib/permissions";
@@ -25,13 +25,20 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   const canRun = can(user?.role, "run_demo_scans");
   const [liveAvailable, setLiveAvailable] = React.useState(false);
   const [installed, setInstalled] = React.useState<string[] | null>(null);
+  const [isolated, setIsolated] = React.useState(false);
   // What the scope will allow once the standard scan activities are added: AIVERA adds them itself
   // when the scan starts, instead of asking the user to tick boxes in the scope first.
   const toAdd = missingScanActivities(target.url, target.scope.allowedActivities);
   const leftOut = standardScanActivities(target.url).leftOut.filter((l) => !hasActivity(l.activity, target.scope.allowedActivities));
   const planned = [...target.scope.allowedActivities, ...toAdd];
-  // Only tools the scope allows and the server has installed.
-  const tools = (["nmap", "owasp_zap", "http_inspector"] as const).filter((t) => toolPermitted(t, planned) && (!installed || installed.includes(t)));
+  // Only tools the scope allows and the server has installed. On a hosted site without an isolated
+  // scan network, Nmap and ZAP sit out and the header and TLS check runs on its own.
+  const permitted = (["nmap", "owasp_zap", "http_inspector"] as LiveTool[]).filter((t) => toolPermitted(t, planned) && (!installed || installed.includes(t)));
+  const needIsolation = toolsNeedingIsolation(target.url, permitted, isolated);
+  const tools = permitted.filter((t) => !needIsolation.includes(t));
+  const isolationNote = needIsolation.length
+    ? `${needIsolation.map((t) => TOOL_NAME[t].replace(/^the /, "")).join(" and ")} ${needIsolation.length === 1 ? "is" : "are"} left out: on a hosted site ${needIsolation.length === 1 ? "it needs" : "they need"} an isolated scan network first (AIVERA_SCAN_EGRESS_ISOLATED on the server). The header and TLS check runs on its own.`
+    : null;
   const quote = (list: string[]) => list.map((a) => `“${a}”`).join(" and ");
   React.useEffect(() => {
     if (IS_API)
@@ -40,6 +47,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
         .then((c) => {
           setLiveAvailable(c.enabled);
           setInstalled(c.tools);
+          setIsolated(!!c.egressIsolated);
         })
         .catch(() => setLiveAvailable(false));
   }, []);
@@ -142,11 +150,12 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
           )}
         </div>
       </div>
-      {IS_API && !blocker && (toAdd.length > 0 || leftOut.length > 0) && (
+      {IS_API && !blocker && (toAdd.length > 0 || leftOut.length > 0 || !!isolationNote) && (
         <div role="note" className="mt-4 flex gap-3 rounded-lg bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] px-3 py-2.5 text-sm">
           <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0 space-y-1">
             {toAdd.length > 0 && <p>Starting the scan also allows {quote(toAdd)} in this website's scope.</p>}
+            {isolationNote && <p className="text-muted-foreground">Not included: {isolationNote}</p>}
             {leftOut.map((l) => (
               <p key={l.activity} className="text-muted-foreground">
                 Not included: {l.activity}. {l.reason}
