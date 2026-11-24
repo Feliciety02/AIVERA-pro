@@ -1,13 +1,13 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
-import { CircleAlert, FlaskConical, Loader2, ScanLine, Settings2 } from "lucide-react";
+import { CircleAlert, FlaskConical, Info, Loader2, ScanLine, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDataStore } from "@/stores/dataStore";
-import { IS_API, scanService } from "@/services";
+import { IS_API, scanService, targetService } from "@/services";
 import { formatRelative } from "@/lib/format";
-import { TOOL_ACTIVITY, toolPermitted, type LiveTool } from "@/features/scanPermissions";
+import { hasActivity, missingScanActivities, standardScanActivities, toolPermitted, type LiveTool } from "@/features/scanPermissions";
 import { awaitsReview } from "@/features/scanLifecycle";
 import { useCurrentUser } from "@/hooks";
 import { can } from "@/lib/permissions";
@@ -23,10 +23,25 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   const navigate = useNavigate();
   const user = useCurrentUser();
   const canRun = can(user?.role, "run_demo_scans");
-  const tools = (["nmap", "owasp_zap", "http_inspector"] as const).filter((t) => toolPermitted(t, target.scope.allowedActivities));
   const [liveAvailable, setLiveAvailable] = React.useState(false);
+  const [installed, setInstalled] = React.useState<string[] | null>(null);
+  // What the scope will allow once the standard scan activities are added: AIVERA adds them itself
+  // when the scan starts, instead of asking the user to tick boxes in the scope first.
+  const toAdd = missingScanActivities(target.url, target.scope.allowedActivities);
+  const leftOut = standardScanActivities(target.url).leftOut.filter((l) => !hasActivity(l.activity, target.scope.allowedActivities));
+  const planned = [...target.scope.allowedActivities, ...toAdd];
+  // Only tools the scope allows and the server has installed.
+  const tools = (["nmap", "owasp_zap", "http_inspector"] as const).filter((t) => toolPermitted(t, planned) && (!installed || installed.includes(t)));
+  const quote = (list: string[]) => list.map((a) => `“${a}”`).join(" and ");
   React.useEffect(() => {
-    if (IS_API) void scanService.automatedCapabilities().then((c) => setLiveAvailable(c.enabled)).catch(() => setLiveAvailable(false));
+    if (IS_API)
+      void scanService
+        .automatedCapabilities()
+        .then((c) => {
+          setLiveAvailable(c.enabled);
+          setInstalled(c.tools);
+        })
+        .catch(() => setLiveAvailable(false));
   }, []);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [starting, setStarting] = React.useState(false);
@@ -47,19 +62,6 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   else if (pendingCount) blocker = { text: `Review ${pendingCount} pending finding${pendingCount === 1 ? "" : "s"} before scanning again.`, fix: <Button size="sm" variant="outline" asChild><Link to={`/findings?target=${target.id}&status=unverified`}>Open review queue</Link></Button> };
   else if (!IS_API) blocker = null; // demo: a practice scan is one click away below
   else if (!liveAvailable) blocker = { text: "Live scanning is turned off on the AIVERA server. An administrator can turn it on in server/.env." };
-  else if (!tools.length)
-    blocker = {
-      text: `The scope doesn't allow any scanning tool yet. Allow "${TOOL_ACTIVITY.nmap}" for Nmap and "${TOOL_ACTIVITY.owasp_zap}" for ZAP.`,
-      fix: onEditScope ? (
-        <Button size="sm" variant="outline" className="h-7 bg-card" onClick={onEditScope}>
-          Edit scope
-        </Button>
-      ) : (
-        <Button size="sm" variant="outline" className="h-7 bg-card" asChild>
-          <Link to={`/targets/${target.id}`}>Open the website</Link>
-        </Button>
-      ),
-    };
 
   // Demo mode: a practice run generated in the browser. Nothing is sent to the website.
   const practice = async () => {
@@ -78,13 +80,14 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   const start = async () => {
     setStarting(true);
     try {
+      if (toAdd.length) await targetService.updateScope(target.id, { ...target.scope, allowedActivities: planned });
       const scan = await scanService.startRealAssessment({
         name: `${target.name} scan`,
         projectId: target.projectId!,
         targetId: target.id,
         config: { tools, categories: target.scope.allowedCategories, profile: "baseline", timeLimitMinutes: 10, requestsPerSecond: 2, maxConcurrency: 1, outputFormat: "json", respectExclusions: true, scopeConfirmed: true },
       });
-      toast.success(`Scan ${scan.code} started`, { description: "Results usually arrive in about two minutes. AI explains them automatically." });
+      toast.success(`Scan ${scan.code} started`, { description: toAdd.length ? `Added ${quote(toAdd)} to the scope. Results usually arrive in about two minutes.` : "Results usually arrive in about two minutes. AI explains them automatically." });
       navigate(`/scans/${scan.id}`);
     } catch (e) {
       toast.error("Could not start the scan", { description: (e as Error).message });
@@ -139,6 +142,24 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
           )}
         </div>
       </div>
+      {IS_API && !blocker && (toAdd.length > 0 || leftOut.length > 0) && (
+        <div role="note" className="mt-4 flex gap-3 rounded-lg bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] px-3 py-2.5 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            {toAdd.length > 0 && <p>Starting the scan also allows {quote(toAdd)} in this website's scope.</p>}
+            {leftOut.map((l) => (
+              <p key={l.activity} className="text-muted-foreground">
+                Not included: {l.activity}. {l.reason}
+                {onEditScope && (
+                  <button type="button" onClick={onEditScope} className="ml-1 font-medium text-primary hover:underline">
+                    Edit scope
+                  </button>
+                )}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
       {blocker && (
         <p role="note" className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-sev-medium/12 px-3 py-2 text-sm">
           <CircleAlert className="size-4 shrink-0 text-warning" aria-hidden />
@@ -150,7 +171,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={`Scan ${target.name}?`}
-        description={`AIVERA will send real, gentle requests to ${target.url} and only to the approved hosts and paths. Only continue if you have the owner's permission and it's okay to test now.`}
+        description={`AIVERA will send real, gentle requests to ${target.url} and only to the approved hosts and paths.${toAdd.length ? ` It also adds ${quote(toAdd)} to this website's scope.` : ""} Only continue if you have the owner's permission and it's okay to test now.`}
         confirmLabel="Start scan"
         onConfirm={start}
       />

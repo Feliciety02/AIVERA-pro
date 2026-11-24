@@ -13,6 +13,7 @@ import { Field, FormSection } from "./fields";
 import { ScopeEditor } from "./ScopeEditor";
 import { ASSET_TYPES, AUTHORIZATION_STATUS, CATEGORIES, ENVIRONMENTS, RESTRICTED_ACTIVITY_DEFAULTS } from "@/lib/constants";
 import { detectFromAddress, nameFromHost } from "@/features/scopeDetection";
+import { hasActivity, standardScanActivities } from "@/features/scanPermissions";
 import { nextAuthReference } from "@/stores/dataStore";
 import { IS_API, targetService } from "@/services";
 import { cn } from "@/lib/utils";
@@ -164,6 +165,13 @@ export function TargetForm({
     allowedCategories: errors.scope?.allowedCategories?.message,
   };
   const scopeError = scopeErrors.inScopeHosts ?? scopeErrors.allowedPaths ?? scopeErrors.allowedCategories;
+  // A new website gets the activities a standard scan needs (worked out from its address), so the
+  // first scan never stops on "the scope doesn't allow any tool". Skipped if they edited activities.
+  const submitWithScanActivities = (v: TargetFormValues) => {
+    if (initial || dirtyFields.scope?.allowedActivities) return onSubmit(v);
+    const extra = standardScanActivities(v.url).include.filter((a) => !hasActivity(a, v.scope.allowedActivities));
+    return onSubmit({ ...v, scope: { ...v.scope, allowedActivities: [...v.scope.allowedActivities, ...extra] } });
+  };
   const detailsRef = React.useRef<HTMLDetailsElement>(null);
   const hiddenError = !!(errors.name || errors.owner || errors.scope);
   React.useEffect(() => {
@@ -172,7 +180,7 @@ export function TargetForm({
   const aria = (k: keyof TargetFormValues) => ({ "aria-invalid": !!errors[k], "aria-describedby": errors[k] ? `${k}-error` : undefined });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+    <form onSubmit={handleSubmit(submitWithScanActivities)} noValidate className="space-y-4">
       <Card>
         <CardContent className="pt-6">
           <FormSection title="Website">

@@ -27,6 +27,50 @@ export function isLoopbackUrl(url: string): boolean {
 
 const norm = (s: string) => s.trim().toLowerCase();
 
+/** A machine you control: this computer, a private network address, or a .local/.localhost/.test name. */
+export function isPrivateHost(url: string): boolean {
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (isLoopbackUrl(url)) return true;
+  if (/\.(local|localhost|test|internal|lan)$/.test(host)) return true;
+  const m = /^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(host);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+/**
+ * The scope activities a standard, gentle scan needs, worked out from the address so nobody has
+ * to tick them by hand. Header checks and rate-limited web scanning are always included. Port
+ * discovery is only included for machines you control: on shared hosting (Render, Vercel, a
+ * cloud provider) the ports belong to the host's own servers, so it is left out with a reason.
+ */
+export function standardScanActivities(url: string): { include: string[]; leftOut: { activity: string; reason: string }[] } {
+  const include = [TOOL_ACTIVITY.http_inspector, TOOL_ACTIVITY.owasp_zap];
+  const leftOut: { activity: string; reason: string }[] = [];
+  let ownMachine = false;
+  try {
+    ownMachine = isPrivateHost(url);
+  } catch {
+    /* not a valid URL yet */
+  }
+  if (ownMachine) include.push(TOOL_ACTIVITY.nmap);
+  else {
+    let host = "the hosting provider";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      /* keep the generic name */
+    }
+    leftOut.push({ activity: TOOL_ACTIVITY.nmap, reason: `${host} runs on someone else's servers, so port scanning is left out. Add it in the scope only if the host's terms allow it.` });
+  }
+  return { include, leftOut };
+}
+
+/** Activities from the standard set that the scope doesn't allow yet. */
+export function missingScanActivities(url: string, allowedActivities: string[]): string[] {
+  return standardScanActivities(url).include.filter((a) => !hasActivity(a, allowedActivities));
+}
+
 export function toolPermitted(tool: LiveTool, allowedActivities: string[]): boolean {
   return hasActivity(TOOL_ACTIVITY[tool], allowedActivities);
 }

@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChoiceCard, Field } from "./fields";
 import { ChoiceChips } from "./choices";
 import { CATEGORIES, SCAN_PROFILES, TOOL_META } from "@/lib/constants";
-import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, toolPermitted, type LiveTool } from "@/features/scanPermissions";
-import { IS_API, automationService, type ScanCredentialStatus } from "@/services";
+import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, missingScanActivities, standardScanActivities, toolPermitted, type LiveTool } from "@/features/scanPermissions";
+import { IS_API, automationService, targetService, type ScanCredentialStatus } from "@/services";
 import { cn } from "@/lib/utils";
 import type { ApplicationSettings, AssessmentCategoryId, OutputFormat, Project, ScanConfig, ScanProfile, ScanTool, Target } from "@/types";
 
@@ -94,8 +94,8 @@ export function ScanWizard({
     setName(`${target.name} scan`);
     setCategories((cs) => (cs.filter((c) => target.scope.allowedCategories.includes(c)).length ? cs : target.scope.allowedCategories));
     if (!IS_API) return;
-    // Offer exactly the server tools this website's scope allows.
-    const allowed = LIVE_TOOLS.filter((t) => toolPermitted(t, target.scope.allowedActivities));
+    // Offer the server tools this website's scope allows, plus the standard ones AIVERA adds itself.
+    const allowed = LIVE_TOOLS.filter((t) => toolPermitted(t, [...target.scope.allowedActivities, ...missingScanActivities(target.url, target.scope.allowedActivities)]));
     if (allowed.length) setTools(allowed);
     setAuthenticated(false);
     void automationService.credential(target.id).then(setCredential).catch(() => setCredential({ configured: false }));
@@ -118,7 +118,15 @@ export function ScanWizard({
     if (!hasActivity(AUTH_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: `Signed-in scans need "${AUTH_SCAN_ACTIVITY}" allowed in the website's scope.`, fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
     else if (!credential.configured) liveBlockers.push({ text: "No test-account session is saved for this website. Add one on the website's page.", fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
   }
-  if (IS_API) for (const t of liveTools) if (target && !toolPermitted(t, target.scope.allowedActivities)) liveBlockers.push({ text: `The website's scope doesn't allow "${TOOL_ACTIVITY[t]}", which ${TOOL_META[t].label} needs.` });
+  // Standard activities the chosen tools need are added to the scope automatically when the scan
+  // starts. Only a tool AIVERA deliberately leaves out (port scanning on shared hosting) blocks.
+  const autoAdd = target ? missingScanActivities(target.url, target.scope.allowedActivities).filter((a) => liveTools.some((t) => TOOL_ACTIVITY[t] === a)) : [];
+  if (IS_API && target)
+    for (const t of liveTools)
+      if (!toolPermitted(t, [...target.scope.allowedActivities, ...autoAdd])) {
+        const why = standardScanActivities(target.url).leftOut.find((l) => l.activity === TOOL_ACTIVITY[t])?.reason;
+        liveBlockers.push({ text: why ?? `The website's scope doesn't allow "${TOOL_ACTIVITY[t]}", which ${TOOL_META[t].label} needs.`, fix: { label: `Remove ${TOOL_META[t].label}`, run: () => setTools(tools.filter((x) => x !== t)) } });
+      }
 
   const formError = !target ? "Choose a website." : !authorized ? "This website's permission isn't confirmed, so it can't be scanned." : !tools.length ? "Pick at least one tool." : !effectiveCategories.length ? "Pick at least one test category under More settings." : !name.trim() ? "Name the scan under More settings." : !scopeConfirmed ? "Tick the scope box to start." : null;
   const canLive = !formError && liveBlockers.length === 0;
@@ -132,6 +140,7 @@ export function ScanWizard({
   const run = (fn: (r: ScanWizardResult) => Promise<void>) => async () => {
     setBusy(true);
     try {
+      if (IS_API && target && autoAdd.length) await targetService.updateScope(target.id, { ...target.scope, allowedActivities: [...target.scope.allowedActivities, ...autoAdd] });
       await fn(result);
     } finally {
       setBusy(false);
@@ -253,7 +262,7 @@ export function ScanWizard({
             </ul>
           )}
           {canLive && target && (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-success" aria-hidden /> {liveTools.map((t) => TOOL_META[t].label).join(" and ")} will run on {target.name}. Results wait for your review.</p>
+            <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-success" aria-hidden /> {liveTools.map((t) => TOOL_META[t].label).join(" and ")} will run on {target.name}.{autoAdd.length ? ` AIVERA also allows ${autoAdd.map((a) => `“${a}”`).join(" and ")} in its scope.` : ""} Results wait for your review.</p>
           )}
         </CardContent>
       </Card>
