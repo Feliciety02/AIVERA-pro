@@ -9,7 +9,7 @@
  * In neither mode does the browser contact a target, run a scanner or call a model.
  */
 import { toast } from "sonner";
-import type { AIAnalysis, ApplicationSettings, ID, Project, RemediationStatus, RemediationTask, Report, Scan, ScopeDetection, Target, TargetScope, User, VerificationStatus } from "@/types";
+import type { AIAnalysis, ApplicationSettings, Integration, ScanGate, ID, Project, RemediationStatus, RemediationTask, Report, Scan, ScopeDetection, Target, TargetScope, User, VerificationStatus } from "@/types";
 import { detectFromAddress } from "@/features/scopeDetection";
 import { useDataStore, type DataActions, type ManualFindingInput } from "@/stores/dataStore";
 import { parseToolOutput, type ImportFormat, type ParseResult } from "@/features/imports/parsers";
@@ -114,6 +114,20 @@ export const targetService = {
     if (IS_API) return void (await mutate(`/targets/${id}`, undefined, "DELETE"));
     await delay(LATENCY);
     store().deleteTarget(id);
+  },
+};
+
+export const integrationService = {
+  /** Asks the server to check every tool again right now. API mode only. */
+  async check(): Promise<{ integrations: Integration[]; gate: ScanGate }> {
+    if (!IS_API) throw new Error("Checking tools needs the AIVERA server (API mode).");
+    const res = await api<{ integrations: Integration[]; gate: ScanGate }>("/integrations/check");
+    useDataStore.setState({ integrations: res.integrations });
+    return res;
+  },
+  async gate(): Promise<ScanGate | null> {
+    if (!IS_API) return null;
+    return api<ScanGate>("/integrations/gate");
   },
 };
 

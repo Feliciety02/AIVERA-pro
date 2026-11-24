@@ -10,10 +10,11 @@ import { log, notify } from "../audit.ts";
 import { fail, me, param, parse } from "../http.ts";
 import * as M from "../mappers.ts";
 import { seedDatabase } from "../seedData.ts";
+import { seedIntegrations } from "@/data/seed";
 import { detectScope } from "../scopeDiscovery.ts";
 import { verifyChain } from "../auditChain.ts";
-import { aiConfigured, aiProviderStatus } from "../ai/gemini.ts";
-import { assertProjectAccess, handOverWork, pickLeadForNewProject, projectLeads, remindOverdueFixes, visibleProjectIds } from "../workflowRules.ts";
+import { scanGate, withLiveStatus } from "../toolStatus.ts";
+import { assertProjectAccess, handOverWork, pickLeadForNewProject, projectLeads, remindOverdueFixes, remindUnverifiedFindings, visibleProjectIds } from "../workflowRules.ts";
 
 export const router = Router();
 
@@ -77,11 +78,32 @@ router.get("/auth/me", (req, res) => {
   res.json({ user: M.toUser(me(req)) });
 });
 
+/* ------------------------------ Integrations ------------------------------ */
+/** Live status from the server's own checks, plus when each tool last produced a real result. */
+async function integrationsFor(list: ReturnType<typeof M.toIntegration>[], results: { tool: string; recordedAt: Date; dataOrigin: string }[], fresh = false) {
+  const live = await withLiveStatus(list, fresh);
+  return live.map((i) => {
+    const last = results.find((r) => r.tool === i.id && r.dataOrigin === "real");
+    // Setup text describes the code, so it comes from the code, not from an older database copy.
+    const def = seedIntegrations.find((x) => x.id === i.id);
+    return { ...i, setupSteps: def?.setupSteps ?? i.setupSteps, features: def?.features ?? i.features, lastUsedAt: last ? last.recordedAt.toISOString() : undefined };
+  });
+}
+
+/** Re-runs every check now (the "Check again" button). */
+router.get("/integrations/check", requirePermission("manage_integrations"), async (_req, res) => {
+  const [list, results] = await Promise.all([prisma.integration.findMany(), prisma.scanResult.findMany({ where: { dataOrigin: "real" }, orderBy: { recordedAt: "desc" } })]);
+  res.json({ integrations: await integrationsFor(list.map(M.toIntegration), results, true), gate: scanGate() });
+});
+
+router.get("/integrations/gate", requirePermission("manage_integrations"), (_req, res) => res.json(scanGate()));
+
 /* ------------------------------- Bootstrap -------------------------------- */
 /** Everything the SPA needs, filtered by role. The SPA keeps it as a read cache. */
 router.get("/bootstrap", async (req, res) => {
   const user = me(req);
   await remindOverdueFixes();
+  await remindUnverifiedFindings();
   const visible = await visibleProjectIds(user);
   const [users, allProjects, allTargets, allAssessments, allScans, allScanResults, allHosts, allPorts, allDns, allEndpoints, allRecon, allFindings, allEvidence, allVerifications, allAnalyses, allRisks, allRemediation, allReports, activity, notifications, integrations, settings] =
     await Promise.all([
@@ -142,13 +164,7 @@ router.get("/bootstrap", async (req, res) => {
     reports: reports.map(M.toReport),
     activity: can(user.role, "view_activity") ? activity.map(M.toActivity) : [],
     notifications: notifications.map(M.toNotification),
-    integrations: integrations.map(M.toIntegration).map((i) =>
-      i.id === "ai_service"
-        ? aiConfigured()
-          ? { ...i, name: "AI Analysis Service", status: "connected" as const, integrationType: `Server-side AI, tried in order: ${aiProviderStatus().map((p) => (p.resting ? `${p.name} (busy, retried in ${p.secondsLeft}s)` : p.name)).join(" → ")}`, futureEndpoint: "POST /api/ai/analyses (live)" }
-          : { ...i, status: "demo_adapter" as const, integrationType: "Demo adapter, set GEMINI_API_KEY in server/.env to enable Gemini" }
-        : i,
-    ),
+    integrations: await integrationsFor(integrations.map(M.toIntegration), allScanResults),
     settings: settings?.value as unknown as ApplicationSettings,
   });
 });

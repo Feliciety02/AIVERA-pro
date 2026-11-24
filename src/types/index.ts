@@ -559,6 +559,19 @@ export interface Integration {
   features: string[];
   setupSteps: string[];
   futureEndpoint: string;
+  /** API mode: what the server's live check found, in one sentence. */
+  statusNote?: string;
+  /** API mode: version or runtime that answered the check. */
+  statusDetail?: string;
+  /** API mode: when the server last checked. */
+  checkedAt?: ISODate;
+}
+
+/** API mode: whether live scans may run, from the server's settings. */
+export interface ScanGate {
+  liveScansEnabled: boolean;
+  approvedHosts: string[];
+  egressIsolated: boolean;
 }
 
 /* -------------------------------- Settings ------------------------------- */
