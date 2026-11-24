@@ -11,12 +11,15 @@ export function ToneBadge({ tone, children, className }: { tone: Tone; children:
   return <span className={cn(base, TONE_CLASS[tone], className)}>{children}</span>;
 }
 
-/** Severity shown as a solid colour square + label, as in Google Security Command Center. */
+/** Severity as a tinted pill with a solid dot, on the standard scale (critical crimson → info blue). */
 export function SeverityBadge({ severity, className }: { severity: Severity; className?: string }) {
   const m = SEVERITY_META[severity];
   return (
-    <span className={cn(base, "px-0", m.className, className)}>
-      <span className="size-2.5 rounded-[2px]" style={{ background: m.color }} aria-hidden />
+    <span
+      className={cn(base, "border-transparent font-semibold text-foreground", className)}
+      style={{ background: `color-mix(in srgb, ${m.color} 16%, transparent)`, boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${m.color} 35%, transparent)` }}
+    >
+      <span className="size-2 rounded-full" style={{ background: m.color }} aria-hidden />
       {m.label}
     </span>
   );

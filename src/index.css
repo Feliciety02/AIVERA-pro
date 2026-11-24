@@ -42,11 +42,11 @@
   --warning: #b06000;
   --warning-foreground: #ffffff;
 
-  --sev-critical: #d93025;
-  --sev-high: #e8710a;
-  --sev-medium: #c58f00;
-  --sev-low: #4285f4;
-  --sev-info: #80868b;
+  --sev-critical: #9b1c47;
+  --sev-high: #d93025;
+  --sev-medium: #e8710a;
+  --sev-low: #d9a400;
+  --sev-info: #4a7fc1;
 
   --chart-grid: #e8eaed;
   --chart-axis: #5f6368;
@@ -86,11 +86,11 @@
   --warning: #fdd663;
   --warning-foreground: #202124;
 
-  --sev-critical: #f28b82;
-  --sev-high: #fcad70;
-  --sev-medium: #fdd663;
-  --sev-low: #8ab4f8;
-  --sev-info: #9aa0a6;
+  --sev-critical: #f07aa0;
+  --sev-high: #f28b82;
+  --sev-medium: #fcad70;
+  --sev-low: #fdd663;
+  --sev-info: #8ab4f8;
 
   --chart-grid: #3c4043;
   --chart-axis: #9aa0a6;

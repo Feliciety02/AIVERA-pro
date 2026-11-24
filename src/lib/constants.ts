@@ -27,21 +27,21 @@ export const APP_NAME = "AIVERA";
 /* -------------------------------- Severity ------------------------------- */
 export const SEVERITIES: Severity[] = ["critical", "high", "medium", "low", "info"];
 
-export const SEVERITY_META: Record<Severity, { label: string; color: string; className: string; rank: number }> = {
-  critical: { label: "Critical", color: "var(--sev-critical)", className: "border-transparent bg-transparent text-foreground", rank: 5 },
-  high: { label: "High", color: "var(--sev-high)", className: "border-transparent bg-transparent text-foreground", rank: 4 },
-  medium: { label: "Medium", color: "var(--sev-medium)", className: "border-transparent bg-transparent text-foreground", rank: 3 },
-  low: { label: "Low", color: "var(--sev-low)", className: "border-transparent bg-transparent text-foreground", rank: 2 },
-  info: { label: "Info", color: "var(--sev-info)", className: "border-transparent bg-transparent text-muted-foreground", rank: 1 },
+export const SEVERITY_META: Record<Severity, { label: string; color: string; rank: number }> = {
+  critical: { label: "Critical", color: "var(--sev-critical)", rank: 5 },
+  high: { label: "High", color: "var(--sev-high)", rank: 4 },
+  medium: { label: "Medium", color: "var(--sev-medium)", rank: 3 },
+  low: { label: "Low", color: "var(--sev-low)", rank: 2 },
+  info: { label: "Info", color: "var(--sev-info)", rank: 1 },
 };
 
 /** Hex values for contexts that cannot resolve CSS variables (PDF export). */
 export const SEVERITY_HEX: Record<Severity, string> = {
-  critical: "#EF4444",
-  high: "#F97316",
-  medium: "#EAB308",
-  low: "#3B82F6",
-  info: "#64748B",
+  critical: "#9B1C47",
+  high: "#D93025",
+  medium: "#E8710A",
+  low: "#D9A400",
+  info: "#4A7FC1",
 };
 
 /* ------------------------------- Tone helper ------------------------------ */
