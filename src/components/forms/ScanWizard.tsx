@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { ApplicationSettings, AssessmentCategoryId, OutputFormat, Project, ScanConfig, ScanProfile, ScanTool, Target } from "@/types";
 
 const TOOL_ICONS: Record<ScanTool, typeof Network> = { nmap: Network, owasp_zap: ScanSearch, dns_utils: Globe, http_inspector: Radar };
+const TOOL_NAME: Record<ScanTool, string> = { nmap: "Open ports", owasp_zap: "Website checks", http_inspector: "Headers and certificates", dns_utils: "Domain records" };
 /** Tools the AIVERA server can really run. */
 const LIVE_TOOLS: LiveTool[] = ["nmap", "owasp_zap", "http_inspector"];
 const isLive = (t: ScanTool): t is LiveTool => (LIVE_TOOLS as ScanTool[]).includes(t);
@@ -112,15 +113,15 @@ export function ScanWizard({
   const unsupportedTools = tools.filter((t) => !isLive(t));
   const liveBlockers: { text: string; fix?: { label: string; run: () => void } }[] = [];
   if (!IS_API) liveBlockers.push({ text: "Real scans need the full app with the AIVERA server (npm run dev:full). Here you can run a practice scan." });
-  else if (!liveAvailable) liveBlockers.push({ text: "Live scanning is turned off on the AIVERA server (AIVERA_LIVE_SCANS_ENABLED and AIVERA_ALLOWED_SCAN_HOSTS in server/.env)." });
+  else if (!liveAvailable) liveBlockers.push({ text: "Real checks are turned off on the server. Ask an administrator to enable them and allow this website." });
   if (IS_API && unsupportedTools.length)
-    liveBlockers.push({ text: `Real scans can't use ${unsupportedTools.map((t) => TOOL_META[t].label).join(", ")} yet.`, fix: { label: "Remove it", run: () => setTools(liveTools.length ? liveTools : ["owasp_zap"]) } });
+    liveBlockers.push({ text: `Real scans can't use ${unsupportedTools.map((t) => TOOL_NAME[t]).join(", ")} yet.`, fix: { label: "Remove it", run: () => setTools(liveTools.length ? liveTools : ["owasp_zap"]) } });
   if (IS_API && profile === "standard" && target) {
-    if (!hasActivity(ACTIVE_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: `Standard needs "${ACTIVE_SCAN_ACTIVITY}" allowed in the website's scope.`, fix: { label: "Use Baseline", run: () => setProfile("baseline") } });
-    if (!tools.includes("owasp_zap")) liveBlockers.push({ text: "Standard needs OWASP ZAP.", fix: { label: "Add ZAP", run: () => setTools([...tools, "owasp_zap"]) } });
+    if (!hasActivity(ACTIVE_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: "Standard needs active checks allowed on the local copy in this website's scope.", fix: { label: "Use Baseline", run: () => setProfile("baseline") } });
+    if (!tools.includes("owasp_zap")) liveBlockers.push({ text: "Standard needs Website checks.", fix: { label: "Add website checks", run: () => setTools([...tools, "owasp_zap"]) } });
   }
   if (IS_API && authenticated && target) {
-    if (!hasActivity(AUTH_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: `Signed-in scans need "${AUTH_SCAN_ACTIVITY}" allowed in the website's scope.`, fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
+    if (!hasActivity(AUTH_SCAN_ACTIVITY, target.scope.allowedActivities)) liveBlockers.push({ text: "Signed-in checks need test-account access allowed in this website's scope.", fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
     else if (!credential.configured) liveBlockers.push({ text: "No test-account session is saved for this website. Add one on the website's page.", fix: { label: "Scan signed out", run: () => setAuthenticated(false) } });
   }
   // Standard activities the chosen tools need are added to the scope automatically when the scan
@@ -129,7 +130,7 @@ export function ScanWizard({
     const blocked = toolsNeedingIsolation(target.url, liveTools as LiveTool[], egressIsolated);
     if (blocked.length)
       liveBlockers.push({
-        text: `${blocked.map((t) => TOOL_META[t].label).join(" and ")} can't scan a hosted website until the server's scan network is isolated (AIVERA_SCAN_EGRESS_ISOLATED). The header and TLS check works without it.`,
+        text: `${blocked.map((t) => TOOL_NAME[t]).join(" and ")} can't scan a hosted website until the server's scan network is isolated. The headers and certificates check works without it.`,
         fix: { label: "Use the header check", run: () => setTools(["http_inspector"]) },
       });
   }
@@ -138,10 +139,10 @@ export function ScanWizard({
     for (const t of liveTools)
       if (!toolPermitted(t, [...target.scope.allowedActivities, ...autoAdd])) {
         const why = standardScanActivities(target.url).leftOut.find((l) => l.activity === TOOL_ACTIVITY[t])?.reason;
-        liveBlockers.push({ text: why ?? `The website's scope doesn't allow "${TOOL_ACTIVITY[t]}", which ${TOOL_META[t].label} needs.`, fix: { label: `Remove ${TOOL_META[t].label}`, run: () => setTools(tools.filter((x) => x !== t)) } });
+        liveBlockers.push({ text: why ?? `The website's scope doesn't allow "${TOOL_ACTIVITY[t]}", which ${TOOL_NAME[t]} needs.`, fix: { label: `Remove ${TOOL_NAME[t]}`, run: () => setTools(tools.filter((x) => x !== t)) } });
       }
 
-  const formError = !target ? "Choose a website." : !authorized ? "This website's permission isn't confirmed, so it can't be scanned." : !tools.length ? "Pick at least one tool." : !effectiveCategories.length ? "Pick at least one test category under More settings." : !name.trim() ? "Name the scan under More settings." : !scopeConfirmed ? "Tick the scope box to start." : null;
+  const formError = !target ? "Choose a website." : !authorized ? "This website's permission isn't confirmed, so it can't be scanned." : !tools.length ? "Choose at least one kind of check." : !effectiveCategories.length ? "Pick at least one test category under More settings." : !name.trim() ? "Name the scan under More settings." : !scopeConfirmed ? "Tick the scope box to start." : null;
   const canLive = !formError && liveBlockers.length === 0;
 
   const result: ScanWizardResult = {
@@ -198,14 +199,14 @@ export function ScanWizard({
           </Field>
 
           <div className="space-y-1.5">
-            <p className="text-sm font-medium">Tools</p>
+            <p className="text-sm font-medium">What to check</p>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tools">
               {toolOptions.map((t) => {
                 const Icon = TOOL_ICONS[t];
                 const on = tools.includes(t);
                 return (
                   <button key={t} type="button" aria-pressed={on} onClick={() => setTools(toggle(tools, t))} className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors", on ? "border-primary/50 bg-primary/10 font-medium text-primary" : "border-border text-muted-foreground hover:text-foreground")}>
-                    <Icon className="size-3.5" aria-hidden /> {TOOL_META[t].label}
+                    <Icon className="size-3.5" aria-hidden /> {TOOL_NAME[t]}
                   </button>
                 );
               })}
@@ -275,7 +276,7 @@ export function ScanWizard({
             </ul>
           )}
           {canLive && target && (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-success" aria-hidden /> {liveTools.map((t) => TOOL_META[t].label).join(" and ")} will run on {target.name}.{autoAdd.length ? ` AIVERA also allows ${autoAdd.map((a) => `“${a}”`).join(" and ")} in its scope.` : ""} Results wait for your review.</p>
+            <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-success" aria-hidden /> {liveTools.map((t) => TOOL_NAME[t]).join(" and ")} will run on {target.name}.{autoAdd.length ? ` AIVERA also allows ${autoAdd.map((a) => `“${a}”`).join(" and ")} in its scope.` : ""} Results wait for your review.</p>
           )}
         </CardContent>
       </Card>

@@ -51,6 +51,18 @@ export function DeveloperHome() {
         }
       />
 
+      <section aria-label="What to do next" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/[0.07] p-5">
+        <div>
+          <p className="text-xs font-semibold text-primary">What to do next</p>
+          <p className="mt-1 text-base font-semibold">
+            {todo.length ? `${todo.length} fix${todo.length === 1 ? " is" : "es are"} waiting for your change, ${dueLabel(todo[0]!).text.toLowerCase()}.`
+              : waiting.length ? `${waiting.length} fix${waiting.length === 1 ? " is" : "es are"} with the security team for retest or approval.`
+                : "You're caught up. New fixes will appear here."}
+          </p>
+        </div>
+        {todo[0] && <Button asChild><Link to={`/remediation?task=${todo[0].id}`}>Open next fix <ArrowRight /></Link></Button>}
+      </section>
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="To do" value={todo.length} icon={ListTodo} accent="var(--primary)" tooltip="Fixes assigned to you that are open or in progress." sub="assigned to you" to="/remediation" />
         <StatCard label="Overdue" value={overdue.length} icon={AlarmClock} accent="var(--sev-critical)" tone={overdue.length ? "text-sev-critical" : undefined} tooltip="Open fixes past their due date. The due date comes from the finding's severity." sub={overdue.length ? "past the due date" : "all on time"} to="/remediation" />

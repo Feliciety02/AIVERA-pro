@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { useLocation, useNavigate } from "react-router";
 import { Bell, CheckCheck, CircleHelp, LogOut, Menu, Moon, Search, Settings, Sun, Trash2, UserRoundCog, Users } from "lucide-react";
 import { tourForPath } from "@/features/tours";
@@ -12,6 +13,8 @@ import { cn, initials } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
 import { ROLE_META } from "@/lib/constants";
 import { authService, IS_API, notificationService, settingsService } from "@/services";
+import { userService } from "@/services";
+import { can } from "@/lib/permissions";
 import { GlobalSearch } from "./GlobalSearch";
 
 export function ThemeToggle() {
@@ -30,6 +33,8 @@ const toneDot: Record<string, string> = { info: "bg-sev-low", success: "bg-prima
 
 export function NotificationPanel() {
   const navigate = useNavigate();
+  const user = useCurrentUser();
+  const users = useDataStore((s) => s.users);
   const notifications = useDataStore((s) => s.notifications);
   const { markRead, markAllRead: markAll, clear } = notificationService;
   const unread = notifications.filter((n) => !n.read).length;
@@ -79,6 +84,14 @@ export function NotificationPanel() {
                   <span className="mt-1 block text-[10px] text-muted-foreground/70">{formatRelative(n.createdAt)}</span>
                 </span>
               </button>
+              {n.title === "New account waiting for approval" && n.link?.startsWith("/users?approve=") && can(user?.role, "manage_users") && (() => {
+                const id = new URLSearchParams(n.link.split("?")[1]).get("approve");
+                const applicant = users.find((u) => u.id === id && u.status === "invited");
+                return applicant ? <div className="border-b border-border/60 px-4 pb-3"><Button size="sm" onClick={async () => {
+                  try { await userService.update(applicant.id, { status: "active" }); markRead(n.id); toast.success(`${applicant.name} approved`); }
+                  catch (e) { toast.error((e as Error).message); }
+                }}>Approve {applicant.name}</Button></div> : null;
+              })()}
             </li>
           ))}
         </ul>

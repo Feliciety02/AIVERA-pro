@@ -16,16 +16,17 @@ import type { Integration, IntegrationStatus, ScanGate } from "@/types";
 
 const ICONS: Record<Integration["id"], LucideIcon> = { nmap: Network, owasp_zap: ScanSearch, dns_utils: Globe, http_inspector: Radar, ai_service: Bot };
 const ORDER: Integration["id"][] = ["nmap", "owasp_zap", "http_inspector", "dns_utils", "ai_service"];
+const TOOL_NAMES: Record<Integration["id"], string> = { nmap: "Open port checks", owasp_zap: "Website security checks", http_inspector: "Headers and certificates", dns_utils: "Domain records", ai_service: "AI explanations" };
 
 const STATUS: Record<IntegrationStatus, { label: string; tone: Tone }> = {
   connected: { label: "Connected", tone: "primary" },
-  demo_adapter: { label: "Demo adapter", tone: "warning" },
-  not_connected: { label: "Not found", tone: "muted" },
+  demo_adapter: { label: "Practice only", tone: "warning" },
+  not_connected: { label: "Not installed", tone: "muted" },
   error: { label: "Needs attention", tone: "danger" },
 };
 
 export default function IntegrationsPage() {
-  useDocumentTitle("Integrations");
+  useDocumentTitle("Testing tools");
   const integrations = useDataStore((s) => s.integrations);
   const [checking, setChecking] = React.useState(false);
   const [gate, setGate] = React.useState<ScanGate | null>(null);
@@ -55,7 +56,7 @@ export default function IntegrationsPage() {
   return (
     <ContentContainer wide>
       <PageHeader
-        title="Integrations"
+        title="Testing tools"
         actions={
           IS_API && (
             <Button onClick={check} disabled={checking}>
@@ -67,7 +68,7 @@ export default function IntegrationsPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Tools connected"
+          label="Tools ready"
           value={IS_API ? `${connected}/${integrations.length}` : "—"}
           icon={Plug}
           accent={IS_API && connected === integrations.length ? "var(--success)" : "var(--primary)"}
@@ -75,28 +76,28 @@ export default function IntegrationsPage() {
           sub={IS_API ? (checkedAt ? `checked ${formatRelative(checkedAt)}` : "checked by the server") : "needs the AIVERA server"}
         />
         <StatCard
-          label="Live scans"
+          label="Real checks"
           value={gate ? (gate.liveScansEnabled ? "On" : "Off") : "—"}
           icon={gate?.liveScansEnabled ? ShieldCheck : ShieldOff}
           accent={gate?.liveScansEnabled ? "var(--success)" : "var(--warning)"}
-          tooltip="Real scans only run when AIVERA_LIVE_SCANS_ENABLED=true is set on the server."
-          sub={gate ? (gate.liveScansEnabled ? "real scans allowed" : "set AIVERA_LIVE_SCANS_ENABLED") : "needs the AIVERA server"}
+          tooltip="An administrator turns on real checks in the server settings."
+          sub={gate ? (gate.liveScansEnabled ? "real checks allowed" : "turned off on the server") : "needs the AIVERA server"}
         />
         <StatCard
-          label="Approved hosts"
+          label="Allowed websites"
           value={gate ? gate.approvedHosts.length : "—"}
           icon={Server}
           accent="var(--cyan)"
-          tooltip="Only these hosts can ever be scanned. Set in AIVERA_ALLOWED_SCAN_HOSTS on the server."
+          tooltip="Only these website addresses can be scanned by this server."
           sub={gate ? <span className="truncate" title={gate.approvedHosts.join(", ")}>{gate.approvedHosts.join(", ") || "none yet"}</span> : "needs the AIVERA server"}
         />
         <StatCard
-          label="Hosted websites"
+          label="Hosted site checks"
           value={gate ? (gate.egressIsolated ? "All tools" : "Limited") : "—"}
           icon={Globe}
           accent="var(--sev-medium)"
-          tooltip="Nmap and ZAP only scan hosted websites from an isolated scan network (AIVERA_SCAN_EGRESS_ISOLATED). The header and TLS check always runs."
-          sub={gate ? (gate.egressIsolated ? "isolated scan network" : "header & TLS check only") : "needs the AIVERA server"}
+          tooltip="Open port and website checks need a separate scan network for hosted sites. The headers and certificates check can run without one."
+          sub={gate ? (gate.egressIsolated ? "separate scan network" : "headers and certificates only") : "needs the AIVERA server"}
         />
       </div>
 
@@ -128,7 +129,7 @@ function IntegrationRow({ i }: { i: Integration }) {
         <div className="flex min-w-0 items-center gap-3">
           <IconChip icon={Icon} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{i.name}</p>
+            <p className="truncate text-sm font-medium">{TOOL_NAMES[i.id]}</p>
             <p className="line-clamp-2 text-xs text-muted-foreground">{i.purpose}</p>
           </div>
         </div>

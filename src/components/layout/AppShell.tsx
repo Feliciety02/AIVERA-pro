@@ -9,6 +9,7 @@ import { Sidebar, MobileSidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { TourHost } from "./TourHost";
 import { LiveUpdates } from "./LiveUpdates";
+import { IS_API } from "@/services";
 
 export function AppShell() {
   const userId = useSessionStore((s) => s.userId);
@@ -32,6 +33,7 @@ export function AppShell() {
       <Sidebar />
       <MobileSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
+        {!IS_API && <div role="status" className="border-b border-amber-500/40 bg-amber-400/20 px-4 py-2 text-center text-sm font-bold text-foreground">Practice copy: changes stay in this browser</div>}
         <Header />
         <main id="main" ref={mainRef} className="relative isolate min-w-0 flex-1">
           <div className="app-backdrop pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]" aria-hidden />

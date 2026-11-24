@@ -8,8 +8,6 @@ import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { DeleteButton, EditButton } from "@/components/shared/actions";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/misc";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Callout } from "@/components/shared/display";
 import { ContentCard, DetailLayout, FactList, SidePanel } from "@/components/shared/DetailLayout";
@@ -34,14 +32,13 @@ export default function TargetDetailPage() {
   const { targetId } = useParams();
   const user = useCurrentUser();
   const canManage = can(user?.role, "manage_targets");
+  const canAuthorize = can(user?.role, "authorize_targets");
   const lookups = useLookups();
   const target = useDataStore((s) => s.targets.find((t) => t.id === targetId));
   useDocumentTitle(target?.name ?? "Target");
   const all = useDataStore(useShallow((s) => ({ findings: s.findings, scans: s.scans, hosts: s.hosts, endpoints: s.endpoints, dns: s.dnsRecords })));
   const [scopeOpen, setScopeOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<TargetScope | null>(null);
-  const [authOpen, setAuthOpen] = React.useState(false);
-  const [authChecked, setAuthChecked] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -128,9 +125,14 @@ export default function TargetDetailPage() {
                   </span>
                 </p>
               )}
-              {canManage && target.projectId && !assessable && target.authorizationStatus === "pending" && (
-                <Button variant="success" className="w-full" onClick={() => { setAuthChecked(false); setAuthOpen(true); }}>
-                  <ShieldCheck /> Record authorization
+              {canAuthorize && target.projectId && !assessable && target.authorizationStatus === "pending" && target.authorizationConfirmed && (
+                <Button variant="success" className="w-full" disabled={saving} onClick={async () => {
+                  setSaving(true);
+                  try { await targetService.update(target.id, { authorizationStatus: "authorized" }); toast.success("Website authorized"); }
+                  catch (e) { toast.error((e as Error).message); }
+                  finally { setSaving(false); }
+                }}>
+                  <ShieldCheck /> Authorize website
                 </Button>
               )}
               <FactList
@@ -291,37 +293,6 @@ export default function TargetDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record authorization</DialogTitle>
-            <DialogDescription>Only do this once you hold written authorization ({target.authorizationReference}) from the system owner.</DialogDescription>
-          </DialogHeader>
-          <DialogGuide guideKey="recordAuthorization" steps={DIALOG_GUIDES.recordAuthorization} />
-          <div className="flex items-start gap-3 rounded-xl border border-border p-3">
-            <Checkbox id="auth-confirm" checked={authChecked} onCheckedChange={(v) => setAuthChecked(v === true)} className="mt-0.5" />
-            <Label htmlFor="auth-confirm" className="text-sm leading-snug">
-              I confirm that this application is authorized for security assessment.
-            </Label>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAuthOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="success"
-              disabled={!authChecked}
-              onClick={async () => {
-                await targetService.update(target.id, { authorizationStatus: "authorized", authorizationConfirmed: true });
-                setAuthOpen(false);
-                toast.success("Authorization recorded");
-              }}
-            >
-              <ShieldCheck /> Confirm authorization
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <ToolImportDialog open={importOpen} onOpenChange={setImportOpen} defaultTargetId={target.id} />
     </ContentContainer>
   );

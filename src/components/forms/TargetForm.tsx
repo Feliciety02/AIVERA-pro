@@ -142,12 +142,16 @@ export function TargetForm({
     return () => clearTimeout(t);
   }, [parsed?.href]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const autoDetected = React.useRef(new Set<string>());
   const runDetection = async () => {
     if (!parsed) return;
+    const address = parsed.href;
+    autoDetected.current.add(address);
     setDetecting(true);
     setDetectError(null);
     try {
-      const d = await targetService.detectScope(parsed.href);
+      const d = await targetService.detectScope(address);
+      if (parseUrl(getValues("url"))?.href !== address) return;
       setDetection(d);
       const cur = getValues("scope");
       const merge = (a: string[], b: ScopeSuggestion[]) => [...new Set([...a, ...b.map((s) => s.value)])];
@@ -159,6 +163,17 @@ export function TargetForm({
       setDetecting(false);
     }
   };
+
+  // After permission is confirmed, fill the rest of the scope suggestion without another click.
+  React.useEffect(() => {
+    if (!IS_API || initial || !parsed || !confirmed || autoDetected.current.has(parsed.href)) return;
+    const address = parsed.href;
+    const timer = setTimeout(() => {
+      if (autoDetected.current.has(address)) return;
+      void runDetection();
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [parsed?.href, confirmed, initial]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scopeErrors = {
     inScopeHosts: errors.scope?.inScopeHosts?.message ?? errors.scope?.inScopeHosts?.root?.message,

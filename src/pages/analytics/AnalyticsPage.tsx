@@ -89,14 +89,14 @@ export default function AnalyticsPage() {
         <ChartCard title="Severity trends" description="Weekly findings by reported severity" summary={trend.map((t) => `${t.week}: ${SEVERITIES.map((k) => `${k} ${t[k]}`).join(", ")}`).join("; ")}>
           <StackedBars data={trend} xKey="week" series={SEVERITIES.map((k) => ({ key: k, name: SEVERITY_META[k].label, color: SEVERITY_META[k].color, stack: "s" }))} />
         </ChartCard>
-        <ChartCard title="Findings by target" summary={byTarget.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.unverified} unverified`).join("; ")}>
-          <StackedBars data={byTarget} xKey="name" layout="vertical" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)", stack: "a" }]} />
+        <ChartCard title="Findings by target" summary={byTarget.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.unverified} awaiting review`).join("; ")}>
+          <StackedBars data={byTarget} xKey="name" layout="vertical" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Awaiting review", color: "var(--sev-medium)", stack: "a" }]} />
         </ChartCard>
-        <ChartCard title="Findings by tool" summary={byTool.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.rejected} rejected, ${r.unverified} unverified`).join("; ")}>
-          <StackedBars data={byTool} xKey="name" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)", stack: "a" }, { key: "rejected", name: "Rejected", color: "var(--sev-info)", stack: "a" }]} />
+        <ChartCard title="Findings by tool" summary={byTool.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.rejected} not confirmed, ${r.unverified} awaiting review`).join("; ")}>
+          <StackedBars data={byTool} xKey="name" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Awaiting review", color: "var(--sev-medium)", stack: "a" }, { key: "rejected", name: "Not confirmed", color: "var(--sev-info)", stack: "a" }]} />
         </ChartCard>
         <ChartCard title="Findings by category" summary={byCategory.map((c) => `${c.name}: ${c.total}`).join("; ")}>
-          <StackedBars data={byCategory} xKey="name" layout="vertical" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)", stack: "a" }, { key: "rejected", name: "Rejected", color: "var(--sev-info)", stack: "a" }]} />
+          <StackedBars data={byCategory} xKey="name" layout="vertical" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Awaiting review", color: "var(--sev-medium)", stack: "a" }, { key: "rejected", name: "Not confirmed", color: "var(--sev-info)", stack: "a" }]} />
         </ChartCard>
         <div className="grid gap-4 sm:grid-cols-2">
           <ChartCard title="Verification status" summary={summarize(ver)} raw height={220}>
@@ -112,8 +112,8 @@ export default function AnalyticsPage() {
         <ChartCard title="Assessment activity" description="Scans and logged events per week" summary={activityTrend.map((a) => `${a.week}: ${a.scans} scans, ${a.events} events`).join("; ")}>
           <StackedBars data={activityTrend} xKey="week" series={[{ key: "scans", name: "Scans", color: "var(--cyan)" }, { key: "verifications", name: "Verification decisions", color: "var(--primary)" }, { key: "events", name: "All events", color: "var(--sev-info)" }]} />
         </ChartCard>
-        <ChartCard title="Project comparison" summary={projectsCmp.map((p) => `${p.name}: ${p.confirmed} confirmed, ${p.unverified} unverified, ${p.remediated} remediated`).join("; ")} className="xl:col-span-2">
-          <StackedBars data={projectsCmp} xKey="name" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)" }, { key: "remediated", name: "Remediated", color: "var(--primary)" }]} />
+        <ChartCard title="Project comparison" summary={projectsCmp.map((p) => `${p.name}: ${p.confirmed} confirmed, ${p.unverified} awaiting review, ${p.remediated} fixed`).join("; ")} className="xl:col-span-2">
+          <StackedBars data={projectsCmp} xKey="name" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)" }, { key: "unverified", name: "Awaiting review", color: "var(--sev-medium)" }, { key: "remediated", name: "Fixed", color: "var(--primary)" }]} />
         </ChartCard>
         <ChartCard title="Confirmed severity mix" summary={summarize(sev)} raw height={220} className="xl:col-span-2">
           <DonutChart data={sev} centerLabel="confirmed" centerValue={confirmed.length} />

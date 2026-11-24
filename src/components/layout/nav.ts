@@ -90,7 +90,7 @@ export const NAV: NavGroup[] = [
     items: [
       { label: "Activity log", to: "/activity", icon: Activity, roles: ADMIN },
       { label: "Users", to: "/users", icon: Users, roles: ADMIN },
-      { label: "Integrations", to: "/integrations", icon: Plug, roles: ADMIN },
+      { label: "Testing tools", to: "/integrations", icon: Plug, roles: ADMIN },
       { label: "Settings", to: "/settings", icon: Settings },
     ],
   },
