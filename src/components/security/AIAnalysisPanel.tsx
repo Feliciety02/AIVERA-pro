@@ -1,15 +1,18 @@
 import * as React from "react";
 import { Link } from "react-router";
-import { Bot, ChevronDown, ClipboardCopy, Info, ListChecks, Send, ShieldQuestion, Sparkles, Wrench } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCopy, ListChecks, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import { toastLink } from "@/lib/toastLink";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { cn, copyToClipboard } from "@/lib/utils";
+import { CodeBlock, KeyValue } from "@/components/shared/display";
+import { Collapsible } from "@/components/shared/DetailLayout";
+import { copyToClipboard } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
-import { AI_MODES, SEVERITY_META } from "@/lib/constants";
+import { SEVERITY_META } from "@/lib/constants";
 import { analysisService } from "@/services";
 import type { AIAnalysis, VulnerabilityFinding } from "@/types";
-import { AIBadge, SeverityBadge, ToneBadge } from "./badges";
+import { SeverityBadge, ToneBadge } from "./badges";
 
 function toText(a: AIAnalysis): string {
   return [
@@ -36,145 +39,154 @@ function toText(a: AIAnalysis): string {
     .join("\n");
 }
 
-const STATUS_LABEL: Record<AIAnalysis["status"], { label: string; tone: "muted" | "info" | "primary" }> = {
-  generated: { label: "Generated", tone: "muted" },
-  sent_to_verification: { label: "Sent to verification queue", tone: "info" },
-  acknowledged: { label: "Reviewed by assessor", tone: "primary" },
+/** Section titles in plain words, one per mode. */
+const TITLE: Record<AIAnalysis["mode"], string> = {
+  scan_interpretation: "What the scan found",
+  vulnerability_explanation: "What this finding means",
+  risk_prioritization: "How urgent it is",
+  remediation: "How to fix it",
+  test_recommendations: "What to test",
+  assessment_summary: "Assessment summary",
 };
 
-export function AIAnalysisPanel({ analysis, finding, compact, canSend = true }: { analysis: AIAnalysis; finding?: VulnerabilityFinding; compact?: boolean; canSend?: boolean }) {
-  const [showReasoning, setShowReasoning] = React.useState(!compact);
-  const mode = AI_MODES.find((m) => m.id === analysis.mode);
+/** A heading inside the answer, drawn exactly like a SectionCard title (tinted primary icon chip). */
+function Heading({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <h4 className="flex items-center gap-2 text-sm font-semibold">
+      <span className="flex size-7 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary">
+        <Icon className="size-4" aria-hidden />
+      </span>
+      {children}
+    </h4>
+  );
+}
+
+/**
+ * One AI answer, built from the app's existing pieces: a QuickScanCard-style header with the
+ * answer, SectionCard-style headings for why it matters / what to do / how to check it, and the
+ * shared Collapsible for the secondary detail (reasoning, limits, evidence, data sent).
+ */
+export function AIAnalysisPanel({ analysis, finding, canSend = true }: { analysis: AIAnalysis; finding?: VulnerabilityFinding; compact?: boolean; canSend?: boolean }) {
   const disagrees = finding && analysis.suggestedSeverity && analysis.suggestedSeverity !== finding.severity;
   return (
-    <Card className="overflow-hidden border-primary/25">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
-        <Bot className="size-4 text-primary" />
-        <p className="text-sm font-semibold">{mode?.label}</p>
-        <AIBadge label={analysis.adapter === "api" ? `AI-generated · ${analysis.model ?? "AI model"}` : undefined} />
-        <ToneBadge tone={STATUS_LABEL[analysis.status].tone} className="ml-auto">{STATUS_LABEL[analysis.status].label}</ToneBadge>
-      </div>
-      <div className="space-y-4 p-4">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-          {analysis.findingId && (
-            <span>
-              Source finding: <Link className="font-mono text-foreground hover:text-primary" to={`/findings/${analysis.findingId}`}>{finding?.code ?? analysis.findingId}</Link>
+    <div className="space-y-4">
+      <Card className="overflow-hidden">
+        <div className="border-b border-border bg-gradient-to-br from-primary/[0.07] to-transparent p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
+              <Sparkles className="size-5" aria-hidden />
             </span>
-          )}
-          {analysis.scanId && (
-            <span>
-              Scan: <Link className="font-mono text-foreground hover:text-primary" to={`/scans/${analysis.scanId}`}>{analysis.scanId}</Link>
-            </span>
-          )}
-          <span>Generated {formatDateTime(analysis.generatedAt)}</span>
-          <span>{analysis.adapter === "api" ? `Model: ${analysis.model ?? "unknown"} (via AIVERA server)` : "Adapter: demo (predefined samples)"}</span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold tracking-tight">{TITLE[analysis.mode]}</h2>
+              <p className="text-xs text-muted-foreground">{formatDateTime(analysis.generatedAt)}</p>
+            </div>
+          </div>
+          <p className="mt-4 text-[15px] leading-relaxed">{analysis.interpretation}</p>
         </div>
 
-        <section>
-          <h4 className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary"><Sparkles className="size-3.5" /> AI interpretation</h4>
-          <p className="text-sm leading-relaxed">{analysis.interpretation}</p>
-        </section>
-        <section>
-          <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Explanation</h4>
-          <p className="text-sm leading-relaxed text-foreground/85">{analysis.explanation}</p>
-        </section>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {analysis.suggestedSeverity && (
-            <section className="rounded-lg border border-border p-3">
-              <h4 className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Suggested severity</h4>
-              <div className="flex items-center gap-2">
-                <SeverityBadge severity={analysis.suggestedSeverity} />
-                <span className="text-[11px] text-muted-foreground">suggestion only</span>
+        <div className="space-y-6 p-5">
+          {(analysis.explanation || analysis.potentialImpact || analysis.suggestedSeverity) && (
+            <section className="space-y-2">
+              <Heading icon={AlertTriangle}>Why it matters</Heading>
+              <div className="space-y-1.5 pl-9 text-sm leading-relaxed text-foreground/85">
+                {analysis.explanation && <p>{analysis.explanation}</p>}
+                {analysis.potentialImpact && <p>{analysis.potentialImpact}</p>}
+                {analysis.suggestedSeverity && (
+                  <p className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+                    Suggested severity <SeverityBadge severity={analysis.suggestedSeverity} />
+                    {disagrees && <span className="text-warning">scanner said {SEVERITY_META[finding!.severity].label}; the tester decides</span>}
+                  </p>
+                )}
               </div>
-              {disagrees && <p className="mt-1.5 text-[11px] text-sev-medium">Differs from reported severity ({SEVERITY_META[finding!.severity].label}). The assessor decides.</p>}
             </section>
           )}
-          <section className="rounded-lg border border-border p-3">
-            <h4 className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Potential impact</h4>
-            <p className="text-xs leading-relaxed">{analysis.potentialImpact}</p>
-          </section>
-        </div>
 
-        <section>
-          <button type="button" onClick={() => setShowReasoning((v) => !v)} className="flex w-full items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground" aria-expanded={showReasoning}>
-            <Info className="size-3.5" /> Explain reasoning
-            <ChevronDown className={cn("ml-auto size-3.5 transition-transform", showReasoning && "rotate-180")} />
-          </button>
-          {showReasoning && (
-            <ul className="mt-2 space-y-1.5 border-l-2 border-primary/30 pl-3 text-xs leading-relaxed text-foreground/85 animate-in fade-in-0">
-              {analysis.reasoning.map((r, i) => <li key={i}>{r}</li>)}
-            </ul>
+          {analysis.recommendations.length > 0 && (
+            <section className="space-y-2">
+              <Heading icon={CheckCircle2}>What to do</Heading>
+              <ul className="space-y-1.5 pl-9 text-sm">
+                {analysis.recommendations.map((r, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-        </section>
 
-        <section>
-          <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Wrench className="size-3.5" /> Recommendations</h4>
-          <ul className="space-y-1.5 text-sm">
-            {analysis.recommendations.map((r, i) => (
-              <li key={i} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-primary" />{r}</li>
-            ))}
-          </ul>
-        </section>
-        <section>
-          <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><ListChecks className="size-3.5" /> Suggested verification steps</h4>
-          <ol className="list-decimal space-y-1 pl-5 text-sm marker:text-muted-foreground">
-            {analysis.verificationSteps.map((s, i) => <li key={i}>{s}</li>)}
-          </ol>
-        </section>
-
-        {analysis.evidenceRefs.length > 0 && (
-          <section>
-            <h4 className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Evidence references</h4>
-            <div className="flex flex-wrap gap-1.5">
-              {analysis.evidenceRefs.map((id) => (
-                <Link key={id} to={analysis.findingId ? `/findings/${analysis.findingId}#${id}` : "#"} className="rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-cyan hover:border-cyan/40">
-                  {id}
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <div className="flex gap-2 rounded-md border border-sev-medium/30 bg-sev-medium/8 p-3 text-[11px] leading-relaxed text-foreground/85">
-          <ShieldQuestion className="mt-0.5 size-3.5 shrink-0 text-sev-medium" />
-          <p><span className="font-semibold text-sev-medium">Confidence caveat. </span>{analysis.confidenceCaveat}</p>
+          {analysis.verificationSteps.length > 0 && (
+            <section className="space-y-2">
+              <Heading icon={ListChecks}>How to check it</Heading>
+              <ol className="list-decimal space-y-1 pl-[3.25rem] text-sm marker:text-muted-foreground">
+                {analysis.verificationSteps.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            </section>
+          )}
         </div>
 
-        {analysis.sentContext && (
-          <details className="rounded-lg border border-border">
-            <summary className="cursor-pointer px-3 py-2 text-xs font-medium">
-              Data sent to the AI model ({analysis.redactionCount ?? 0} value{analysis.redactionCount === 1 ? "" : "s"} redacted before sending)
-            </summary>
-            <pre className="max-h-72 overflow-auto border-t border-border bg-muted p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all">{analysis.sentContext}</pre>
-          </details>
-        )}
-
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/30 px-5 py-2.5">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={async () => {
-              if (await copyToClipboard(toText(analysis))) toast.success("Analysis copied to clipboard");
-              else toast.error("Clipboard unavailable in this browser context");
+              if (await copyToClipboard(toText(analysis))) toast.success("Analysis copied");
+              else toast.error("Clipboard unavailable in this browser");
             }}
           >
-            <ClipboardCopy /> Copy analysis
+            <ClipboardCopy /> Copy
           </Button>
           {analysis.findingId && canSend && (
             <Button
-              variant="subtle"
+              variant="ghost"
               size="sm"
               disabled={analysis.status !== "generated"}
               onClick={() => {
                 analysisService.sendToVerification(analysis.id);
-                toast.success("Sent to verification queue", { description: "An assessor must still review evidence and record a decision." });
+                toast.success("Sent to the review queue", { description: "A tester still reviews the evidence and decides.", action: toastLink(`/findings/${analysis.findingId}`, "Open finding") });
               }}
             >
-              <Send /> {analysis.status === "generated" ? "Send to verification queue" : "In verification queue"}
+              <Send /> {analysis.status === "generated" ? "Send to review queue" : "In review queue"}
             </Button>
           )}
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      <Collapsible title="More detail" hint="Reasoning, limits and data sent">
+        <dl className="space-y-4 text-sm leading-relaxed">
+          {analysis.reasoning.length > 0 && (
+            <KeyValue label="Reasoning">
+              <ul className="list-disc space-y-1 pl-4">
+                {analysis.reasoning.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </KeyValue>
+          )}
+          {analysis.confidenceCaveat && <KeyValue label="Limits of this answer">{analysis.confidenceCaveat}</KeyValue>}
+          {analysis.evidenceRefs.length > 0 && (
+            <KeyValue label="Evidence used">
+              <span className="flex flex-wrap gap-1.5">
+                {analysis.evidenceRefs.map((id) => (
+                  <Link key={id} to={analysis.findingId ? `/findings/${analysis.findingId}#${id}` : "#"}>
+                    <ToneBadge tone="neutral" className="font-mono">
+                      {id}
+                    </ToneBadge>
+                  </Link>
+                ))}
+              </span>
+            </KeyValue>
+          )}
+          <KeyValue label="Answered by">{analysis.adapter === "api" ? `${analysis.model ?? "AI model"}, via the AIVERA server` : "Demo adapter (a predefined sample, not a real AI)"}</KeyValue>
+          {analysis.sentContext && (
+            <KeyValue label={`Data sent to the AI (${analysis.redactionCount ?? 0} secret value${analysis.redactionCount === 1 ? "" : "s"} removed)`}>
+              <CodeBlock className="max-h-72">{analysis.sentContext}</CodeBlock>
+            </KeyValue>
+          )}
+        </dl>
+      </Collapsible>
+    </div>
   );
 }

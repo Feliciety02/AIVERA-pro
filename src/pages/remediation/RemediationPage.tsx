@@ -3,7 +3,7 @@ import { DIALOG_GUIDES } from "@/features/dialogGuides";
 import { DialogGuide } from "@/components/shared/DialogGuide";
 import { Link, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { AlarmClock,  Pencil, CircleCheck, ClipboardCheck,  Loader2, Play, Plus, RotateCcw, ShieldCheck, ShieldOff,  XCircle } from "lucide-react";
+import { AlarmClock, ArrowRight, CalendarClock, ChevronDown, Pencil, CircleCheck, ClipboardCheck, Loader2, Play, Plus, RotateCcw, ShieldAlert, ShieldCheck, ShieldOff, UserRound, Wrench, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,9 @@ import { Textarea } from "@/components/ui/input";
 import { NoteChips } from "@/components/forms/choices";
 import { Progress } from "@/components/ui/misc";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { StepTracker, Tile } from "@/components/security/FindingPreview";
 import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/filters";
-import {  KeyValue,  UserChip } from "@/components/shared/display";
 import { EmptyState } from "@/components/shared/states";
 import { SeverityBadge, StatusBadge, ToneBadge, OriginBadge } from "@/components/security/badges";
 import { RemediationForm } from "@/components/forms/RemediationForm";
@@ -64,7 +64,6 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
   const canWork = isOwner || canManage;
   const canRetest = canManage && !isOwner;
   const canApprove = can(user?.role, "approve_remediation") && !isOwner;
-  const evidence = useDataStore((s) => s.evidence);
   // `action` is kept after closing so the dialog text doesn't change during its exit animation.
   const [action, setActionState] = React.useState<Action | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -98,96 +97,148 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
     setAction(a);
   };
 
-  const findingEvidence = finding ? evidence.filter((e) => e.findingId === finding.id) : [];
+  const retestBy = lookups.users[task.retestAssigneeId ?? ""]?.name ?? "a security tester";
+  const ownerName = lookups.users[task.ownerId]?.name ?? "the owner";
+  const sev = SEVERITY_META[task.priority];
+  // The fix's journey, numbered like the finding tracker; the third step depends on the retest.
+  const steps = ["To do", "Fixing", task.retestRequired ? "Retest" : "Approval", task.status === "accepted_risk" ? "Risk accepted" : "Done"];
+  const stepIndex = { open: 0, in_progress: 1, awaiting_retest: 2, pending_approval: 2, resolved: 3, accepted_risk: 3 }[task.status];
+  // One sentence: what happens next, and who does it.
+  const nextText = (() => {
+    switch (task.status) {
+      case "open":
+        return canWork ? "Start when you begin working on the fix." : `Waiting for ${ownerName} to start.`;
+      case "in_progress":
+        return canWork ? `Make the change, then ${task.retestRequired ? "ask for a retest" : "send it for approval"}.` : `${ownerName} is working on it.`;
+      case "awaiting_retest":
+        return canRetest ? "Check the website again and record the result." : `Waiting for ${retestBy} to retest.`;
+      case "pending_approval":
+        return canApprove ? "Check the work, then approve or send it back." : "Waiting for an administrator to approve.";
+      case "resolved":
+        return "Fixed and closed.";
+      case "accepted_risk":
+        return "Closed without a fix: the risk was accepted.";
+    }
+  })();
+  const retestText = task.retestResult === "passed" ? "Passed" : task.retestResult === "failed" ? "Failed, still there" : task.retestResult === "not_required" ? "Not needed" : "Not done yet";
+  const hasActions = (canWork || canApprove) && !(isClosed(task.status) && !canApprove);
 
   return (
-    <SheetBody className="space-y-5">
-      <DialogGuide guideKey="remediationTask" steps={DIALOG_GUIDES.remediationTask} inSheet />
-      <div className="flex flex-wrap gap-1.5">
-        <StatusBadge status={task.status} map={REMEDIATION_STATUS} />
-        <SeverityBadge severity={task.priority} />
-        <DueBadge task={task} />
-        {task.retestRequired ? <ToneBadge tone="info">Retest required · {task.retestResult}</ToneBadge> : <ToneBadge tone="muted">No retest required</ToneBadge>}
-      </div>
-      <p className="text-sm text-foreground/85">{task.description}</p>
+    <>
+      <SheetBody className="space-y-5">
+        <DialogGuide guideKey="remediationTask" steps={DIALOG_GUIDES.remediationTask} inSheet />
 
-      {(canWork || canApprove) && (
-        <div className="space-y-2 rounded-xl border border-border p-3" data-guide="rem-actions">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold">{isOwner ? "Your fix" : "Workflow actions"}</p>
-            {canManage && !isClosed(task.status) && <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditOpen(true)}><Pencil /> Edit details</Button>}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {canWork && task.status === "open" && <Button size="sm" onClick={() => open({ kind: "status", to: "in_progress", title: "Start work", description: "Mark the fix as in progress.", requireNote: false })}><Play /> Start work</Button>}
-            {canWork && task.status === "in_progress" && (task.retestRequired
-              ? <Button size="sm" onClick={() => open({ kind: "status", to: "awaiting_retest", title: "Ready for retest", description: "Say what you changed and where it is deployed. The assessor who confirmed the finding is asked to retest it.", requireNote: true })}><ClipboardCheck /> Ready for retest</Button>
-              : <Button size="sm" onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. An administrator approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
-            {task.status === "awaiting_retest" && (canRetest ? (
-              <>
-                <Button size="sm" variant="success-outline" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Retest passed</Button>
-                <Button size="sm" variant="destructive-outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Retest failed</Button>
-              </>
-            ) : <p className="text-xs text-muted-foreground">Waiting for {lookups.users[task.retestAssigneeId ?? ""]?.name ?? "an assessor"} to retest.</p>)}
-            {task.status === "pending_approval" && (canApprove ? (
-              <>
-                <Button size="sm" variant="success" onClick={() => open({ kind: "status", to: "resolved", title: "Approve and close", description: "You are approving that this fix is complete and checked. An AI recommendation alone is never enough.", requireNote: true })}><ShieldCheck /> Approve and close</Button>
-                <Button size="sm" variant="warning-outline" onClick={() => open({ kind: "status", to: "in_progress", title: "Send back", description: "Return the fix to its owner with what still needs doing.", requireNote: true })}><RotateCcw /> Send back</Button>
-              </>
-            ) : <p className="text-xs text-muted-foreground">Waiting for an administrator to approve closing it.</p>)}
-            {canApprove && !isClosed(task.status) && <Button size="sm" variant="warning-outline" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the system owner accepts this risk without a fix. A justification is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
-            {canApprove && isClosed(task.status) && <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "open", title: "Reopen task", description: "Reopen this task (for example, the issue came back).", requireNote: true })}><RotateCcw /> Reopen</Button>}
+        {/* Same banner as the finding quick view: severity colour, then the status and due date. */}
+        <div
+          className="flex items-center gap-4 rounded-2xl p-4"
+          style={{ background: `color-mix(in srgb, ${sev.color} 12%, transparent)`, boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${sev.color} 35%, transparent)` }}
+        >
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: sev.color }}>
+            <Wrench className="size-6" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg leading-tight font-semibold">{sev.label} severity fix</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <StatusBadge status={task.status} map={REMEDIATION_STATUS} />
+              <DueBadge task={task} />
+            </div>
           </div>
         </div>
-      )}
 
-      <section data-guide="rem-recommendation">
-        <p className="mb-1.5 text-xs font-semibold">Remediation recommendation</p>
-        <p className="rounded-lg border border-border bg-muted/30 p-3 text-xs leading-relaxed">{task.recommendation}</p>
-      </section>
-
-      <section data-guide="rem-before-after">
-        <p className="mb-2 text-xs font-semibold">Before / after assessment</p>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-md border border-sev-critical/25 bg-sev-critical/[0.04] p-3">
-            <p className="mb-1 text-[10.5px] font-semibold text-sev-critical">Before</p>
-            <p>{finding ? VERIFICATION_STATUS[finding.verificationStatus].label : "N/A"} · {finding && SEVERITY_META[finding.severity].label}</p>
-            <p className="mt-1 text-muted-foreground">{findingEvidence.length} evidence item(s) at discovery ({finding && formatDate(finding.discoveredAt)})</p>
-          </div>
-          <div className={cn("rounded-md border p-3", task.retestResult === "passed" ? "border-primary/30 bg-primary/[0.05]" : task.retestResult === "failed" ? "border-sev-critical/25" : "border-border")}>
-            <p className="mb-1 text-[10.5px] font-semibold text-muted-foreground">After (retest)</p>
-            <p>{task.retestResult === "passed" ? "Issue no longer reproduced" : task.retestResult === "failed" ? "Issue still reproduced" : task.retestResult === "not_required" ? "Retest not required" : "Retest pending"}</p>
-            {task.approvedBy && <p className="mt-1 text-muted-foreground">Approved by {lookups.users[task.approvedBy]?.name} · {formatDate(task.approvedAt)}</p>}
-          </div>
+        <div data-guide="rem-progress">
+          <StepTracker steps={steps} at={stepIndex} allDone={isClosed(task.status)} />
         </div>
-      </section>
 
-      <dl className="grid grid-cols-2 gap-4">
-        <KeyValue label="Owner"><UserChip user={lookups.users[task.ownerId]} /></KeyValue>
-        {task.retestAssigneeId && <KeyValue label="Retest by"><UserChip user={lookups.users[task.retestAssigneeId]} /></KeyValue>}
-        <KeyValue label="Related finding">{finding ? <Link className="font-mono text-xs hover:text-primary" to={`/findings/${finding.id}`}>{finding.code}</Link> : "N/A"}</KeyValue>
-        <KeyValue label="Created">{formatDate(task.createdAt)}</KeyValue>
-        <KeyValue label="Due">{formatDate(task.dueDate)}</KeyValue>
-      </dl>
+        <section>
+          <h3 className="mb-1.5 text-sm font-semibold">What's wrong</h3>
+          <p className="text-sm leading-relaxed text-foreground/85">{task.description.replace(/\s*Reported by .*$/s, "")}</p>
+        </section>
 
-      <section data-guide="rem-timeline">
-        <p className="mb-2 text-xs font-semibold">Timeline</p>
-        <ol className="relative space-y-3 border-l border-border pl-4">
-          {[...task.history].reverse().map((h, i) => (
-            <li key={i} className="relative">
-              <span className="absolute top-1 -left-[21px] size-2.5 rounded-full border-2 border-background bg-primary" />
-              <p className="text-xs"><span className="font-medium">{REMEDIATION_STATUS[h.to].label}</span> <span className="text-muted-foreground">by {lookups.users[h.by]?.name ?? h.by}</span></p>
-              <p className="text-[11px] text-muted-foreground">{h.note}</p>
-              <p className="text-[10px] text-muted-foreground/70">{formatDateTime(h.at)}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+        <section className="flex gap-3 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] p-4" data-guide="rem-recommendation">
+          <Wrench className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+          <div>
+            <h3 className="text-sm font-semibold">How to fix it</h3>
+            <p className="mt-1 text-sm leading-relaxed text-foreground/80">{task.recommendation}</p>
+          </div>
+        </section>
+
+        <div className="grid gap-2 sm:grid-cols-2" data-guide="rem-before-after">
+          <Tile icon={UserRound} label="Owner">{lookups.users[task.ownerId]?.name ?? "Unassigned"}</Tile>
+          <Tile icon={CalendarClock} label="Due">{formatDate(task.dueDate)}</Tile>
+          <Tile icon={ShieldAlert} label="Finding">
+            {finding ? <Link className="hover:text-primary" to={`/findings/${finding.id}`}>{finding.code} · {VERIFICATION_STATUS[finding.verificationStatus].label}</Link> : "N/A"}
+          </Tile>
+          {task.retestRequired ? (
+            <Tile icon={ClipboardCheck} label="Retest">{retestText}{task.retestAssigneeId && <span className="block text-xs font-normal text-muted-foreground">by {retestBy}</span>}</Tile>
+          ) : (
+            <Tile icon={ClipboardCheck} label="Retest">Not needed</Tile>
+          )}
+          {task.approvedBy && <Tile icon={ShieldCheck} label="Approved">{lookups.users[task.approvedBy]?.name ?? "Unknown"} · {formatDate(task.approvedAt)}</Tile>}
+        </div>
+
+        <details className="group rounded-xl border border-border" data-guide="rem-timeline">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            <span>History <span className="ml-1 font-normal text-muted-foreground">{task.history.length}</span></span>
+            <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <ol className="relative mx-4 mb-4 space-y-3 border-l border-border pl-4">
+            {[...task.history].reverse().map((h, i) => (
+              <li key={i} className="relative">
+                <span className="absolute top-1 -left-[21px] size-2.5 rounded-full border-2 border-card bg-primary" />
+                <p className="text-sm font-medium">{REMEDIATION_STATUS[h.to].label}</p>
+                <p className="text-xs text-muted-foreground">{lookups.users[h.by]?.name ?? h.by} · {formatDateTime(h.at)}</p>
+                {h.note && <p className="mt-0.5 text-xs text-foreground/80">{h.note}</p>}
+              </li>
+            ))}
+          </ol>
+        </details>
+      </SheetBody>
+
+      {/* Next step on top; quiet side actions on the left, the decision on the right. */}
+      <SheetFooter className="flex-col items-stretch gap-3 bg-muted/30" data-guide="rem-actions">
+        <div className="flex items-start gap-2.5">
+          <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary" aria-hidden>
+            <ArrowRight className="size-3" strokeWidth={2.5} />
+          </span>
+          <p className="text-sm leading-snug">
+            <span className="font-semibold">Next step</span>
+            <span className="text-muted-foreground"> · {nextText}</span>
+          </p>
+        </div>
+        {hasActions && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              {canManage && !isClosed(task.status) && <Button variant="ghost" className="text-muted-foreground" onClick={() => setEditOpen(true)}><Pencil /> Edit</Button>}
+              {canApprove && !isClosed(task.status) && <Button variant="ghost" className="text-muted-foreground" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the website owner accepts this risk without a fix. A reason is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
+            </div>
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2 [&>button]:min-w-32">
+              {canWork && task.status === "open" && <Button onClick={() => open({ kind: "status", to: "in_progress", title: "Start work", description: "Mark the fix as in progress.", requireNote: false })}><Play /> Start work</Button>}
+              {canWork && task.status === "in_progress" && (task.retestRequired
+                ? <Button onClick={() => open({ kind: "status", to: "awaiting_retest", title: "Ready for retest", description: "Say what you changed and where it is deployed. The tester who confirmed the finding is asked to retest it.", requireNote: true })}><ClipboardCheck /> Ready for retest</Button>
+                : <Button onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. An administrator approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
+              {task.status === "awaiting_retest" && canRetest && (
+                <>
+                  <Button variant="destructive-outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Still there</Button>
+                  <Button variant="success" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Issue is gone</Button>
+                </>
+              )}
+              {task.status === "pending_approval" && canApprove && (
+                <>
+                  <Button variant="warning-outline" onClick={() => open({ kind: "status", to: "in_progress", title: "Send back", description: "Return the fix to its owner with what still needs doing.", requireNote: true })}><RotateCcw /> Send back</Button>
+                  <Button variant="success" onClick={() => open({ kind: "status", to: "resolved", title: "Approve and close", description: "You are approving that this fix is complete and checked. An AI recommendation alone is never enough.", requireNote: true })}><ShieldCheck /> Approve and close</Button>
+                </>
+              )}
+              {canApprove && isClosed(task.status) && <Button variant="outline" onClick={() => open({ kind: "status", to: "open", title: "Reopen task", description: "Reopen this task (for example, the issue came back).", requireNote: true })}><RotateCcw /> Reopen</Button>}
+            </div>
+          </div>
+        )}
+      </SheetFooter>
 
       <Dialog open={dialogOpen} onOpenChange={(o) => !o && setAction(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{action?.kind === "status" ? action.title : `Record manual retest: ${action?.kind === "retest" ? action.result : ""}`}</DialogTitle>
-            <DialogDescription>{action?.kind === "status" ? action.description : "Describe how you retested within the authorized scope. In this demo, no traffic is sent, this records your manual result."}</DialogDescription>
+            <DialogTitle>{action?.kind === "status" ? action.title : `Retest: ${action?.kind === "retest" ? (action.result === "passed" ? "issue is gone" : "issue still there") : ""}`}</DialogTitle>
+            <DialogDescription>{action?.kind === "status" ? action.description : "Say how you checked it, within the approved scope."}</DialogDescription>
           </DialogHeader>
           <NoteChips options={noteOptions(action)} value={note} onPick={setNote} />
           <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Or write your own note" aria-label="Notes" />
@@ -198,13 +249,13 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
               onClick={run}
               disabled={busy}
             >
-              {busy && <Loader2 className="animate-spin" />} {action?.kind === "status" ? action.title : action?.kind === "retest" ? `Save: retest ${action.result}` : "Save"}
+              {busy && <Loader2 className="animate-spin" />} {action?.kind === "status" ? action.title : action?.kind === "retest" ? "Save result" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       <RemediationEditDialog task={task} open={editOpen} onOpenChange={setEditOpen} />
-    </SheetBody>
+    </>
   );
 }
 

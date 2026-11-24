@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowRight, ChevronLeft, ChevronRight, CircleHelp, Loader2, ShieldAlert, ShieldCheck, Sparkles, Undo2, Wrench } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, CircleHelp, Loader2, ShieldAlert, ShieldCheck, Sparkles, Undo2, Wrench } from "lucide-react";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/misc";
@@ -131,8 +131,8 @@ export default function FindingDetailPage() {
   const aiLine = analysis ? firstSentence(analysis.interpretation || analysis.explanation) : "";
   // Fixed order, colour = meaning: red means "this is a problem", green means "this is safe".
   const choices = [
-    { status: "confirmed" as const, label: "Confirm vulnerability", change: "Change to confirmed", icon: ShieldAlert, solid: "destructive" as const, outline: "destructive-outline" as const },
-    { status: "rejected" as const, label: "False positive", change: "Change to false positive", icon: ShieldCheck, solid: "success" as const, outline: "success-outline" as const },
+    { status: "confirmed" as const, label: "Confirm vulnerability", icon: ShieldAlert, solid: "destructive" as const },
+    { status: "rejected" as const, label: "False positive", icon: ShieldCheck, solid: "success" as const },
   ];
   const blockedReason = locked ? "Signed off by the project lead. The lead must return it before the decision can change." : deniedReason(user?.role);
   const canDecide = canVerify && !locked;
@@ -158,29 +158,31 @@ export default function FindingDetailPage() {
       }
     >
       {justSaved && (
-        <div role="status" className="rounded-xl bg-success/10 px-3.5 py-2.5 text-sm">
-          <p className="font-medium">{SAVED_TEXT[justSaved]}</p>
+        <div role="status" className="space-y-2.5">
+          <p className="flex items-center gap-1.5 text-sm text-success">
+            <Check className="size-4" aria-hidden /> {SAVED_TEXT[justSaved]}
+          </p>
           {nextToReview ? (
-            <Button size="sm" className="mt-2 w-full" onClick={() => goTo(nextToReview.id)}>
+            <Button className="w-full" onClick={() => goTo(nextToReview.id)}>
               Next to review <ArrowRight />
             </Button>
           ) : (
-            <Button size="sm" className="mt-2 w-full" asChild>
-              <Link to="/findings?status=confirmed">All findings reviewed. Plan remediation <ArrowRight /></Link>
+            <Button className="w-full" asChild>
+              <Link to="/findings?status=confirmed">Plan remediation <ArrowRight /></Link>
             </Button>
           )}
         </div>
       )}
 
       {decided ? (
-        <div className="flex items-start gap-3">
+        <div className={cn("flex items-start gap-3", justSaved && "border-t border-border pt-4")}>
           <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", current === "confirmed" ? "bg-destructive/12 text-destructive" : "bg-success/12 text-success")}>
-            {current === "confirmed" ? <ShieldAlert className="size-5" /> : <ShieldCheck className="size-5" />}
+            {current === "confirmed" ? <ShieldAlert className="size-[18px]" /> : <ShieldCheck className="size-[18px]" />}
           </span>
           <div className="min-w-0 text-sm">
-            <p className="font-semibold">{current === "confirmed" ? "Confirmed vulnerability" : "Rejected as a false positive"}</p>
-            {history[0] && <p className="text-xs text-muted-foreground">by {lookups.users[history[0].assessorId]?.name ?? "unknown"}, {formatDateTime(history[0].decidedAt)}</p>}
-            {history[0]?.decisionReason && <p className="mt-1.5 text-xs">{history[0].decisionReason}</p>}
+            <p className="font-semibold">{current === "confirmed" ? "Confirmed vulnerability" : "False positive"}</p>
+            {history[0] && <p className="text-xs text-muted-foreground">{lookups.users[history[0].assessorId]?.name ?? "Unknown"} · {formatDateTime(history[0].decidedAt)}</p>}
+            {history[0]?.decisionReason && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{history[0].decisionReason}</p>}
           </div>
         </div>
       ) : (
@@ -214,20 +216,20 @@ export default function FindingDetailPage() {
         )
       )}
 
-      <div className="space-y-2" role="group" aria-label="Record your decision">
-        <div className="grid gap-2">
+      <div className={cn("space-y-2", decided && "border-t border-border pt-4")} role="group" aria-label="Record your decision">
+        {decided && <p className="text-xs font-medium text-muted-foreground">Change decision</p>}
+        {/* The first decision is the main action (solid, colour = meaning). Afterwards every
+            option is the same quiet outline row, with only the icon carrying the colour. */}
         {choices
           .filter((c) => c.status !== current)
           .map((c) => {
-            const button = (
-              <Button
-                className={cn("w-full", !decided && "h-11")}
-                size={decided ? "sm" : "default"}
-                variant={decided ? c.outline : c.solid}
-                disabled={!canDecide}
-                onClick={() => setDecision(c.status)}
-              >
-                <c.icon /> {decided ? c.change : c.label}
+            const button = decided ? (
+              <Button variant="outline" size="sm" className="w-full justify-start" disabled={!canDecide} onClick={() => setDecision(c.status)}>
+                <c.icon className={c.status === "confirmed" ? "text-destructive" : "text-success"} /> {c.status === "confirmed" ? "Confirmed vulnerability" : "False positive"}
+              </Button>
+            ) : (
+              <Button className="h-11 w-full" variant={c.solid} disabled={!canDecide} onClick={() => setDecision(c.status)}>
+                <c.icon /> {c.label}
               </Button>
             );
             return canDecide ? (
@@ -238,24 +240,20 @@ export default function FindingDetailPage() {
               </Hint>
             );
           })}
-        </div>
-        {canDecide && (
-          <div className="flex gap-2">
-            {current !== "needs_review" ? (
-              <Button variant="warning-outline" size="sm" className="flex-1" onClick={() => setDecision("needs_review")}>
-                <CircleHelp /> Needs further review
-              </Button>
-            ) : (
-              <span className="flex h-8 flex-1 items-center justify-center gap-1.5 text-xs text-warning">
-                <CircleHelp className="size-3.5" aria-hidden /> Flagged for further review
-              </span>
-            )}
-            {current !== "pending" && (
-              <Button variant="ghost" size="sm" className="flex-1" onClick={() => setDecision("pending")}>
-                <Undo2 /> Withdraw decision
-              </Button>
-            )}
-          </div>
+        {canDecide &&
+          (current !== "needs_review" ? (
+            <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setDecision("needs_review")}>
+              <CircleHelp className="text-warning" /> Needs further review
+            </Button>
+          ) : (
+            <p className="flex h-8 items-center gap-1.5 px-1 text-xs text-warning">
+              <CircleHelp className="size-3.5" aria-hidden /> Flagged for further review
+            </p>
+          ))}
+        {canDecide && current !== "pending" && (
+          <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={() => setDecision("pending")}>
+            <Undo2 /> Withdraw decision
+          </Button>
         )}
       </div>
     </SidePanel>

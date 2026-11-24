@@ -115,13 +115,58 @@ export async function pickLeadForNewProject(): Promise<string | null> {
 
 /* ------------------------------- Automations ------------------------------- */
 
-/** New findings from a scan or import: assign the batch to one assessor and tell them. */
+const findingsWord = (n: number) => `${n} finding${n === 1 ? "" : "s"}`;
+const unverifiedLink = (projectId: string) => `/findings?project=${projectId}&status=unverified`;
+
+/** New findings from a scan or import: assign the batch to one assessor, and tell them and the project's administrators. */
 export async function assignNewFindings(projectId: string, findingIds: string[], scanCode: string) {
   if (!findingIds.length) return;
   const assessor = await pickAssessor(projectId);
-  if (!assessor) return;
-  await prisma.finding.updateMany({ where: { id: { in: findingIds } }, data: { assignedAssessorId: assessor } });
-  await notify({ title: "Findings assigned to you", message: `${findingIds.length} new finding${findingIds.length === 1 ? "" : "s"} from ${scanCode} need your review.`, tone: "info", link: "/my-work" }, "findingUpdates", [assessor]);
+  if (assessor) {
+    await prisma.finding.updateMany({ where: { id: { in: findingIds } }, data: { assignedAssessorId: assessor } });
+    await notify({ title: "Findings assigned to you", message: `${findingsWord(findingIds.length)} from ${scanCode} need your review.`, tone: "info", link: "/my-work" }, "findingUpdates", [assessor]);
+  }
+  // Administrators hear about every batch that still needs a person to verify it.
+  const leads = await projectLeads(projectId, assessor ? [assessor] : []);
+  if (!leads.length) return;
+  const who = assessor ? (await prisma.user.findUnique({ where: { id: assessor }, select: { name: true } }))?.name : null;
+  await notify(
+    { title: "New findings waiting for verification", message: `${findingsWord(findingIds.length)} from ${scanCode} ${who ? `went to ${who} to verify` : "have no one to verify them yet"}. They are not confirmed until a person checks them.`, tone: who ? "info" : "warning", link: unverifiedLink(projectId) },
+    "findingUpdates", leads,
+  );
+}
+
+/** Findings still not checked by a person after this many days are chased: the assigned assessor, then the administrators. */
+export const VERIFY_REMIND_AFTER_DAYS = 2;
+
+/** Reminds the assessor and the project's administrators about findings nobody has verified yet. At most once a day per project. */
+export async function remindUnverifiedFindings() {
+  const cutoff = new Date(Date.now() - VERIFY_REMIND_AFTER_DAYS * 86400_000);
+  const waiting = await prisma.finding.findMany({ where: { verificationStatus: { in: OPEN_REVIEW }, discoveredAt: { lt: cutoff } }, select: { projectId: true, assignedAssessorId: true, discoveredAt: true } });
+  const byProject = new Map<string, typeof waiting>();
+  for (const f of waiting) byProject.set(f.projectId, [...(byProject.get(f.projectId) ?? []), f]);
+  const dayAgo = new Date(Date.now() - 86400_000);
+  for (const [projectId, list] of byProject) {
+    const link = unverifiedLink(projectId);
+    if (await prisma.notification.findFirst({ where: { link, title: { startsWith: "Still waiting for verification" }, createdAt: { gt: dayAgo } } })) continue;
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { code: true, name: true } });
+    if (!project) continue;
+    const oldest = Math.floor((Date.now() - Math.min(...list.map((f) => f.discoveredAt.getTime()))) / 86400_000);
+    // Each assessor hears about their own share.
+    const perAssessor = new Map<string, number>();
+    for (const f of list) if (f.assignedAssessorId) perAssessor.set(f.assignedAssessorId, (perAssessor.get(f.assignedAssessorId) ?? 0) + 1);
+    const active = new Set((await activeUsers([...perAssessor.keys()])).map((u) => u.id));
+    for (const [id, n] of perAssessor) {
+      if (active.has(id)) await notify({ title: "Still waiting for verification", message: `${findingsWord(n)} in ${project.code} ${project.name} you were given ${n === 1 ? "is" : "are"} not verified yet.`, tone: "warning", link }, "findingUpdates", [id]);
+    }
+    const leads = await projectLeads(projectId);
+    const unassigned = list.filter((f) => !f.assignedAssessorId || !active.has(f.assignedAssessorId)).length;
+    if (leads.length)
+      await notify(
+        { title: "Still waiting for verification (team)", message: `${findingsWord(list.length)} in ${project.code} ${project.name} ${list.length === 1 ? "has" : "have"} not been verified by a person, the oldest for ${oldest} days.${unassigned ? ` ${unassigned} ${unassigned === 1 ? "has" : "have"} no active assessor.` : ""}`, tone: "warning", link },
+        "findingUpdates", leads.filter((id) => !perAssessor.has(id)),
+      );
+  }
 }
 
 /** A confirmed finding gets a fix task right away, with a due date from the severity SLA. */

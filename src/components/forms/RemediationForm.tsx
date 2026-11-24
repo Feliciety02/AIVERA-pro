@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, Sparkles, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import { toastLink } from "@/lib/toastLink";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -62,7 +63,7 @@ export function RemediationForm({ finding, open, onOpenChange, onCreated }: { fi
 
   const submit = async (v: Values) => {
     const task = await remediationService.create({ ...v, findingId: finding.id, dueDate: new Date(`${v.dueDate}T00:00:00Z`).toISOString() });
-    toast.success(`Created ${task.code}`, { description: "Track progress on the Fixes page." });
+    toast.success(`Created ${task.code}`, { description: "Track progress on the Fixes page.", action: toastLink(`/remediation?task=${task.id}`) });
     onOpenChange(false);
     onCreated?.(task.id);
   };

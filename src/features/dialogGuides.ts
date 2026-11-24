@@ -14,10 +14,11 @@ export const DIALOG_GUIDES = {
   ],
   remediationTask: [
     { title: "One fix task", body: "Everything about fixing one confirmed vulnerability: what to do, who is doing it, and proof that it was fixed." },
-    { target: "[data-guide=rem-actions]", title: "Move the task forward", body: "Use the buttons in order: Start work → Request retest → Record retest passed/failed → Approve & resolve. “Accept risk” records that the owner chose not to fix it, with a reason." },
-    { target: "[data-guide=rem-recommendation]", title: "What to change", body: "The fix the owner should make." },
-    { target: "[data-guide=rem-before-after]", title: "Before and after", body: "Before: the finding as it was discovered. After: the result of the retest. This is your proof the fix worked." },
-    { target: "[data-guide=rem-timeline]", title: "History", body: "Every status change with who made it and their note." },
+    { target: "[data-guide=rem-progress]", title: "Where it is", body: "To do → Fixing → Retest → Done. The highlighted step is where the fix is now." },
+    { target: "[data-guide=rem-actions]", title: "What to do next", body: "One sentence says what happens next and who does it, with the button for it. “Accept risk” records that the owner chose not to fix it, with a reason." },
+    { target: "[data-guide=rem-recommendation]", title: "How to fix it", body: "The change the website owner should make." },
+    { target: "[data-guide=rem-before-after]", title: "Details", body: "Who owns the fix, the retest result, the original finding and the due date." },
+    { target: "[data-guide=rem-timeline]", title: "History", body: "Every step with who made it and their note. Open it when you need it." },
   ],
   scopeEdit: [
     { title: "Change what may be tested", body: "Update the scope when the owner's permission changes. Every change is saved in the activity log." },

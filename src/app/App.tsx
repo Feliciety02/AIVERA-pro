@@ -4,7 +4,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/misc";
 import { useDataStore } from "@/stores/dataStore";
 import { resumeRunningSimulations } from "@/features/simulation/runner";
-import { checkOverdueRemediation } from "@/features/notifications";
+import { checkOverdueRemediation, checkUnverifiedFindings } from "@/features/notifications";
 import { setDisplayPreferences } from "@/lib/format";
 import { router } from "./router";
 import { Loader2 } from "lucide-react";
@@ -30,8 +30,26 @@ function useThemeSync() {
   return theme;
 }
 
+/**
+ * Clicking anywhere on a toast that links somewhere (it has an action button such as "Open" or
+ * "Review") does what that button does. Clicks on the buttons themselves are left alone.
+ */
+function useToastClick() {
+  React.useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      const toastEl = el?.closest("[data-sonner-toast]");
+      if (!toastEl || el!.closest("button, a")) return;
+      (toastEl.querySelector("[data-action]") as HTMLButtonElement | null)?.click();
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+}
+
 export function App() {
   const theme = useThemeSync();
+  useToastClick();
   const toastsEnabled = useDataStore((s) => s.settings.notifications.toastsEnabled);
   const general = useDataStore((s) => s.settings.general);
   const remediationDue = useDataStore((s) => s.settings.notifications.remediationDue);
@@ -61,8 +79,12 @@ export function App() {
 
   React.useEffect(() => {
     if (IS_API) return;
-    checkOverdueRemediation();
-    const t = setInterval(checkOverdueRemediation, 60 * 60 * 1000);
+    const check = () => {
+      checkOverdueRemediation();
+      checkUnverifiedFindings();
+    };
+    check();
+    const t = setInterval(check, 60 * 60 * 1000);
     return () => clearInterval(t);
   }, [remediation, remediationDue]);
 
@@ -87,11 +109,13 @@ export function App() {
           toastOptions={{
             // A light card in the app's own colours; the type shows as a coloured icon and edge.
             classNames: {
-              toast: "!rounded-2xl !border !border-border !bg-card !text-foreground !shadow-lg !text-[13px] !gap-3 !py-3.5 !pl-4 !pr-5 !border-l-4",
+              // pr-10 leaves room for the close button, which sits inside the top-right corner.
+              // A toast with a link (its action button) is clickable as a whole; see useToastClick.
+              toast: "!rounded-2xl !border !border-border !bg-card !text-foreground !shadow-lg !text-[13px] !gap-3 !py-3.5 !pl-4 !pr-10 !border-l-4 has-[[data-action]]:cursor-pointer has-[[data-action]]:hover:!bg-accent/40",
               title: "!font-semibold !text-foreground",
               description: "!text-muted-foreground !leading-relaxed",
               icon: "!mt-0.5 !self-start",
-              closeButton: "!bg-card !border-border !text-muted-foreground hover:!text-foreground",
+              closeButton: "!left-auto !right-2.5 !top-2.5 ![transform:none] !size-6 !rounded-full !border-0 !bg-transparent !text-muted-foreground hover:!bg-accent hover:!text-foreground",
               actionButton: "!rounded-full !bg-primary !text-primary-foreground !font-medium",
               cancelButton: "!rounded-full !bg-muted !text-foreground",
               success: "!border-l-[var(--success)] [&_[data-icon]]:!text-[var(--success)]",

@@ -16,7 +16,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const simple = useUIStore((s) => s.simpleMode);
   const waiting = useMyWork().total;
   return (
-    <nav aria-label="Main navigation" className="flex-1 space-y-4 overflow-y-auto py-3">
+    <nav aria-label="Main navigation" className="flex-1 space-y-5 overflow-y-auto py-3">
       {/* Developers have a short menu already, so the simple/full switch doesn't apply to them. */}
       {visibleNav(simple && user?.role !== "remediation_owner" ? SIMPLE_NAV : NAV, user?.role, (p) => can(user?.role, p)).map((group, groupIndex) => {
         const items = group.items;
@@ -24,7 +24,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         return (
           <div key={group.label}>
             {!collapsed ? (
-              <p className="mb-1 pl-7 text-xs font-medium text-muted-foreground">{group.label}</p>
+              <p className="mb-1.5 pl-7 text-[10.5px] font-semibold tracking-[0.08em] text-muted-foreground/70 uppercase">{group.label}</p>
             ) : (
               // Rail: a centred divider between groups, none above the first one.
               groupIndex > 0 && <div className="mx-auto mb-3 h-px w-8 bg-border" aria-hidden />

@@ -37,6 +37,12 @@ export interface AIAdapter {
 export const DEMO_CAVEAT =
   "Sample AI Analysis, Demo Mode. This text is a predefined sample linked to the synthetic finding; it was not produced by a language model. AI output is advisory only and must be verified by a human assessor before any decision.";
 
+/** "1 finding", "3 findings": never "finding(s)". */
+const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
+
+/** "a, b and c". */
+const listJoin = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
+
 function base(req: AIAnalysisRequest, title: string): Omit<AIAnalysis, "interpretation" | "explanation" | "potentialImpact" | "recommendations" | "verificationSteps" | "reasoning" | "suggestedSeverity"> {
   return {
     id: createId("ai"),
@@ -78,7 +84,7 @@ function findingAnalysis(req: AIAnalysisRequest): AIAnalysis {
       potentialImpact: f.impact,
       recommendations: [f.remediation],
       verificationSteps: ["Review each attached evidence item.", "Reproduce the behaviour within the authorized scope before deciding.", "Record the outcome with a verification decision."],
-      reasoning: [`Source: ${origin}.`, `${req.evidence.length} evidence item(s) attached.`, "A real AI analysis requires the backend AI gateway (not part of this phase)."],
+      reasoning: [`Source: ${origin}.`, `${plural(req.evidence.length, "piece")} of evidence attached.`, "A real AI analysis requires the backend AI gateway (not part of this phase)."],
       suggestedSeverity: undefined,
     };
   }
@@ -101,18 +107,31 @@ function scanAnalysis(req: AIAnalysisRequest): AIAnalysis {
   const scan = req.scan!;
   const results = req.scanResults ?? [];
   const total = results.reduce((n, r) => n + r.itemsFound, 0);
+  const kind = scan.dataOrigin === "simulated" ? "practice scan" : scan.dataOrigin === "imported" ? "imported scan" : "scan";
+  const perTool = results.filter((r) => r.itemsFound > 0).map((r) => `${r.itemsFound} from ${TOOL_META[r.tool].label}`);
+  // Severity mix of the findings this scan produced, highest first, when they are known.
+  const found = (req.projectFindings ?? []).filter((f) => f.scanId === scan.id);
+  const mix = (Object.keys(SEVERITY_META) as (keyof typeof SEVERITY_META)[])
+    .sort((a, b) => SEVERITY_META[b].rank - SEVERITY_META[a].rank)
+    .map((sev) => ({ sev, n: found.filter((f) => f.severity === sev).length }))
+    .filter((x) => x.n > 0)
+    .map((x) => `${x.n} ${SEVERITY_META[x.sev].label.toLowerCase()}`);
+  const interpretation =
+    total === 0
+      ? `This ${kind} found nothing that needs review.`
+      : `This ${kind} found ${plural(total, "possible issue")}${perTool.length > 1 ? `: ${listJoin(perTool)}` : perTool.length ? `, all ${perTool[0]!.replace(/^\d+ /, "")}` : ""}.${mix.length ? ` By severity: ${listJoin(mix)}.` : ""} None of them is confirmed until a tester reviews it.`;
   return {
     ...base(req, `Scan result interpretation, ${scan.code}`),
-    interpretation: `${scan.code} (${scan.dataOrigin.toUpperCase()}) recorded ${total} item(s) across ${results.length} tool output(s). ${results.map((r) => `${TOOL_META[r.tool].label}: ${r.summary}`).join(" ")}`,
+    interpretation,
     explanation: "Scan output lists indicators, not confirmed vulnerabilities. Each indicator must be reviewed against its evidence and reproduced manually before being confirmed.",
     potentialImpact: "Depends on verification outcome of individual findings.",
     recommendations: [
       "Review high-severity indicators first.",
       "Discard indicators outside the approved scope.",
-      scan.dataOrigin === "simulated" ? "Remember: these results are SIMULATED and cannot be used as real evidence." : "Imported sample output should be cross-checked with the tool's original report.",
+      scan.dataOrigin === "simulated" ? "These are practice results, so they can't be used as real evidence." : scan.dataOrigin === "imported" ? "Cross-check imported results with the tool's original report." : "Confirm each result by hand before reporting it.",
     ],
     verificationSteps: ["Open each linked finding on the Findings page.", "Mark evidence reviewed and record a verification decision."],
-    reasoning: results.map((r) => `${TOOL_META[r.tool].label} output summary: ${r.summary}`),
+    reasoning: results.map((r) => `${TOOL_META[r.tool].label} reported ${plural(r.itemsFound, "item")}.`),
     suggestedSeverity: undefined,
   };
 }
@@ -125,7 +144,7 @@ function summaryAnalysis(req: AIAnalysisRequest): AIAnalysis {
   const top = [...confirmed].sort((a, b) => SEVERITY_META[b.severity].rank - SEVERITY_META[a.severity].rank).slice(0, 3);
   return {
     ...base(req, `Assessment summary, ${req.project.code}`),
-    interpretation: `Draft summary built from ${confirmed.length} human-confirmed finding(s). ${pending.length} observation(s) remain unverified and are excluded from conclusions.`,
+    interpretation: `Draft summary built from ${plural(confirmed.length, "confirmed finding")}. ${pending.length ? `${plural(pending.length, "result")} still ${pending.length === 1 ? "waits" : "wait"} for review and ${pending.length === 1 ? "is" : "are"} left out.` : "Nothing is waiting for review."}`,
     explanation: `The ${req.project.name} engagement (demonstration data) confirmed ${bySev("critical")} critical, ${bySev("high")} high, ${bySev("medium")} medium and ${bySev("low")} low severity issues. ${top.length ? `Most significant: ${top.map((f) => f.title).join("; ")}.` : "No confirmed issues yet."}`,
     potentialImpact: top[0]?.impact ?? "No confirmed impact yet.",
     recommendations: top.map((f) => `${f.code}: ${f.remediation}`),

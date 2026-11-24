@@ -61,21 +61,21 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: "1 · Set up",
+    label: "Setup",
     items: [
       { label: "Projects", to: "/projects", icon: FolderKanban, roles: TEAM },
       { label: "Websites", to: "/targets", icon: Target, labelFor: { remediation_owner: "My websites" } },
     ],
   },
   {
-    label: "2 · Test",
+    label: "Testing",
     items: [
       { label: "Scans", to: "/scans", icon: ScanLine, roles: TEAM },
       { label: "Checklists", to: "/assessments", icon: ClipboardCheck, roles: TEAM },
     ],
   },
   {
-    label: "3 · Review & fix",
+    label: "Review",
     items: [
       { label: "Findings", to: "/findings", icon: ShieldAlert, roles: TEAM },
       { label: "Fixes", to: "/remediation", icon: Wrench, labelFor: { remediation_owner: "My fixes" } },

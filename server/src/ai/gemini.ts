@@ -81,7 +81,8 @@ Rules:
 - Recommend only non-destructive verification steps that stay inside the stated scope and exclusions. No denial-of-service, no data modification, no testing of third-party hosts, no credential brute forcing.
 - Do not invent CVE IDs, versions, endpoints, or evidence that is not in the context.
 - Values shown as [REDACTED ...] were removed on purpose; do not ask for them.
-- Be concise and practical. Write for a security assessor and a developer.`;
+- Be concise and practical. Write for a security assessor and a developer.
+- Write natural sentences. Never copy raw tool summaries, scan codes in brackets, ALL-CAPS labels or forms like "item(s)" / "finding(s)": write "1 finding" or "3 findings".`;
 
 const TASK: Record<AIMode, string> = {
   scan_interpretation: "Interpret this scan output: what it indicates, which items deserve attention first and why, likely false positives, and what to verify manually.",

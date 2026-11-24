@@ -176,9 +176,9 @@ export const ROLE_META: Record<UserRole, { label: string; description: string; t
 };
 
 export const SCAN_PROFILES: Record<ScanProfile, { label: string; description: string }> = {
-  passive: { label: "Passive", description: "Observe responses only. No active probing payloads." },
-  baseline: { label: "Baseline", description: "Low-impact checks suitable for shared environments." },
-  standard: { label: "Standard", description: "Active checks with attack payloads. Automated runs allow it only on a copy running on this machine." },
+  passive: { label: "Look only", description: "Reads the website's responses. Sends nothing that tests for weaknesses." },
+  baseline: { label: "Gentle", description: "Light, low-impact checks. Safe for a live website." },
+  standard: { label: "Deep", description: "Sends test attacks to find weaknesses. Only allowed on a copy running on this machine." },
   thorough: { label: "Thorough", description: "Deeper coverage for isolated lab environments only." },
 };
 

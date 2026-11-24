@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import { Bot, CircleStop, Pause, Play, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+import { toastLink } from "@/lib/toastLink";
 import { ContentContainer, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { KeyValue, CodeBlock } from "@/components/shared/display";
@@ -14,6 +15,7 @@ import { ScanProgress } from "@/components/security/ScanProgress";
 import { FindingRow } from "@/components/dashboard/widgets";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useLookups } from "@/hooks";
+import type { DataOrigin } from "@/types";
 import { CATEGORY_BY_ID, DATA_ORIGIN, SCAN_PROFILES, SCAN_STATUS, TOOL_META } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -85,7 +87,7 @@ export default function ScanDetailPage() {
                 )}
                 {/* Demo simulations run step by step in the browser, so they can be paused, continued or stopped. */}
                 {canDemo && !IS_API && scan.status === "paused" && (
-                  <Button className="w-full" onClick={() => void scanService.resume(scan.id, (count) => toast.success(`Simulation ${scan.code} finished`, { description: `${count} SIMULATED finding(s) await human verification.` })).then(() => toast("Simulation continued"))}>
+                  <Button className="w-full" onClick={() => void scanService.resume(scan.id, (count) => toast.success(`Practice scan ${scan.code} finished`, { description: `${count} practice finding${count === 1 ? "" : "s"} to review.`, action: toastLink(`/findings?scan=${scan.id}`, "Review") })).then(() => toast("Simulation continued"))}>
                     <Play /> Continue
                   </Button>
                 )}
@@ -114,14 +116,13 @@ export default function ScanDetailPage() {
               <FactList
                 items={[
                   { label: "Website", value: target ? <Link to={`/targets/${target.id}`} className="hover:text-primary">{target.name}</Link> : "N/A" },
-                  { label: "Project", value: <Link to={`/projects/${scan.projectId}`} className="hover:text-primary">{lookups.projects[scan.projectId]?.code ?? "N/A"}</Link> },
-                  { label: "Profile", value: SCAN_PROFILES[scan.config.profile].label },
+                  { label: "Project", value: <Link to={`/projects/${scan.projectId}`} className="hover:text-primary">{lookups.projects[scan.projectId]?.name ?? "N/A"}</Link> },
+                  { label: "Type", value: SCAN_KIND[scan.dataOrigin] ?? DATA_ORIGIN[scan.dataOrigin].label },
+                  { label: "Depth", value: <span title={SCAN_PROFILES[scan.config.profile].description}>{SCAN_PROFILES[scan.config.profile].label}</span> },
                   { label: "Tools", value: scan.config.tools.map((t) => TOOL_META[t].label).join(", ") },
-                  { label: "Speed", value: `${scan.config.requestsPerSecond} req/s, max ${scan.config.timeLimitMinutes} min` },
-                  { label: "Data", value: DATA_ORIGIN[scan.dataOrigin].label },
-                  { label: "Started by", value: lookups.users[scan.createdBy]?.name ?? "N/A" },
-                  { label: "Started", value: formatDateTime(scan.startedAt) },
-                  scan.completedAt ? { label: "Finished", value: formatDateTime(scan.completedAt) } : null,
+                  { label: "Run by", value: lookups.users[scan.createdBy]?.name ?? "N/A" },
+                  { label: "When", value: formatDateTime(scan.startedAt) },
+                  scan.completedAt ? { label: "Took", value: tookText(scan.startedAt, scan.completedAt) } : null,
                 ]}
               />
             </SidePanel>
@@ -148,11 +149,11 @@ export default function ScanDetailPage() {
                 {scanResults.length === 0 && <EmptyState compact title="No tool output yet" />}
                 {scanResults.map((r) => (
                   <div key={r.id}>
-                    <p className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-sm">
-                      <span className="font-medium">{TOOL_META[r.tool].label}</span>
-                      <span className="text-xs text-muted-foreground">{r.itemsFound} items · {formatDateTime(r.recordedAt)}</span>
-                    </p>
-                    {r.summary && <p className="mb-2 text-xs text-muted-foreground">{r.summary}</p>}
+                    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <span className="text-sm font-medium">{TOOL_META[r.tool].label}</span>
+                      <span className="text-xs text-muted-foreground">{formatDateTime(r.recordedAt)}</span>
+                    </div>
+                    <ResultStats summary={r.summary} itemsFound={r.itemsFound} />
                     <CodeBlock label={`${TOOL_META[r.tool].label} output`}>{r.rawOutput}</CodeBlock>
                   </div>
                 ))}
@@ -163,6 +164,7 @@ export default function ScanDetailPage() {
               <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <KeyValue label="Address" mono>{target?.url}</KeyValue>
                 <KeyValue label="Categories">{scan.config.categories.map((c) => CATEGORY_BY_ID[c].short).join(", ")}</KeyValue>
+                <KeyValue label="Speed limit">{scan.config.requestsPerSecond} requests a second, stops after {scan.config.timeLimitMinutes} min</KeyValue>
                 <KeyValue label="Concurrency">{scan.config.maxConcurrency}</KeyValue>
                 <KeyValue label="Output format">{scan.config.outputFormat.toUpperCase()}</KeyValue>
                 <KeyValue label="Exclusions enforced">{scan.config.respectExclusions ? "Yes" : "No"}</KeyValue>
@@ -188,4 +190,47 @@ export default function ScanDetailPage() {
       />
     </ContentContainer>
   );
+}
+
+/**
+ * Tool summaries are stored as one machine-written sentence ("Automated …: 0 host(s), 0 port(s),
+ * 3 finding(s); 1 item(s) skipped by scope; 3 new, 0 previously recorded finding(s)"). Shown as a
+ * few plain counts instead, leaving out the zeros.
+ */
+function ResultStats({ summary, itemsFound }: { summary: string; itemsFound: number }) {
+  const n = (re: RegExp) => Number(re.exec(summary)?.[1] ?? 0);
+  const parsed = /host\(s\)/.test(summary);
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  const stats = parsed
+    ? [
+        { v: n(/(\d+) finding\(s\);/), label: (c: number) => plural(c, "finding") },
+        { v: n(/(\d+) new/), label: (c: number) => `${c} new` },
+        { v: n(/(\d+) previously recorded/), label: (c: number) => `${c} seen before` },
+        { v: n(/(\d+) host\(s\)/), label: (c: number) => plural(c, "host") },
+        { v: n(/(\d+) port\(s\)/), label: (c: number) => plural(c, "open port") },
+        { v: n(/(\d+) item\(s\) skipped/), label: (c: number) => `${c} out of scope, skipped` },
+      ].filter((x) => x.v > 0)
+    : [];
+  const practice = /(\d+) sample finding/.exec(summary);
+  const items = stats.length ? stats.map((x) => x.label(x.v)) : parsed ? ["Nothing found"] : practice ? [plural(Number(practice[1]), "practice finding")] : [plural(itemsFound, "item")];
+  return (
+    <ul className="mb-2.5 flex flex-wrap gap-1.5" aria-label="Result summary">
+      {items.map((t) => (
+        <li key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+          {t}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** What kind of run this was, in plain words. */
+const SCAN_KIND: Partial<Record<DataOrigin, string>> = { real: "Real scan", simulated: "Practice run (not real)", imported: "Imported results", synthetic: "Sample data" };
+
+/** "under a minute", "3 min", "1 h 5 min". */
+function tookText(start?: string, end?: string) {
+  if (!start || !end) return "N/A";
+  const min = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+  if (min < 1) return "Under a minute";
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`;
 }

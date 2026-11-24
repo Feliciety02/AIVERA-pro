@@ -56,7 +56,9 @@ export function formatDateTime(value: string | Date | undefined | null): string 
 
 export function formatRelative(value: string | Date | undefined | null): string {
   const d = toDate(value);
-  return d ? `${formatDistanceToNowStrict(d)} ago` : "N/A";
+  if (!d) return "N/A";
+  // "0 seconds ago" reads like a glitch; anything under a minute is "just now".
+  return Math.abs(Date.now() - d.getTime()) < 60_000 ? "just now" : `${formatDistanceToNowStrict(d)} ago`;
 }
 
 export function daysUntil(value: string | undefined | null): number | null {

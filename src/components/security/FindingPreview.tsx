@@ -13,22 +13,16 @@ function stage(f: VulnerabilityFinding, task?: RemediationTask): number {
 }
 const STEPS = ["Found", "Verify", "Fix", "Retest", "Closed"];
 
-function Tracker({ finding, task }: { finding: VulnerabilityFinding; task?: RemediationTask }) {
-  if (finding.verificationStatus === "rejected")
-    return (
-      <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3 text-sm">
-        <X className="size-4 text-muted-foreground" aria-hidden /> Rejected as a false positive. No remediation required.
-      </div>
-    );
-  const at = stage(finding, task);
+/** Numbered steps with the current one ringed. Shared by the finding and fix quick views. */
+export function StepTracker({ steps, at, allDone }: { steps: string[]; at: number; /** Every step finished (e.g. a closed fix). */ allDone?: boolean }) {
   return (
     <ol className="flex items-start" aria-label="Progress">
-      {STEPS.map((label, i) => {
-        const done = i < at;
-        const current = i === at;
+      {steps.map((label, i) => {
+        const done = allDone || i < at;
+        const current = !allDone && i === at;
         return (
           <li key={label} className="relative flex flex-1 flex-col items-center gap-1.5">
-            {i > 0 && <span className={cn("absolute top-3 right-1/2 h-0.5 w-full -translate-y-1/2", i <= at ? "bg-primary" : "bg-border")} aria-hidden />}
+            {i > 0 && <span className={cn("absolute top-3 right-1/2 h-0.5 w-full -translate-y-1/2", allDone || i <= at ? "bg-primary" : "bg-border")} aria-hidden />}
             <span
               className={cn(
                 "relative z-10 flex size-6 items-center justify-center rounded-full border-2 text-[11px] font-semibold",
@@ -39,7 +33,7 @@ function Tracker({ finding, task }: { finding: VulnerabilityFinding; task?: Reme
             >
               {done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
             </span>
-            <span className={cn("text-[11px]", current ? "font-semibold text-primary" : "text-muted-foreground")}>{label}</span>
+            <span className={cn("text-center text-[11px]", current ? "font-semibold text-primary" : "text-muted-foreground")}>{label}</span>
             {current && <span className="sr-only">(current step)</span>}
           </li>
         );
@@ -48,7 +42,17 @@ function Tracker({ finding, task }: { finding: VulnerabilityFinding; task?: Reme
   );
 }
 
-function Tile({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
+function Tracker({ finding, task }: { finding: VulnerabilityFinding; task?: RemediationTask }) {
+  if (finding.verificationStatus === "rejected")
+    return (
+      <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3 text-sm">
+        <X className="size-4 text-muted-foreground" aria-hidden /> Rejected as a false positive. No remediation required.
+      </div>
+    );
+  return <StepTracker steps={STEPS} at={stage(finding, task)} />;
+}
+
+export function Tile({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 gap-3 rounded-xl border border-border bg-card p-3">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
