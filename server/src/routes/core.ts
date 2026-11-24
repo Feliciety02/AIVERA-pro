@@ -14,7 +14,7 @@ import { seedIntegrations } from "@/data/seed";
 import { detectScope } from "../scopeDiscovery.ts";
 import { verifyChain } from "../auditChain.ts";
 import { scanGate, withLiveStatus } from "../toolStatus.ts";
-import { assertProjectAccess, handOverWork, pickLeadForNewProject, projectLeads, remindOverdueFixes, remindUnverifiedFindings, visibleProjectIds } from "../workflowRules.ts";
+import { assertProjectAccess, handOverWork, pickLeadForNewProject, projectLeads, visibleProjectIds } from "../workflowRules.ts";
 
 export const router = Router();
 
@@ -63,7 +63,8 @@ router.post("/auth/register", async (req, res) => {
     data: { id: newId("usr"), name: b.name, email: b.email, passwordHash: await hashPassword(b.password), role: "remediation_owner", title: "New member", status: "invited", assignedProjectIds: [], createdAt: now, lastActiveAt: now },
   });
   await log(user.id, "user_signup", "user", user.id, user.name, "Created an account (pending administrator approval)");
-  await notify({ title: "New account waiting for approval", message: `${user.name} (${user.email}) signed up. Activate it on the Users page.`, tone: "info", link: "/users" });
+  const administrators = await prisma.user.findMany({ where: { role: "administrator", status: "active" }, select: { id: true } });
+  if (administrators.length) await notify({ title: "New account waiting for approval", message: `${user.name} (${user.email}) signed up as a Website Owner.`, tone: "info", link: `/users?approve=${user.id}` }, undefined, administrators.map((u) => u.id));
   res.status(201).json({ ok: true, status: "pending" });
 });
 
@@ -102,8 +103,6 @@ router.get("/integrations/gate", requirePermission("manage_integrations"), (_req
 /** Everything the SPA needs, filtered by role. The SPA keeps it as a read cache. */
 router.get("/bootstrap", async (req, res) => {
   const user = me(req);
-  await remindOverdueFixes();
-  await remindUnverifiedFindings();
   const visible = await visibleProjectIds(user);
   const [users, allProjects, allTargets, allAssessments, allScans, allScanResults, allHosts, allPorts, allDns, allEndpoints, allRecon, allFindings, allEvidence, allVerifications, allAnalyses, allRisks, allRemediation, allReports, activity, notifications, integrations, settings] =
     await Promise.all([
