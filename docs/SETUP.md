@@ -100,7 +100,7 @@ Leave everything else as it is for now. `server/.env` is git-ignored. Never comm
 npm run db:setup
 ```
 
-This applies versioned Prisma migrations and loads the starting data (`npm run db:seed`): one account per role, the UMERCH3.0 project and its target.
+This applies versioned Prisma migrations and, **only on a new, empty database**, loads the starting data: one account per role, the UMERCH3.0 project and its target. Running it again on a database you already use is safe: it leaves your data alone.
 
 | Account | Role | Can do |
 |---|---|---|
@@ -131,7 +131,7 @@ All use the `SEED_DEMO_PASSWORD` from `server/.env`. New people can sign up from
 
 Each person's waiting work is on the **My work** page, with a count in the menu.
 
-> `db:seed` **replaces** the data in the database. Run it only on a new database, or after making a backup (see [section 10](#10-data-backups-reset-audit-log)).
+> `db:seed` **replaces** the data in the database, so it refuses to run on a database that already has data. `npm run db:seed -- --force` saves a backup to `server/prisma/backups/` first, then replaces everything (see [section 10](#10-data-backups-reset-audit-log)).
 
 ### 3.4 Start AIVERA
 
@@ -370,10 +370,10 @@ copy server\prisma\dev.db.audit-anchor.json server\prisma\backups\dev-backup.db.
 
 `server/prisma/backups/` is git-ignored. To restore, stop the API and copy the backup back over `dev.db`.
 
-**Reset to the starting data** (deletes everything else):
+**Reset to the starting data** (deletes everything else; a backup is saved first):
 
 ```powershell
-npm run db:seed
+npm run db:seed -- --force
 ```
 
 **Schema changed** (after pulling new code that adds a migration):
@@ -424,7 +424,7 @@ Then open http://localhost:4000. Before sharing it with anyone: set a strong `SE
 | `DATABASE_URL is not set` | `server/.env` is missing. Do [step 3.2](#32-create-the-server-settings-file). |
 | "Cannot reach the AIVERA server" in the app | The API is not running. Start `npm run dev:full` (or `npm run server:start`). |
 | `EADDRINUSE: 4000` | Another API is already running. Close it, or find it with `netstat -ano \| findstr :4000` and end that process in Task Manager. |
-| Sign-in fails for seeded accounts | Check `SEED_DEMO_PASSWORD` in `server/.env`. If you changed it after seeding, the old one still applies until you run `npm run db:seed` again (this resets data). |
+| Sign-in fails for seeded accounts | Check `SEED_DEMO_PASSWORD` in `server/.env`. If you changed it after seeding, the old one still applies until you run `npm run db:seed -- --force` (this resets data, after saving a backup). |
 | A new account cannot sign in | An administrator must activate it on **Users**. |
 | Scan stuck at "Running" | The API restarted mid-scan. Restarting the API marks it Interrupted. See the note in [section 4](#4-running-it-every-day). |
 | "Review N pending findings before scanning again" | Confirm or reject each finding from the last scan, then scan again. |

@@ -183,7 +183,7 @@ npm run db:setup
 npm run dev:full
 \`\`\`
 
-Open **http://localhost:5173**. Sign in as \`admin@aivera.local\` with the password you set. The API runs at \`http://localhost:4000/api\`. \`db:setup\` seeds starting data, so use the [setup guide](docs/SETUP.md) before running it against an existing database.
+Open **http://localhost:5173**. Sign in as \`admin@aivera.local\` with the password you set. The API runs at \`http://localhost:4000/api\`. \`db:setup\` loads starting data only into a new, empty database; on an existing one it leaves your data alone.
 
 To explore the synthetic browser demo without an API or database:
 

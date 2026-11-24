@@ -27,7 +27,7 @@
     "db:seed": "tsx --tsconfig server/tsconfig.json server/src/seed.ts",
     "db:accounts": "tsx --tsconfig server/tsconfig.json server/src/addTeamAccounts.ts",
     "db:dedupe": "tsx --tsconfig server/tsconfig.json server/src/consolidateDuplicates.ts",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed -- --if-empty"
   },
   "dependencies": {
     "@fontsource/roboto": "^5.2.5",
