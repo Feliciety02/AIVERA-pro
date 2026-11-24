@@ -21,6 +21,8 @@ import { router as workflow } from "./routes/workflow.ts";
 import { router as automation } from "./routes/automation.ts";
 import { prisma } from "./db.ts";
 import { sealPending } from "./auditChain.ts";
+import { remindOverdueFixes, remindUnverifiedFindings } from "./workflowRules.ts";
+import { recoverAutoRetests } from "./autoRetest.ts";
 
 const app = express();
 app.disable("x-powered-by");
@@ -96,7 +98,25 @@ await prisma.user.updateMany({ where: { role: "lead" }, data: { role: "administr
 await prisma.user.updateMany({ where: { role: "viewer" }, data: { role: "remediation_owner" } });
 
 app.listen(env.port, () => console.log(`AIVERA API listening on http://localhost:${env.port}`));
+// Run reminders even when nobody opens the app. The in-process guard prevents overlapping runs;
+// the reminder functions also check stored notifications before sending a repeat.
+let remindersRunning = false;
+async function runReminders() {
+  if (remindersRunning) return;
+  remindersRunning = true;
+  try {
+    await remindOverdueFixes();
+    await remindUnverifiedFindings();
+  } catch (e) {
+    console.error("[reminders] scheduled run failed", e);
+  } finally {
+    remindersRunning = false;
+  }
+}
+void runReminders();
+setInterval(() => void runReminders(), 60 * 60_000).unref();
 // Seal activity entries written outside log() (seed data, one-off maintenance scripts).
 void sealPending().then((n) => n && console.log(`[audit] sealed ${n} activity entr${n === 1 ? "y" : "ies"} into the chain`)).catch((e) => console.error("[audit] sealing failed", e));
 // Resume queued or interrupted runs, reusing the outputs already committed for each tool.
 void recoverInterruptedScans().then((n) => n && console.log(`[scan] resumed ${n} queued or interrupted scan(s)`)).catch((e) => console.error("[scan] recovery failed", e));
+void recoverAutoRetests().then((n) => n && console.log(`[retest] resumed ${n} interrupted check(s)`)).catch((e) => console.error("[retest] recovery failed", e));

@@ -12,7 +12,7 @@
  *   person deactivated     their open work moves to someone else on the project
  */
 import type { Severity, UserRole } from "@/types";
-import { REMEDIATION_SLA_DAYS } from "@/lib/constants";
+import { REMEDIATION_SLA_DAYS, REPORT_TEMPLATES } from "@/lib/constants";
 import { can } from "@/lib/permissions";
 import type { User } from "../prisma/generated/prisma/client.ts";
 import { newId, nextCode, prisma, retryOnDuplicateCode } from "./db.ts";
@@ -197,17 +197,38 @@ export async function createFixTask(findingId: string, actorId: string) {
 export async function promptReportWhenReviewed(projectId: string) {
   const [open, confirmed] = await Promise.all([
     prisma.finding.count({ where: { projectId, verificationStatus: { in: OPEN_REVIEW } } }),
-    prisma.finding.count({ where: { projectId, verificationStatus: "confirmed" } }),
+    prisma.finding.findMany({ where: { projectId, verificationStatus: "confirmed" }, orderBy: { discoveredAt: "asc" } }),
   ]);
-  if (open || !confirmed) return;
+  if (open || !confirmed.length) return;
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return;
-  const link = `/reports/new?project=${projectId}`;
-  const recent = await prisma.notification.findFirst({ where: { link, createdAt: { gt: new Date(Date.now() - 86400_000) } } });
-  if (recent) return;
   const team = await teamIds(projectId);
-  const writers = (await activeUsers(team?.ids ?? [])).filter((u) => can(u.role, "generate_reports") && u.role !== "administrator").map((u) => u.id);
-  await notify({ title: "Ready for a report", message: `Every finding in ${project.code} ${project.name} has been reviewed. Draft the report and submit it for approval.`, tone: "success", link }, "reportReady", writers.length ? writers : undefined);
+  const availableWriters = (await activeUsers(team?.ids ?? [])).filter((u) => can(u.role, "generate_reports"));
+  const writers = (availableWriters.some((u) => u.role !== "administrator") ? availableWriters.filter((u) => u.role !== "administrator") : availableWriters).map((u) => u.id);
+  const targets = await prisma.target.findMany({ where: { projectId }, select: { id: true } });
+  if (!targets.length || !writers.length) return;
+  const findingIds = confirmed.map((f) => f.id);
+  const sameFindings = (ids: string[]) => ids.length === findingIds.length && ids.every((id) => findingIds.includes(id));
+  const existing = (await prisma.report.findMany({ where: { projectId }, orderBy: { createdAt: "desc" } })).find((r) => sameFindings(r.findingIds as string[]));
+  if (existing && existing.status !== "draft") return;
+  const now = new Date();
+  const fixTasks = await prisma.remediationTask.findMany({ where: { findingId: { in: findingIds } } });
+  const fixed = fixTasks.filter((t) => t.status === "resolved").length;
+  const inProgress = fixTasks.filter((t) => !CLOSED_FIX.includes(t.status)).length;
+  const counts = ["critical", "high", "medium", "low", "info"].map((s) => `${confirmed.filter((f) => f.severity === s).length} ${s}`).filter((s) => !s.startsWith("0 "));
+  const summary = `${project.name} has ${findingsWord(confirmed.length)} confirmed across ${targets.length} website${targets.length === 1 ? "" : "s"} (${counts.join(", ")}). ${fixed} fix${fixed === 1 ? " is" : "es are"} closed and ${inProgress} remain in progress. Review the findings, evidence and fix status before submitting this draft.`;
+  const template = REPORT_TEMPLATES.find((t) => t.id === "technical")!;
+  const report = existing ?? await retryOnDuplicateCode(async () => prisma.report.create({ data: {
+    id: newId("rpt"), code: nextCode("RPT", (await prisma.report.findMany({ select: { code: true } })).map((r) => r.code)),
+    title: `${project.name} Security Assessment`, projectId, targetIds: targets.map((t) => t.id), templateId: template.id,
+    periodStart: confirmed[0]!.discoveredAt < project.startDate ? confirmed[0]!.discoveredAt : project.startDate,
+    periodEnd: now, findingIds, includeUnverified: false, sections: template.sections.filter((s) => s !== "unverified_observations"), executiveSummary: summary,
+    status: "draft", createdBy: writers[0]!, createdAt: now, updatedAt: now,
+  } }));
+  if (!existing) await log(writers[0]!, "report_generated", "report", report.id, report.code, `Created a report draft automatically after all findings were reviewed`);
+  const link = `/reports/${report.id}`;
+  if (await prisma.notification.findFirst({ where: { link, title: "Ready for a report" } })) return;
+  await notify({ title: "Ready for a report", message: `Every finding in ${project.code} ${project.name} has been reviewed. A draft is ready for your review and submission.`, tone: "success", link }, "reportReady", writers);
 }
 
 /** Reminds owners of overdue fixes, then escalates to the lead. Each step happens once per task. */
