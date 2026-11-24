@@ -53,17 +53,15 @@ export function ContentContainer({ children, className, wide }: { children: Reac
 
 /**
  * Page title block. Text hierarchy, largest to smallest:
- * page title (28px bold) → description (14px) → section titles in cards (16px bold) → body (14px) → details (12px).
+ * page title (28px bold) → section titles in cards (16px bold) → body (14px) → details (12px).
  */
 export function PageHeader({
   title,
-  description,
   actions,
   eyebrow,
   meta,
 }: {
   title: React.ReactNode;
-  description?: React.ReactNode;
   actions?: React.ReactNode;
   eyebrow?: React.ReactNode;
   meta?: React.ReactNode;
@@ -73,7 +71,6 @@ export function PageHeader({
       <div className="min-w-0 flex-1 space-y-1.5">
         {eyebrow && <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">{eyebrow}</div>}
         <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-foreground sm:text-[28px]">{title}</h1>
-        {description && <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>}
         {meta && <div className="flex flex-wrap items-center gap-2 pt-1">{meta}</div>}
       </div>
       {/* Buttons wrap instead of pushing the page wider than the screen. */}

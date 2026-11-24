@@ -72,11 +72,11 @@ test("authorized lab scan, review, remediation and report approval", { timeout: 
       return { cookie: r.cookie, id: r.data.user.id as string };
     }
     const admin = await login("admin@aivera.local");
-    const lead = await login("lead@aivera.local");
+    // The administrator is also the project's lead in the three-role model.
+    const lead = admin;
     const assessor = await login("assessor@aivera.local");
     const developer = await login("developer@aivera.local");
-    const viewer = await login("viewer@aivera.local");
-    assert.equal((await call("/projects", "POST", {}, viewer)).status, 403);
+    assert.equal((await call("/projects", "POST", {}, developer)).status, 403);
     assert.equal((await call("/projects", "POST", {}, admin, "https://cross-site.example")).status, 403);
 
     const now = new Date();
@@ -102,8 +102,9 @@ test("authorized lab scan, review, remediation and report approval", { timeout: 
     }, admin);
     assert.equal(targetRes.status, 201, JSON.stringify(targetRes.data));
     const targetId = targetRes.data.id as string;
-    const viewerData = await call("/bootstrap", "GET", undefined, viewer);
-    assert.equal((viewerData.data.projects as Array<{ id: string }>).some((p) => p.id === projectId), false);
+    // A developer sees no scans, only the fixes assigned to them.
+    const developerData = await call("/bootstrap", "GET", undefined, developer);
+    assert.equal((developerData.data.scans as unknown[]).length, 0);
 
     const scanRes = await call("/scans/automated", "POST", { name: "Real loopback inspector run", projectId, targetId,
       config: { tools: ["http_inspector"], categories: ["session", "config_https", "info_disclosure"],

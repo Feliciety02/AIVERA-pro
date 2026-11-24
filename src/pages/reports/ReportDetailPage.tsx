@@ -181,7 +181,7 @@ export default function ReportDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{decision === "approve" ? "Approve as final" : "Send back for changes"}</DialogTitle>
-            <DialogDescription>{decision === "approve" ? "The report becomes final and locked, and viewers on the project can read it." : "The report goes back to its author as a draft with your note."}</DialogDescription>
+            <DialogDescription>{decision === "approve" ? "The report becomes final and locked, and everyone on the project can read it." : "The report goes back to its author as a draft with your note."}</DialogDescription>
           </DialogHeader>
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={decision === "approve" ? "Note (optional)" : "What needs changing"} aria-label="Note" />
           <DialogFooter>

@@ -303,7 +303,7 @@ const GUARDS = [
   "Only targets with confirmed written permission can be scanned",
   "Live scanning stays off until the server admin allowlists the exact host",
   "Passwords, tokens, cookies and keys are removed before AI sees anything",
-  "Three roles: administrator, security assessor and viewer",
+  "Three roles: administrator, security tester and website owner",
   "Every action is written to an activity log that can't be edited",
   "API keys stay on the server, never in the browser",
 ];

@@ -40,7 +40,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   const authorized = target.authorizationStatus === "authorized" && target.authorizationConfirmed;
   // Why a scan can't start yet, in plain words, with a way to fix it where there is one.
   let blocker: { text: string; fix?: React.ReactNode } | null = null;
-  if (!canRun) blocker = { text: "Your role can't start scans. Ask an administrator or a security assessor." };
+  if (!canRun) blocker = { text: "Your role can't start scans. Ask an administrator or a security tester." };
   else if (!authorized) blocker = { text: "The owner's permission for this website isn't confirmed yet." };
   else if (!target.projectId) blocker = { text: "Add this website to a project first (see the box above)." };
   else if (activeCount) blocker = { text: "A scan is already in progress for this website." };

@@ -20,6 +20,7 @@ export function StatCard({
   trend,
   sub,
   to,
+  accent,
 }: {
   label: string;
   value: React.ReactNode;
@@ -31,21 +32,26 @@ export function StatCard({
   trend?: { delta: number; goodWhenDown?: boolean; label: string };
   sub?: React.ReactNode;
   to?: string;
+  /** CSS colour for the icon chip and glow, e.g. "var(--sev-high)". Defaults to the tone, else primary. */
+  accent?: string;
 }) {
+  const color = accent ?? toneColor(tone) ?? "var(--primary)";
   const body = (
-    <Card className={cn("group relative h-full overflow-hidden px-5 py-4 transition-colors", to && "hover:bg-accent/40")}>
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Icon className="size-4" aria-hidden />
-        <p>{label}</p>
+    <Card className={cn("group relative h-full overflow-hidden px-5 py-4 transition-shadow", to && "hover:shadow-md")}>
+      <span className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-60 blur-2xl" style={{ background: `color-mix(in srgb, ${color} 22%, transparent)` }} aria-hidden />
+      <div className="relative flex items-center gap-3 text-sm text-muted-foreground">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl" style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}>
+          <Icon className="size-[18px]" aria-hidden />
+        </span>
+        <p className="leading-tight">{label}</p>
         <Hint label={tooltip}>
           <span tabIndex={0} role="button" aria-label={`About ${label}`} className="ml-auto text-muted-foreground/70 hover:text-foreground" onClick={(e) => e.preventDefault()}>
             <Info className="size-3.5" />
           </span>
         </Hint>
       </div>
-      {/* Numbers stay neutral; only critical counts get colour. */}
-      <p className={cn("mt-3 text-[28px] leading-9 font-normal tabular-nums", tone?.includes("critical") ? tone : "text-foreground")}>{value}</p>
-      <div className="mt-1 flex min-h-4 items-center gap-2 text-xs text-muted-foreground">
+      <p className={cn("relative mt-3 text-[32px] leading-9 font-semibold tracking-tight tabular-nums", tone?.includes("critical") ? tone : "text-foreground")}>{value}</p>
+      <div className="relative mt-1 flex min-h-4 items-center gap-2 text-xs text-muted-foreground">
         {trend && trend.delta !== 0 && (
           <span className={cn("inline-flex items-center gap-0.5 font-medium", (trend.delta > 0) !== !!trend.goodWhenDown ? "text-success" : "text-sev-critical")}>
             {trend.delta > 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
@@ -64,6 +70,11 @@ export function StatCard({
   ) : (
     body
   );
+}
+
+/** "text-sev-high" → "var(--sev-high)", so a tone class can also colour backgrounds. */
+export function toneColor(tone?: string) {
+  return tone?.startsWith("text-") && tone !== "text-foreground" ? `var(--${tone.slice(5)})` : undefined;
 }
 
 export function RecentActivity({ items, users, limit = 8 }: { items: ActivityLog[]; users: Record<string, User>; limit?: number }) {

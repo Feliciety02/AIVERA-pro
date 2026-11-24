@@ -113,7 +113,7 @@ export default function SignupPage() {
             <Hourglass className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <p>
               <span className="font-medium text-foreground">Waiting for approval.</span> An administrator has been notified and must activate your account on the Users page before you can sign
-              in. New accounts start as viewers.
+              in. New accounts start as website owners.
             </p>
           </div>
         </div>

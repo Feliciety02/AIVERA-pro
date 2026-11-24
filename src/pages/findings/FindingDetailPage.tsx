@@ -29,7 +29,7 @@ import { awaitsReview } from "@/features/scanLifecycle";
 const aiRequested = new Set<string>();
 
 /** Uses the same words as the buttons. */
-const SAVED_TEXT: Record<VerificationStatus, string> = { confirmed: "Saved: real problem.", rejected: "Saved: false alarm.", needs_review: "Saved: not sure.", pending: "Decision undone." };
+const SAVED_TEXT: Record<VerificationStatus, string> = { confirmed: "Recorded as a confirmed vulnerability.", rejected: "Recorded as a false positive.", needs_review: "Flagged for further review.", pending: "Decision withdrawn." };
 
 /** First sentence only: the page shows a verdict, not an essay. */
 const firstSentence = (t: string) => (t.match(/^.*?[.!?](\s|$)/)?.[0] ?? t).trim();
@@ -131,20 +131,20 @@ export default function FindingDetailPage() {
   const aiLine = analysis ? firstSentence(analysis.interpretation || analysis.explanation) : "";
   // Fixed order, colour = meaning: red means "this is a problem", green means "this is safe".
   const choices = [
-    { status: "confirmed" as const, label: "Real problem", change: "Change to real problem", icon: ShieldAlert, solid: "destructive" as const, outline: "destructive-outline" as const },
-    { status: "rejected" as const, label: "False alarm", change: "Change to false alarm", icon: ShieldCheck, solid: "success" as const, outline: "success-outline" as const },
+    { status: "confirmed" as const, label: "Confirm vulnerability", change: "Change to confirmed", icon: ShieldAlert, solid: "destructive" as const, outline: "destructive-outline" as const },
+    { status: "rejected" as const, label: "False positive", change: "Change to false positive", icon: ShieldCheck, solid: "success" as const, outline: "success-outline" as const },
   ];
-  const blockedReason = locked ? "Signed off by the lead. Ask the lead to return it to change the decision." : deniedReason(user?.role);
+  const blockedReason = locked ? "Signed off by the project lead. The lead must return it before the decision can change." : deniedReason(user?.role);
   const canDecide = canVerify && !locked;
   const reviewed = evidence.filter((e) => e.reviewed).length;
 
   const decisionPanel = (
     <SidePanel
       tone="primary"
-      title={decided ? "Decision" : "Is this a real problem?"}
+      title={decided ? "Verification outcome" : "Verification decision"}
       footer={
         <div className="flex items-center justify-between gap-2" data-tour="finding-nav">
-          <span className="text-muted-foreground">{toReview.length ? `${toReview.length} left to review` : "All reviewed"}</span>
+          <span className="text-muted-foreground">{toReview.length ? `${toReview.length} pending review` : "Review complete"}</span>
           <span className="flex items-center gap-0.5" aria-label="Finding navigation">
             <Button size="icon-sm" variant="ghost" disabled={!prev} onClick={() => prev && goTo(prev.id)} aria-label={prev ? `Previous finding ${prev.code}` : "No previous finding"}>
               <ChevronLeft />
@@ -166,7 +166,7 @@ export default function FindingDetailPage() {
             </Button>
           ) : (
             <Button size="sm" className="mt-2 w-full" asChild>
-              <Link to="/findings?status=confirmed">All decided. Plan fixes <ArrowRight /></Link>
+              <Link to="/findings?status=confirmed">All findings reviewed. Plan remediation <ArrowRight /></Link>
             </Button>
           )}
         </div>
@@ -178,7 +178,7 @@ export default function FindingDetailPage() {
             {current === "confirmed" ? <ShieldAlert className="size-5" /> : <ShieldCheck className="size-5" />}
           </span>
           <div className="min-w-0 text-sm">
-            <p className="font-semibold">{current === "confirmed" ? "Confirmed as a real problem" : "Rejected as a false alarm"}</p>
+            <p className="font-semibold">{current === "confirmed" ? "Confirmed vulnerability" : "Rejected as a false positive"}</p>
             {history[0] && <p className="text-xs text-muted-foreground">by {lookups.users[history[0].assessorId]?.name ?? "unknown"}, {formatDateTime(history[0].decidedAt)}</p>}
             {history[0]?.decisionReason && <p className="mt-1.5 text-xs">{history[0].decisionReason}</p>}
           </div>
@@ -187,24 +187,24 @@ export default function FindingDetailPage() {
         canAI &&
         (aiState !== "idle" || analysis) && (
           <div className="rounded-xl bg-muted/50 px-3.5 py-3 text-sm" aria-live="polite">
-            <p className="flex items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/12 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
-                <Sparkles className="size-3" aria-hidden /> AI result
+            <p className="flex flex-col items-start gap-1">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-500/12 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                <Sparkles className="size-3" aria-hidden /> AI assessment
               </span>
-              <span className="text-[11px] text-muted-foreground">AI-generated, may be wrong. You decide.</span>
+              <span className="text-[11px] text-muted-foreground">Advisory only. The tester makes the final decision.</span>
             </p>
             {aiState === "running" ? (
               <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" aria-hidden /> AI is checking this finding…
+                <Loader2 className="size-3 animate-spin" aria-hidden /> Analysing the finding…
               </p>
             ) : aiState === "failed" && !analysis ? (
-              <p className="mt-1.5 text-xs text-muted-foreground">The AI could not check this one. Decide from the evidence.</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">AI analysis is unavailable for this finding. Assess the evidence directly.</p>
             ) : (
               <>
                 {aiSeverity && (
                   <p className="mt-1.5 font-semibold">
-                    Rates it {SEVERITY_META[aiSeverity].label}
-                    {aiSeverity !== finding.severity && <span className="text-xs font-normal text-warning"> (tool said {SEVERITY_META[finding.severity].label})</span>}
+                    Suggested severity: {SEVERITY_META[aiSeverity].label}
+                    {aiSeverity !== finding.severity && <span className="text-xs font-normal text-warning"> (scanner reported {SEVERITY_META[finding.severity].label})</span>}
                   </p>
                 )}
                 {aiLine && <p className="mt-0.5 text-xs text-muted-foreground">{aiLine}</p>}
@@ -215,7 +215,7 @@ export default function FindingDetailPage() {
       )}
 
       <div className="space-y-2" role="group" aria-label="Record your decision">
-        <div className={cn("grid gap-2", !decided && "grid-cols-2")}>
+        <div className="grid gap-2">
         {choices
           .filter((c) => c.status !== current)
           .map((c) => {
@@ -243,16 +243,16 @@ export default function FindingDetailPage() {
           <div className="flex gap-2">
             {current !== "needs_review" ? (
               <Button variant="warning-outline" size="sm" className="flex-1" onClick={() => setDecision("needs_review")}>
-                <CircleHelp /> Not sure
+                <CircleHelp /> Needs further review
               </Button>
             ) : (
               <span className="flex h-8 flex-1 items-center justify-center gap-1.5 text-xs text-warning">
-                <CircleHelp className="size-3.5" aria-hidden /> Flagged as not sure
+                <CircleHelp className="size-3.5" aria-hidden /> Flagged for further review
               </span>
             )}
             {current !== "pending" && (
               <Button variant="ghost" size="sm" className="flex-1" onClick={() => setDecision("pending")}>
-                <Undo2 /> Undo
+                <Undo2 /> Withdraw decision
               </Button>
             )}
           </div>
@@ -286,7 +286,7 @@ export default function FindingDetailPage() {
       <DetailLayout
         aside={
           <>
-            <section aria-label="Is this a real problem?">{decisionPanel}</section>
+            <section aria-label="Verification decision">{decisionPanel}</section>
             {current === "confirmed" && canRemediate && (
               <SidePanel title="Fix">
                 <p className="text-sm text-muted-foreground">

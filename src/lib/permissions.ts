@@ -4,12 +4,11 @@ import type { UserRole } from "@/types";
  * The role model, shared by the server (which enforces it on every request) and the web app
  * (which uses it to show or hide actions). Keep this file the single source of truth.
  *
- * Hierarchy, highest first:
- *   Administrator      runs the platform; can step in anywhere
- *   Security Lead      owns projects and every approval
- *   Security Assessor  does the testing and drafts the results
- *   Remediation Owner  fixes what was found (developer)
- *   Viewer             reads finished results for their projects
+ * Three roles, one per stage of the work:
+ *   Administrator      leads the assessment and runs the platform: projects, permission,
+ *                      every approval, users and settings
+ *   Security Tester    does the testing: scans, verifies findings, retests and drafts reports (id "assessor")
+ *   Website Owner      owns the website under test and fixes what was found (id "remediation_owner")
  *
  * Separation of duties (enforced in the routes, not here): nobody approves their own work.
  * The person who confirms a critical or high finding can't sign it off, a fix's owner can't
@@ -34,21 +33,20 @@ export type Permission =
   | "use_ai"
   | "view_activity";
 
-export const ROLE_ORDER: UserRole[] = ["administrator", "lead", "assessor", "remediation_owner", "viewer"];
+export const ROLE_ORDER: UserRole[] = ["administrator", "assessor", "remediation_owner"];
 
 const ASSESSOR: Permission[] = ["manage_targets", "run_demo_scans", "verify_findings", "manage_remediation", "work_remediation", "generate_reports", "use_ai", "view_activity"];
-const LEAD: Permission[] = [...ASSESSOR, "manage_projects", "authorize_targets", "signoff_findings", "approve_remediation", "approve_reports"];
-
 const MATRIX: Record<UserRole, Permission[]> = {
-  administrator: [...LEAD, "manage_users", "manage_settings", "manage_integrations", "view_all_projects"],
-  lead: LEAD,
+  administrator: [...ASSESSOR, "manage_projects", "authorize_targets", "signoff_findings", "approve_remediation", "approve_reports", "manage_users", "manage_settings", "manage_integrations", "view_all_projects"],
   assessor: ASSESSOR,
   remediation_owner: ["work_remediation"],
-  viewer: [],
 };
 
+/** Roles that no longer exist map onto the nearest remaining one (old accounts and saved data). */
+export const LEGACY_ROLES: Record<string, UserRole> = { lead: "administrator", viewer: "remediation_owner" };
+
 export function can(role: UserRole | string | undefined, permission: Permission): boolean {
-  return role ? (MATRIX[role as UserRole] ?? []).includes(permission) : false;
+  return role ? (MATRIX[(LEGACY_ROLES[role] ?? role) as UserRole] ?? []).includes(permission) : false;
 }
 
 export function permissionsFor(role: UserRole): Permission[] {

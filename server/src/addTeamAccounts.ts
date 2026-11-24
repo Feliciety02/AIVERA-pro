@@ -1,6 +1,6 @@
 /**
- * Adds any starting account that is missing (for example the Security Lead and Developer added
- * with the team roles) to an existing database. Nothing else is changed or deleted: existing
+ * Adds any starting account that is missing (for example the Developer added with the team
+ * roles) to an existing database. Nothing else is changed or deleted: existing
  * accounts keep their passwords, and a project only gets a lead or remediation owner if it has none.
  *
  *   npm run db:accounts

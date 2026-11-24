@@ -91,6 +91,10 @@ a{display:inline-block;margin-top:16px;padding:10px 20px;border-radius:999px;bac
 
 app.use(errorHandler);
 
+// Accounts from before the three-role model: Security Lead became Administrator, Viewer became Website Owner.
+await prisma.user.updateMany({ where: { role: "lead" }, data: { role: "administrator" } });
+await prisma.user.updateMany({ where: { role: "viewer" }, data: { role: "remediation_owner" } });
+
 app.listen(env.port, () => console.log(`AIVERA API listening on http://localhost:${env.port}`));
 // Seal activity entries written outside log() (seed data, one-off maintenance scripts).
 void sealPending().then((n) => n && console.log(`[audit] sealed ${n} activity entr${n === 1 ? "y" : "ies"} into the chain`)).catch((e) => console.error("[audit] sealing failed", e));

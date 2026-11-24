@@ -49,11 +49,16 @@ export default function TargetsPage() {
     () => [
       {
         accessorKey: "name",
-        header: "Target",
+        header: "Website",
         cell: ({ row }) => (
-          <div className="min-w-52">
-            <p className="font-medium">{row.original.name}</p>
-            <p className="font-mono text-[11px] text-muted-foreground">{row.original.url}</p>
+          <div className="flex min-w-52 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-sm font-semibold text-primary" aria-hidden>
+              {row.original.name.trim().charAt(0).toUpperCase() || "?"}
+            </span>
+            <div className="min-w-0">
+              <p className="font-medium">{row.original.name}</p>
+              <p className="font-mono text-[11px] text-muted-foreground">{row.original.url}</p>
+            </div>
           </div>
         ),
       },
@@ -80,7 +85,7 @@ export default function TargetsPage() {
           can(user?.role, "manage_targets") && (
             <Button size="sm" asChild>
               <Link to="/targets/new">
-                <Plus /> Register target
+                <Plus /> Add website
               </Link>
             </Button>
           )

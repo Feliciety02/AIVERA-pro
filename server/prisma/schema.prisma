@@ -19,7 +19,7 @@ model User {
   name               String
   email              String          @unique
   passwordHash       String
-  role               String // administrator | assessor | viewer
+  role               String // administrator | assessor | remediation_owner
   title              String
   status             String // active | suspended | invited
   assignedProjectIds Json

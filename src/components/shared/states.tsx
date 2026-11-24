@@ -21,9 +21,9 @@ export function EmptyState({
   compact?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center rounded-lg border border-dashed border-border text-center", compact ? "gap-2 px-4 py-6" : "gap-3 px-6 py-12", className)}>
-      <div className="flex size-10 items-center justify-center rounded-full border border-border bg-muted/50">
-        <Icon className="size-5 text-muted-foreground" aria-hidden />
+    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_4%,transparent),transparent)] text-center", compact ? "gap-2 px-4 py-6" : "gap-3 px-6 py-12", className)}>
+      <div className={cn("flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary", compact ? "size-10" : "size-14")}>
+        <Icon className={compact ? "size-5" : "size-7"} aria-hidden />
       </div>
       <div className="max-w-sm space-y-1">
         <p className="text-sm font-medium">{title}</p>

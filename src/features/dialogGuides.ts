@@ -32,7 +32,7 @@ export const DIALOG_GUIDES = {
   ],
   userEditor: [
     { title: "Manage a user", body: "Choose what this person can do in AIVERA." },
-    { target: "[aria-label=Role]", title: "Role", body: "Administrator: everything. Security assessor: plan, test, verify and report. Viewer: read dashboards and final reports only." },
+    { target: "[aria-label=Role]", title: "Role", body: "Administrator: leads the assessment, approves and manages the team. Security tester: scans, verifies and drafts reports. Website owner: owns the tested website and works on the fixes assigned to them." },
     { target: "[aria-label='Account status']", title: "Account status", body: "Suspended users can't sign in. Invited users haven't signed in yet." },
     { target: "[data-guide=user-projects]", title: "Projects", body: "The assessments this person works on. They can be assigned findings and checklists in these projects." },
   ],

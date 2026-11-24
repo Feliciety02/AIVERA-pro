@@ -104,15 +104,15 @@ This applies versioned Prisma migrations and loads the starting data (`npm run d
 
 | Account | Role | Can do |
 |---|---|---|
-| `admin@aivera.local` | Administrator | Users, roles, settings, integrations. Sees every project and can step in anywhere |
-| `lead@aivera.local` | Security Lead | Creates projects, marks websites authorized, signs off critical and high findings, approves closing fixes and final reports |
-| `assessor@aivera.local` | Security Assessor | Scans, verifies findings, retests fixes, drafts reports |
-| `developer@aivera.local` | Remediation Owner | Sees only their fix tasks, marks them ready for retest |
-| `viewer@aivera.local` | Viewer | Reads dashboards and approved reports |
+| `admin@aivera.local` | Administrator | Leads the assessment: creates projects, marks websites authorized, signs off critical and high findings, approves closing fixes and final reports. Also manages users, settings and integrations, and sees every project |
+| `assessor@aivera.local` | Security Tester | Registers websites, scans, verifies findings, retests fixes, drafts reports |
+| `developer@aivera.local` | Website Owner | Owns the website under test: sees their websites, their fix tasks and finished reports, marks fixes ready for retest |
+
+Each role only sees the menu items and pages for its job. Accounts from older versions are moved over when the server starts: Security Lead becomes Administrator, Viewer becomes Website Owner.
 
 All use the `SEED_DEMO_PASSWORD` from `server/.env`. New people can sign up from the sign-in page; an administrator then activates them on the **Users** page. People only see the projects they are on.
 
-**Already have a database from before the team roles?** Don't reseed. Run `npm run db:accounts` instead (back up first). It adds any missing starting account (the lead and developer), and puts the starting team on every project that has no lead yet. Nothing else changes, and running it twice is safe.
+**Already have a database from before the team roles?** Don't reseed. Run `npm run db:accounts` instead (back up first). It adds any missing starting account (such as the website owner), and puts the starting team on every project that has no lead yet. Nothing else changes, and running it twice is safe.
 
 **What happens automatically**
 

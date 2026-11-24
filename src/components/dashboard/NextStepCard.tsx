@@ -64,7 +64,7 @@ export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
       done: reviewDone,
       title: toReview.length ? `Review ${toReview.length} finding${toReview.length === 1 ? "" : "s"}` : "Wait for findings",
       body: toReview.length
-        ? "For each one, look at the evidence and decide: is it a real problem, or a false alarm? Only your decision counts."
+        ? "Review the evidence for each finding and record whether it is a confirmed vulnerability or a false positive. Only a tester's decision counts."
         : "The scans haven't produced any findings yet. Run another scan, or record something you found by hand.",
       action: toReview.length ? { label: "Start reviewing", to: "/findings?status=unverified" } : { label: "Open findings", to: "/findings" },
     },

@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Permission } from "@/lib/permissions";
+import type { UserRole } from "@/types";
 
 export interface NavItem {
   label: string;
@@ -22,6 +23,24 @@ export interface NavItem {
   icon: LucideIcon;
   /** When set, the item is hidden for roles lacking this permission (UI demo only). */
   requires?: Permission;
+  /** When set, only these roles see the item. Pages outside a role's menu are also closed to it (see router). */
+  roles?: UserRole[];
+  /** A different label for some roles, e.g. "My fixes" for a website owner. */
+  labelFor?: Partial<Record<UserRole, string>>;
+}
+
+/** The two roles that do security work. Website owners see their websites, their fixes and finished reports. */
+export const TEAM: UserRole[] = ["administrator", "assessor"];
+export const ADMIN: UserRole[] = ["administrator"];
+
+export function navLabel(item: NavItem, role?: UserRole) {
+  return (role && item.labelFor?.[role]) ?? item.label;
+}
+
+export function visibleNav(groups: NavGroup[], role?: UserRole, allows?: (p: Permission) => boolean): NavGroup[] {
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => (!i.roles || (role && i.roles.includes(role))) && (!i.requires || !!allows?.(i.requires))) }))
+    .filter((g) => g.items.length);
 }
 
 export interface NavGroup {
@@ -38,37 +57,37 @@ export const NAV: NavGroup[] = [
     label: "Overview",
     items: [
       { label: "Home", to: "/dashboard", icon: Gauge },
-      { label: "Analytics", to: "/analytics", icon: BarChart3 },
+      { label: "Analytics", to: "/analytics", icon: BarChart3, roles: TEAM },
     ],
   },
   {
     label: "1 · Set up",
     items: [
-      { label: "Projects", to: "/projects", icon: FolderKanban },
-      { label: "Websites", to: "/targets", icon: Target },
+      { label: "Projects", to: "/projects", icon: FolderKanban, roles: TEAM },
+      { label: "Websites", to: "/targets", icon: Target, labelFor: { remediation_owner: "My websites" } },
     ],
   },
   {
     label: "2 · Test",
     items: [
-      { label: "Scans", to: "/scans", icon: ScanLine },
-      { label: "Checklists", to: "/assessments", icon: ClipboardCheck },
+      { label: "Scans", to: "/scans", icon: ScanLine, roles: TEAM },
+      { label: "Checklists", to: "/assessments", icon: ClipboardCheck, roles: TEAM },
     ],
   },
   {
     label: "3 · Review & fix",
     items: [
-      { label: "Findings", to: "/findings", icon: ShieldAlert },
-      { label: "Fixes", to: "/remediation", icon: Wrench },
+      { label: "Findings", to: "/findings", icon: ShieldAlert, roles: TEAM },
+      { label: "Fixes", to: "/remediation", icon: Wrench, labelFor: { remediation_owner: "My fixes" } },
       { label: "Reports", to: "/reports", icon: FileText },
     ],
   },
   {
     label: "Admin",
     items: [
-      { label: "Activity log", to: "/activity", icon: Activity, requires: "view_activity" },
-      { label: "Users", to: "/users", icon: Users, requires: "manage_users" },
-      { label: "Integrations", to: "/integrations", icon: Plug },
+      { label: "Activity log", to: "/activity", icon: Activity, roles: ADMIN },
+      { label: "Users", to: "/users", icon: Users, roles: ADMIN },
+      { label: "Integrations", to: "/integrations", icon: Plug, roles: ADMIN },
       { label: "Settings", to: "/settings", icon: Settings },
     ],
   },
@@ -83,17 +102,18 @@ export const SIMPLE_NAV: NavGroup[] = [
     label: "Your assessment",
     items: [
       { label: "Home", to: "/dashboard", icon: Gauge },
-      { label: "Websites", to: "/targets", icon: Target },
-      { label: "Scans", to: "/scans", icon: ScanLine },
-      { label: "Findings", to: "/findings", icon: ShieldAlert },
-      { label: "Fixes", to: "/remediation", icon: Wrench },
+      { label: "Projects", to: "/projects", icon: FolderKanban, roles: ADMIN },
+      { label: "Websites", to: "/targets", icon: Target, labelFor: { remediation_owner: "My websites" } },
+      { label: "Scans", to: "/scans", icon: ScanLine, roles: TEAM },
+      { label: "Findings", to: "/findings", icon: ShieldAlert, roles: TEAM },
+      { label: "Fixes", to: "/remediation", icon: Wrench, labelFor: { remediation_owner: "My fixes" } },
       { label: "Reports", to: "/reports", icon: FileText },
     ],
   },
   {
     label: "System",
     items: [
-      { label: "Users", to: "/users", icon: Users, requires: "manage_users" },
+      { label: "Users", to: "/users", icon: Users, roles: ADMIN },
       { label: "Settings", to: "/settings", icon: Settings },
     ],
   },

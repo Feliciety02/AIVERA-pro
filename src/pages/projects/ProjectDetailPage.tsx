@@ -69,7 +69,6 @@ export default function ProjectDetailPage() {
           </>
         }
         title={project.name}
-        description={project.description}
         meta={
           <>
             <StatusBadge status={project.status} map={PROJECT_STATUS} />
@@ -105,7 +104,7 @@ export default function ProjectDetailPage() {
                   </Button>
                   <Button size="sm" asChild>
                     <Link to={`/targets/new?project=${project.id}`}>
-                      <Plus /> Register target
+                      <Plus /> Add website
                     </Link>
                   </Button>
                 </>
@@ -116,9 +115,9 @@ export default function ProjectDetailPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <MiniStat label="Authorized targets" value={`${d.targets.filter((t) => t.authorizationStatus === "authorized").length}/${d.targets.length}`} />
+        <MiniStat label="Websites ready" value={`${d.targets.filter((t) => t.authorizationStatus === "authorized").length}/${d.targets.length}`} />
         <MiniStat label="Scans" value={d.scans.length} sub={`${d.scans.filter((s) => s.dataOrigin === "simulated").length} simulated`} />
-        <MiniStat label="Confirmed vulns" value={confirmed.length} tone="text-sev-high" />
+        <MiniStat label="Confirmed findings" value={confirmed.length} tone="text-sev-high" />
         <MiniStat label="Pending verification" value={pending.length} tone="text-sev-medium" />
         <MiniStat label="Checklist progress" value={`${progressPct}%`} sub={`${d.tested}/${d.checklistTotal} checks recorded`} />
       </div>
@@ -135,7 +134,7 @@ export default function ProjectDetailPage() {
           <div className="grid gap-4 lg:grid-cols-3">
           <SectionCard title="Project overview" className="lg:col-span-2">
             <dl className="grid gap-4 sm:grid-cols-2">
-              <KeyValue label="Owner">
+              <KeyValue label="Project owner">
                 <UserChip user={lookups.users[project.ownerId]} showTitle />
               </KeyValue>
               <KeyValue label="Assessment type">{ASSESSMENT_TYPES[project.assessmentType]}</KeyValue>
@@ -156,7 +155,7 @@ export default function ProjectDetailPage() {
               {project.memberIds.map((id) => (
                 <li key={id} className="flex items-center justify-between gap-2">
                   <UserChip user={lookups.users[id]} showTitle />
-                  {id === project.ownerId && <ToneBadge tone="primary">Owner</ToneBadge>}
+                  {id === project.ownerId && <ToneBadge tone="primary">Project owner</ToneBadge>}
                 </li>
               ))}
             </ul>
@@ -188,7 +187,7 @@ export default function ProjectDetailPage() {
               </ul>
             )}
           </SectionCard>
-          <SectionCard title="Vulnerability summary" description="Confirmed findings by severity">
+          <SectionCard title="Vulnerability summary">
             <ul className="space-y-2">
               {SEVERITIES.map((sev) => {
                 const n = confirmed.filter((f) => f.severity === sev).length;
@@ -206,7 +205,7 @@ export default function ProjectDetailPage() {
             </p>
           </SectionCard>
           </div>
-          <SectionCard title="Authorized targets" flush actions={canManage && !archived && <Button size="sm" variant="outline" asChild><Link to={`/targets/new?project=${project.id}`}><Target /> Register target</Link></Button>}>
+          <SectionCard title="Websites" flush actions={canManage && !archived && <Button size="sm" variant="outline" asChild><Link to={`/targets/new?project=${project.id}`}><Target /> Add website</Link></Button>}>
             {d.targets.length === 0 ? (
               <div className="p-4">
                 <EmptyState icon={Target} title="No targets registered" description="Register the web applications you are authorized to assess for this project." />

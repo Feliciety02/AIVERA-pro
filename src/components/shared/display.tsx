@@ -1,15 +1,14 @@
 import * as React from "react";
 import { Info, FlaskConical, type LucideIcon } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/misc";
 import { cn, initials } from "@/lib/utils";
 import { useUIStore } from "@/stores/sessionStore";
 import type { User } from "@/types";
 
-/** Card with a header row (title, description, actions). */
+/** Card with a header row (title, actions). */
 export function SectionCard({
   title,
-  description,
   actions,
   children,
   className,
@@ -18,7 +17,6 @@ export function SectionCard({
   flush,
 }: {
   title: React.ReactNode;
-  description?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -31,10 +29,13 @@ export function SectionCard({
       <CardHeader className={cn(flush && "border-b border-border pb-3")}>
         <div className="min-w-0">
           <CardTitle className="flex items-center gap-2">
-            {Icon && <Icon className="size-4 text-muted-foreground" aria-hidden />}
+            {Icon && (
+              <span className="flex size-7 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary">
+                <Icon className="size-4" aria-hidden />
+              </span>
+            )}
             {title}
           </CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
       </CardHeader>
@@ -99,10 +100,15 @@ export function CodeBlock({ children, className, label }: { children: string; cl
 }
 
 export function MiniStat({ label, value, tone, sub }: { label: string; value: React.ReactNode; tone?: string; sub?: React.ReactNode }) {
+  // A small dot carries the colour; the number stays dark so a row of stats reads calmly.
+  const color = tone?.startsWith("text-") && tone !== "text-foreground" ? `var(--${tone.slice(5)})` : undefined;
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-2xl font-normal tabular-nums", tone?.includes("critical") ? tone : "text-foreground")}>{value}</p>
+    <div className="h-full rounded-2xl border border-border bg-card px-4 py-3.5">
+      <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        {color && <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />}
+        <span className="truncate">{label}</span>
+      </p>
+      <p className={cn("mt-1.5 text-2xl font-semibold tracking-tight tabular-nums", tone?.includes("critical") && "text-sev-critical")}>{value}</p>
       {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
     </div>
   );

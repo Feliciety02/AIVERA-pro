@@ -14,7 +14,7 @@ import { verificationService } from "@/services";
 import type { VerificationStatus, VulnerabilityFinding } from "@/types";
 
 const ICONS: Record<VerificationStatus, typeof CircleCheck> = { confirmed: ShieldAlert, rejected: ShieldCheck, needs_review: ShieldQuestion, pending: Timer };
-const TITLES: Record<VerificationStatus, string> = { confirmed: "Real problem", rejected: "False alarm", needs_review: "Not sure", pending: "Undo decision" };
+const TITLES: Record<VerificationStatus, string> = { confirmed: "Confirm vulnerability", rejected: "Mark as false positive", needs_review: "Flag for further review", pending: "Withdraw decision" };
 const METHODS = ["Browser", "curl", "Source review", "Tool output only"];
 const chip = (on: boolean) =>
   cn("rounded-full border px-3 py-1 text-xs transition-colors", on ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent hover:text-foreground");
@@ -184,8 +184,8 @@ export function VerificationDialog({ finding, status, open, onOpenChange, onSave
           >
             {busy && <Loader2 className="animate-spin" />}
             {isConfirm
-              ? stage === "confirm" || !settings.requireConfirmBeforeVerify ? "Save as real problem" : "Continue"
-              : status === "rejected" ? "Save as false alarm" : status === "needs_review" ? "Save as not sure" : "Undo decision"}
+              ? stage === "confirm" || !settings.requireConfirmBeforeVerify ? "Confirm vulnerability" : "Continue"
+              : status === "rejected" ? "Record false positive" : status === "needs_review" ? "Flag for review" : "Withdraw decision"}
           </Button>
         </DialogFooter>
       </DialogContent>

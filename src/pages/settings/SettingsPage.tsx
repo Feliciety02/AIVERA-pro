@@ -239,7 +239,7 @@ export default function SettingsPage() {
             </Row>
           </SectionCard>
           <SectionCard title="Decision safeguards">
-            <Row title="Ask “Are you sure?” before marking a real problem"><Switch checked={security.requireConfirmBeforeVerify} disabled={adminOnly} onCheckedChange={(v) => setSecurity({ requireConfirmBeforeVerify: v })} aria-label="Require confirmation" /></Row>
+            <Row title="Ask for confirmation before confirming a vulnerability"><Switch checked={security.requireConfirmBeforeVerify} disabled={adminOnly} onCheckedChange={(v) => setSecurity({ requireConfirmBeforeVerify: v })} aria-label="Require confirmation" /></Row>
             <Row title="Require the “I checked the evidence” tick"><Switch checked={security.requireEvidenceReview} disabled={adminOnly} onCheckedChange={(v) => setSecurity({ requireEvidenceReview: v })} aria-label="Require evidence review" /></Row>
             <Row title="Sign out after inactivity">
               <Select value={String(security.idleLockMinutes)} disabled={adminOnly} onValueChange={(v) => setSecurity({ idleLockMinutes: Number(v) })}>

@@ -152,7 +152,7 @@ export default function ProjectsPage() {
           >
             <SearchInput value={q} onChange={setQ} placeholder="Search name, ID, description" />
             <FilterSelect label="Statuses" value={status} onChange={setStatus} options={(Object.keys(PROJECT_STATUS) as ProjectStatus[]).map((k) => ({ value: k, label: PROJECT_STATUS[k].label }))} />
-            <FilterSelect label="Assessors" value={owner} onChange={setOwner} options={assessors.map((u) => ({ value: u.id, label: u.name }))} />
+            <FilterSelect label="Testers" value={owner} onChange={setOwner} options={assessors.map((u) => ({ value: u.id, label: u.name }))} />
             <FilterSelect label="Types" value={type} onChange={setType} options={Object.entries(ASSESSMENT_TYPES).map(([value, label]) => ({ value, label }))} />
           </FilterBar>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">

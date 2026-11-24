@@ -58,7 +58,7 @@ export function SignoffPanel({ finding, history }: { finding: VulnerabilityFindi
           </div>
         ) : (
           <p className="mt-2 text-xs text-muted-foreground">
-            {confirmer === user?.id && can(user?.role, "signoff_findings") ? "You confirmed this finding, so another lead signs it off." : "Waiting for the project's Security Lead."}
+            {confirmer === user?.id && can(user?.role, "signoff_findings") ? "You confirmed this finding, so another administrator signs it off." : "Waiting for the project lead (an administrator)."}
           </p>
         )
       ) : (

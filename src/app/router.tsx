@@ -8,6 +8,16 @@ function ReportNewRedirect() {
   return <Navigate to={`/reports?new=1${project ? `&project=${encodeURIComponent(project)}` : ""}`} replace />;
 }
 import { AppShell, ContentContainer } from "@/components/layout/AppShell";
+import { useCurrentUser } from "@/hooks";
+import { ADMIN, TEAM } from "@/components/layout/nav";
+import type { UserRole } from "@/types";
+
+/** Pages a role doesn't use send it home, so every role sees only the screens for its job. */
+function Only({ roles, children }: { roles: UserRole[]; children: React.ReactNode }) {
+  const user = useCurrentUser();
+  if (user && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
 import { CardsSkeleton, TableSkeleton } from "@/components/shared/states";
 
 /* Route-level code splitting keeps the initial bundle small. */
@@ -51,6 +61,8 @@ function PageFallback() {
 }
 
 const s = (el: React.ReactNode) => <React.Suspense fallback={<PageFallback />}>{el}</React.Suspense>;
+const team = (el: React.ReactNode) => <Only roles={TEAM}>{s(el)}</Only>;
+const admin = (el: React.ReactNode) => <Only roles={ADMIN}>{s(el)}</Only>;
 
 
 export const router = createBrowserRouter([
@@ -62,33 +74,33 @@ export const router = createBrowserRouter([
     children: [
       { path: "/dashboard", element: s(<Dashboard />) },
       { path: "/my-work", element: s(<MyWork />) },
-      { path: "/analytics", element: s(<Analytics />) },
-      { path: "/projects", element: s(<Projects />) },
-      { path: "/projects/new", element: s(<ProjectNew />) },
-      { path: "/projects/:projectId", element: s(<ProjectDetail />) },
-      { path: "/projects/:projectId/edit", element: s(<ProjectNew />) },
+      { path: "/analytics", element: team(<Analytics />) },
+      { path: "/projects", element: team(<Projects />) },
+      { path: "/projects/new", element: team(<ProjectNew />) },
+      { path: "/projects/:projectId", element: team(<ProjectDetail />) },
+      { path: "/projects/:projectId/edit", element: team(<ProjectNew />) },
       { path: "/targets", element: s(<Targets />) },
-      { path: "/targets/new", element: s(<TargetForm />) },
+      { path: "/targets/new", element: team(<TargetForm />) },
       { path: "/targets/:targetId", element: s(<TargetDetail />) },
-      { path: "/targets/:targetId/edit", element: s(<TargetForm />) },
+      { path: "/targets/:targetId/edit", element: team(<TargetForm />) },
       // Merged pages: old links land on the view that replaced them.
       { path: "/reconnaissance", element: <Navigate to="/targets?view=discovery" replace /> },
-      { path: "/scans", element: s(<Scans />) },
-      { path: "/scans/new", element: s(<ScanNew />) },
-      { path: "/scans/:scanId", element: s(<ScanDetail />) },
-      { path: "/assessments", element: s(<Assessments />) },
-      { path: "/assessments/:categoryId", element: s(<AssessmentDetail />) },
-      { path: "/ai-analyst", element: s(<AIAnalyst />) },
-      { path: "/findings", element: s(<Findings />) },
+      { path: "/scans", element: team(<Scans />) },
+      { path: "/scans/new", element: team(<ScanNew />) },
+      { path: "/scans/:scanId", element: team(<ScanDetail />) },
+      { path: "/assessments", element: team(<Assessments />) },
+      { path: "/assessments/:categoryId", element: team(<AssessmentDetail />) },
+      { path: "/ai-analyst", element: team(<AIAnalyst />) },
+      { path: "/findings", element: team(<Findings />) },
       { path: "/findings/:findingId", element: s(<FindingDetail />) },
       { path: "/risks", element: <Navigate to="/findings?view=risks" replace /> },
       { path: "/remediation", element: s(<Remediation />) },
       { path: "/reports", element: s(<Reports />) },
       { path: "/reports/new", element: <ReportNewRedirect /> },
       { path: "/reports/:reportId", element: s(<ReportDetail />) },
-      { path: "/activity", element: s(<Activity />) },
-      { path: "/users", element: s(<Users />) },
-      { path: "/integrations", element: s(<Integrations />) },
+      { path: "/activity", element: admin(<Activity />) },
+      { path: "/users", element: admin(<Users />) },
+      { path: "/integrations", element: admin(<Integrations />) },
       { path: "/settings", element: s(<Settings />) },
       { path: "*", element: s(<NotFound />) },
     ],

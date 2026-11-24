@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/misc";
 import { StatCard, RecentActivity } from "@/components/dashboard/widgets";
 import { NextStepCard } from "@/components/dashboard/NextStepCard";
+import { SeverityBreakdown } from "@/components/dashboard/SeverityBreakdown";
 import { MyWorkList } from "@/components/dashboard/MyWorkList";
+import { DeveloperHome } from "@/components/dashboard/DeveloperHome";
 import { SectionCard } from "@/components/shared/display";
-import { CardsSkeleton } from "@/components/shared/states";
+import { CardsSkeleton, EmptyState } from "@/components/shared/states";
 import { useDataStore } from "@/stores/dataStore";
 import { useUIStore } from "@/stores/sessionStore";
 import { useDocumentTitle, useInitialLoading, useLookups, useCurrentUser } from "@/hooks";
@@ -24,10 +26,15 @@ import { can } from "@/lib/permissions";
  * Charts live on the Analytics page, so they are not repeated here.
  */
 export default function DashboardPage() {
+  const role = useCurrentUser()?.role;
+  useDocumentTitle("Home");
+  return role === "remediation_owner" ? <DeveloperHome /> : <TeamHome />;
+}
+
+function TeamHome() {
   const simpleMode = useUIStore((st) => st.simpleMode);
   // The website to offer a one-click scan for: the first one that's ready, otherwise the first registered.
   const scanTarget = useDataStore((st) => st.targets.find((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed && t.projectId) ?? st.targets[0]);
-  useDocumentTitle("Home");
   const loading = useInitialLoading();
   const user = useCurrentUser();
   const lookups = useLookups();
@@ -93,10 +100,10 @@ export default function DashboardPage() {
         <CardsSkeleton count={4} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Websites ready to scan" value={m.authorizedTargets} icon={Globe} tooltip="Websites with confirmed permission that can be scanned. Registering a website never contacts it." sub={`of ${m.registeredTargets} added`} to="/targets" />
-          <StatCard label="Findings to review" value={m.pendingVerification} icon={Timer} tooltip="Findings waiting for a person to decide: real problem or false alarm." sub="awaiting a decision" to="/findings?status=unverified" />
-          <StatCard label="Confirmed problems" value={m.confirmed} icon={CircleCheckBig} tone={m.criticalConfirmed ? "text-sev-critical" : undefined} tooltip="Findings a person confirmed after checking the evidence. AI suggestions never count here." sub={m.criticalConfirmed ? `${m.criticalConfirmed} critical` : "none critical"} to="/findings?status=confirmed" />
-          <StatCard label="Fixes closed" value={`${m.remediationProgress}%`} icon={Wrench} tooltip="Share of fix tasks resolved (with approval) or accepted as a risk." sub={<Progress value={m.remediationProgress} className="h-1 w-24" />} to="/remediation" />
+          <StatCard label="Websites ready to scan" value={m.authorizedTargets} icon={Globe} accent="var(--primary)" tooltip="Websites with confirmed permission that can be scanned. Registering a website never contacts it." sub={`of ${m.registeredTargets} added`} to="/targets" />
+          <StatCard label="Findings to review" value={m.pendingVerification} icon={Timer} accent="var(--sev-medium)" tooltip="Findings awaiting a tester's decision: confirmed vulnerability or false positive." sub="awaiting a decision" to="/findings?status=unverified" />
+          <StatCard label="Confirmed problems" value={m.confirmed} icon={CircleCheckBig} accent="var(--sev-high)" tone={m.criticalConfirmed ? "text-sev-critical" : undefined} tooltip="Findings a person confirmed after checking the evidence. AI suggestions never count here." sub={m.criticalConfirmed ? `${m.criticalConfirmed} critical` : "none critical"} to="/findings?status=confirmed" />
+          <StatCard label="Fixes closed" value={`${m.remediationProgress}%`} icon={Wrench} accent="var(--success)" tooltip="Share of fix tasks resolved (with approval) or accepted as a risk." sub={<Progress value={m.remediationProgress} className="h-1 w-24" />} to="/remediation" />
         </div>
       )}
 
@@ -104,8 +111,7 @@ export default function DashboardPage() {
         <SectionCard
           title="Waiting on you"
           icon={Inbox}
-          className="xl:col-span-2"
-          description={work.total ? `${work.total} item${work.total === 1 ? "" : "s"} assigned to you` : undefined}
+          className="self-start xl:col-span-2"
           actions={
             work.total > 3 && (
               <Button variant="ghost" size="sm" asChild>
@@ -116,8 +122,10 @@ export default function DashboardPage() {
             )
           }
         >
-          {work.total === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nothing waiting on you. New assignments show up here.</p> : <MyWorkList work={work} limit={3} />}
+          {work.total === 0 ? <EmptyState compact icon={Inbox} title="Nothing waiting on you" description="New assignments show up here." className="border-0" /> : <MyWorkList work={work} limit={3} />}
         </SectionCard>
+        <div className="space-y-4">
+        <SeverityBreakdown findings={s.findings} />
         <SectionCard
           title="Recent activity"
           actions={
@@ -130,14 +138,14 @@ export default function DashboardPage() {
             )
           }
         >
-          <RecentActivity items={s.activity} users={lookups.users} limit={6} />
+          <RecentActivity items={s.activity} users={lookups.users} limit={5} />
         </SectionCard>
+        </div>
       </div>
 
       {!simpleMode && topRisks.length > 0 && (
         <SectionCard
           title="Fix these first"
-          description="Open confirmed risks by score (likelihood × impact, 1–25; not CVSS)"
           actions={
             <Button variant="ghost" size="sm" asChild>
               <Link to="/findings?view=risks">

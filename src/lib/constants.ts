@@ -142,7 +142,7 @@ export const DATA_ORIGIN: Record<DataOrigin, StatusMeta & { description: string 
   simulated: { label: "SIMULATED", tone: "warning", description: "Produced by the in-browser demo simulation. No real scan was performed." },
   imported: { label: "Imported", tone: "cyan", description: "Tool output imported from a file (bundled synthetic sample or a report you supplied). Parsed in the browser, AIVERA did not run the tool or contact the host." },
   user_created: { label: "User Entered", tone: "info", description: "Entered manually by a user in this demo session." },
-  real: { label: "Live Result", tone: "primary", description: "Reserved for future backend scan results." },
+  real: { label: "Live Result", tone: "primary", description: "Found by a real scan the AIVERA server ran against this website, inside its approved scope." },
 };
 
 /* --------------------------------- Labels -------------------------------- */
@@ -170,11 +170,9 @@ export const ENVIRONMENTS: Record<TargetEnvironment, string> = {
 };
 
 export const ROLE_META: Record<UserRole, { label: string; description: string; tone: Tone }> = {
-  administrator: { label: "Administrator", description: "Runs the platform: users, roles, settings and integrations. Sees every project and can step in anywhere.", tone: "primary" },
-  lead: { label: "Security Lead", description: "Owns projects and approvals: confirms website permission, signs off critical and high findings, approves closing fixes and final reports.", tone: "danger" },
-  assessor: { label: "Security Assessor", description: "Does the testing in their projects: scans, verifies findings, retests fixes and drafts reports.", tone: "cyan" },
-  remediation_owner: { label: "Remediation Owner", description: "The developer who fixes issues: sees their assigned fixes with the evidence and marks them ready for retest.", tone: "warning" },
-  viewer: { label: "Viewer", description: "Reads dashboards and approved reports for the projects they belong to.", tone: "neutral" },
+  administrator: { label: "Administrator", description: "Leads the assessment and runs the platform: creates projects, records website permission, signs off findings, approves fixes and reports, and manages the team.", tone: "primary" },
+  assessor: { label: "Security Tester", description: "Does the testing: scans websites, verifies findings, retests fixes and drafts reports.", tone: "cyan" },
+  remediation_owner: { label: "Website Owner", description: "Owns the website being tested: sees their website, the fixes assigned to them with the evidence, and the approved reports. Marks fixes ready for retest.", tone: "warning" },
 };
 
 export const SCAN_PROFILES: Record<ScanProfile, { label: string; description: string }> = {

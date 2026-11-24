@@ -35,7 +35,7 @@ export const WELCOME_TOUR: TourStep[] = [
   { target: '[data-tour="next-step"]', title: "Start here every time", body: "This card always shows your next step and one button to do it. Follow it from top to bottom and you won't miss anything." },
   { target: menuLink("/targets"), title: "1 · Websites", body: "The websites you're allowed to test. Adding one takes four short steps, and AIVERA works out what may be tested.", keepIfHidden: true },
   { target: menuLink("/scans"), title: "2 · Scans", body: "Every scan of your website. The easiest way to start one is the Scan this website button on Home or on the website's page.", keepIfHidden: true },
-  { target: menuLink("/findings"), title: "3 · Findings", body: "What the scans found. Look at the evidence and decide: real problem or false alarm. Only your decision counts.", keepIfHidden: true },
+  { target: menuLink("/findings"), title: "3 · Findings", body: "What the scans found. Review the evidence and record each one as a confirmed vulnerability or a false positive. Only a tester's decision counts.", keepIfHidden: true },
   { target: menuLink("/remediation"), title: "4 · Fixes", body: "A to-do list of fixes for confirmed problems: who fixes it, by when, and a retest to prove it's fixed.", keepIfHidden: true },
   { target: menuLink("/reports"), title: "5 · Reports", body: "Turn your confirmed findings, evidence and fixes into a PDF report.", keepIfHidden: true },
   { target: '[data-tour="menu-mode"]', title: "Need more tools?", body: "The menu is in Simple mode. Click Show all tools for extra pages like analytics, projects and checklists. Replay any page's tutorial with the ? button at the top.", keepIfHidden: true },
@@ -97,9 +97,9 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/projects\/[^/]+$/,
     steps: [
       { target: "main h1", title: "Project overview", body: "The project's name, ID, status and dates. Everything about this assessment is collected on this page." },
-      { target: statGrid("Authorized targets"), title: "Progress numbers", body: "How many targets are authorized, how many scans ran, how many vulnerabilities are confirmed, how many still need a decision, and how much of the checklist is done." },
+      { target: statGrid("Websites ready"), title: "Progress numbers", body: "How many websites are ready to test, how many scans ran, how many vulnerabilities are confirmed, how many still need a decision, and how much of the checklist is done." },
       { target: TABS, title: "Tabs", body: "Three tabs in work order: the overview with its websites, then scans and findings, then reports and activity." },
-      { target: btn("Register target"), title: "Next step", body: "Register the web application you have written permission to test, and define exactly what may be tested." },
+      { target: btn("Add website"), title: "Next step", body: "Add the website you have written permission to test, and define exactly what may be tested." },
     ],
   },
   {
@@ -108,7 +108,7 @@ export const PAGE_TOURS: PageTour[] = [
     steps: [
       { target: statGrid("Registered"), title: "Authorization status", body: "Only targets that are Authorized and confirmed can be scanned or receive imported results. Pending, expired or revoked targets are blocked." },
       { target: 'main [aria-label="Authorization"]', title: "Filters", body: "Filter by authorization status, environment (development, staging, QA, lab) or project." },
-      { target: btn("Register target"), title: "Register a target", body: "Add a new application, its proof of permission, and its testing scope." },
+      { target: btn("Add website"), title: "Add a website", body: "Add a new website, its proof of permission, and its testing scope." },
       { target: TABLE, title: "Target list", body: "Shows each target's environment, authorization, number of in-scope hosts and exclusions. Click a row to see its full scope." },
       { target: 'main [aria-label="Websites view"]', title: "Two views", body: "Websites lists what you may test. Discovery shows the hosts, ports, services and pages found on them." },
       { target: 'main [aria-label="Targets"]', title: "Choose a target", body: "Show discovery data for one target or all of them. The Origins filter separates imported, simulated and sample data." },
@@ -216,7 +216,7 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/findings\/[^/]+$/,
     steps: [
       { target: "main h1", title: "The finding", body: "What was found, how serious the tool thinks it is, and on which website." },
-      { target: 'section[aria-label="Is this a real problem?"]', title: "Decide here", body: "Red: it is a real problem. Green: it is a false alarm. The AI result, when shown, is labelled as AI and is only advice. Your notes are filled in for you." },
+      { target: 'section[aria-label="Verification decision"]', title: "Record the decision", body: "Red confirms the vulnerability; green marks it as a false positive. The AI assessment, when shown, is advisory only. Verification notes are pre-filled for you." },
       { target: card("Evidence", "h2"), title: "Check the evidence", body: "What the tool actually saw. Tick \"I reviewed this\" on the items you checked." },
       { target: card("Details", "h2"), title: "Details", body: "Location, category, tool, dates and risk score, all in one list." },
       { target: "main details", title: "More details", body: "Impact, the full fix, fix tasks and every past decision, folded away until you need them." },
@@ -263,7 +263,7 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/users$/,
     steps: [
       { target: TABLE, title: "Users", body: "Each person's role, account status, assigned projects and activity. Click a row to change their role, status or projects." },
-      { target: card("Roles & permissions"), title: "Who can do what", body: "Administrators manage everything. Security assessors plan, test, verify and report. Viewers can only read dashboards and final reports. In full-stack mode the server enforces this." },
+      { target: card("Roles & permissions"), title: "Who can do what", body: "Administrators lead the assessment and approve. Security testers scan, verify and draft reports. Website owners see their website and work on the fixes assigned to them. In full-stack mode the server enforces this." },
       { target: card("Role-based navigation demo"), title: "Menu per role", body: "Preview which menu items each role sees." },
     ],
   },

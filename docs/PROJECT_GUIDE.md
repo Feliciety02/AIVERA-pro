@@ -15,8 +15,8 @@ npm run db:setup                           # create the database and load the st
 npm run dev:full                           # API on :4000 + web app on http://localhost:5173
 ```
 
-Sign in with a seeded account (`admin@aivera.local`, `lead@aivera.local`, `assessor@aivera.local`, `developer@aivera.local`
-or `viewer@aivera.local`) using the password set as `SEED_DEMO_PASSWORD` in `server/.env`. Change it before any shared
+Sign in with a seeded account (`admin@aivera.local`, `assessor@aivera.local`
+or `developer@aivera.local`) using the password set as `SEED_DEMO_PASSWORD` in `server/.env`. Change it before any shared
 deployment. An existing database from before the team roles gets the new accounts with `npm run db:accounts` (no reseed).
 
 **Team roles and workflow:** Administrator > Security Lead > Security Assessor > Remediation Owner > Viewer, defined once in

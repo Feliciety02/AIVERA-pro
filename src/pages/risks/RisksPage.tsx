@@ -153,11 +153,11 @@ export function RisksView() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-        <SectionCard title="Risk matrix" description="All confirmed risks. Select a cell to filter the register." icon={TriangleAlert}>
+        <SectionCard title="Risk matrix" icon={TriangleAlert}>
           <RiskMatrix risks={active} selected={cell} onSelect={setCell} />
         </SectionCard>
         <div className="grid gap-4">
-          <SectionCard title="Affected assets" description="Targets ranked by highest open risk">
+          <SectionCard title="Affected assets">
             <ul className="space-y-2">
               {assets.length === 0 && <li className="text-xs text-muted-foreground">No open risks.</li>}
               {assets.map((a) => {

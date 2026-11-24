@@ -100,7 +100,7 @@ router.post("/remediation/:id/status", requirePermission("work_remediation"), as
   const closing = asked === "resolved" || asked === "accepted_risk";
   const reopening = CLOSED.includes(cur.status);
   if (closing || reopening) {
-    if (!can(user.role, "approve_remediation")) fail(403, "A Security Lead approves closing or reopening a fix.");
+    if (!can(user.role, "approve_remediation")) fail(403, "An administrator approves closing or reopening a fix.");
     if (isOwner) fail(403, "You own this fix, so someone else has to approve it.");
     if (note.trim().length < 5) fail(400, "A note is required for this transition.");
   }

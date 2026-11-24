@@ -113,7 +113,6 @@ export default function AssessmentDetailPage() {
       <PageHeader
         eyebrow={<><Link to={`/projects/${project.id}`} className="font-mono hover:text-foreground">{project.code}</Link><span>·</span><span>{meta.owasp}</span></>}
         title={meta.name}
-        description={meta.description}
         meta={assessment ? <StatusBadge status={assessment.status} map={ASSESSMENT_STATUS} /> : <ToneBadge tone="muted">Not started</ToneBadge>}
       />
       {!assessment ? (
@@ -129,7 +128,7 @@ export default function AssessmentDetailPage() {
               const items = assessment.checklist.filter((i) => i.kind === kind);
               if (!items.length) return null;
               return (
-                <SectionCard key={kind} title={kind === "automated" ? "Automated checks" : "Manual testing"} icon={kind === "automated" ? Bot : Hand} description={kind === "automated" ? "Tool-backed checks. In this phase, record results from imported or simulated output." : "Performed by the assessor within the authorized scope. Document observations and evidence."}>
+                <SectionCard key={kind} title={kind === "automated" ? "Automated checks" : "Manual testing"} icon={kind === "automated" ? Bot : Hand}>
                   <ul className="space-y-3">
                     {items.map((i) => <ChecklistRow key={i.id} item={i} assessmentId={assessment.id} readOnly={readOnly} onRecord={setRecordFor} />)}
                   </ul>

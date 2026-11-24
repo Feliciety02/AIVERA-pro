@@ -7,7 +7,7 @@ import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { Hint } from "@/components/ui/misc";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { NAV, SIMPLE_NAV } from "./nav";
+import { NAV, SIMPLE_NAV, navLabel, visibleNav } from "./nav";
 import { BrandWordmark } from "./Brand";
 import { useMyWork } from "@/features/myWork";
 
@@ -17,9 +17,10 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const waiting = useMyWork().total;
   return (
     <nav aria-label="Main navigation" className="flex-1 space-y-4 overflow-y-auto py-3">
-      {(simple ? SIMPLE_NAV : NAV).map((group, groupIndex) => {
-        const items = group.items.filter((i) => !i.requires || can(user?.role, i.requires));
-        if (!items.length) return null;
+      {/* Developers have a short menu already, so the simple/full switch doesn't apply to them. */}
+      {visibleNav(simple && user?.role !== "remediation_owner" ? SIMPLE_NAV : NAV, user?.role, (p) => can(user?.role, p)).map((group, groupIndex) => {
+        const items = group.items;
+        const label = (i: (typeof items)[number]) => navLabel(i, user?.role);
         return (
           <div key={group.label}>
             {!collapsed ? (
@@ -46,11 +47,11 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                     {({ isActive }) => (
                       <>
                         <item.icon className={cn("size-[18px] shrink-0 text-muted-foreground", isActive && "text-primary")} aria-hidden />
-                        {!collapsed && <span className="truncate">{item.label}</span>}
+                        {!collapsed && <span className="truncate">{label(item)}</span>}
                         {item.to === "/dashboard" && waiting > 0 && (
                           <span className={cn("rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground", collapsed ? "absolute ml-6 -mt-5" : "ml-auto")} aria-label={`${waiting} waiting on you`}>{waiting}</span>
                         )}
-                        {collapsed && <span className="sr-only">{item.label}</span>}
+                        {collapsed && <span className="sr-only">{label(item)}</span>}
                       </>
                     )}
                   </NavLink>
@@ -58,7 +59,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                 return (
                   <li key={item.to}>
                     {collapsed ? (
-                      <Hint label={item.label} side="right">
+                      <Hint label={label(item)} side="right">
                         {link}
                       </Hint>
                     ) : (
@@ -99,10 +100,11 @@ function SidebarFooter({ collapsed, onNavigate }: { collapsed: boolean; onNaviga
   const simple = useUIStore((s) => s.simpleMode);
   const setSimple = useUIStore((s) => s.setSimpleMode);
   const navigate = useNavigate();
+  const developer = useCurrentUser()?.role === "remediation_owner";
   return (
     <div className="pb-2">
       <div className={cn("mb-2 h-px bg-border", collapsed ? "mx-auto w-8" : "mx-4")} aria-hidden />
-      <FooterButton collapsed={collapsed} tour="menu-mode" label={simple ? "Show all tools" : "Simple menu"} icon={simple ? LayoutGrid : ListChecks} onClick={() => setSimple(!simple)} />
+      {!developer && <FooterButton collapsed={collapsed} tour="menu-mode" label={simple ? "Show all tools" : "Simple menu"} icon={simple ? LayoutGrid : ListChecks} onClick={() => setSimple(!simple)} />}
       <FooterButton
         collapsed={collapsed}
         label="Sign out"

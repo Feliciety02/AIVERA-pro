@@ -60,7 +60,7 @@ const teamIds = async (projectId: string) => {
 };
 const hasRole = (u: { role: string }, roles: UserRole[]) => roles.includes(u.role as UserRole);
 
-/** Leads who approve for a project: its named lead, else leads on the team, else any lead, else administrators. */
+/** Who approves for a project: its named lead, else administrators on the team, else any administrator. */
 export async function projectLeads(projectId: string, exclude: string[] = []): Promise<string[]> {
   const team = await teamIds(projectId);
   const ok = (u: User) => !exclude.includes(u.id) && can(u.role, "signoff_findings");
@@ -68,10 +68,8 @@ export async function projectLeads(projectId: string, exclude: string[] = []): P
     const [lead] = await activeUsers([team.project.leadId]);
     if (lead && ok(lead)) return [lead.id];
   }
-  const onTeam = (await activeUsers(team?.ids ?? [])).filter((u) => ok(u) && u.role === "lead");
+  const onTeam = (await activeUsers(team?.ids ?? [])).filter(ok);
   if (onTeam.length) return onTeam.map((u) => u.id);
-  const leads = (await prisma.user.findMany({ where: { status: "active", role: "lead" } })).filter(ok);
-  if (leads.length) return leads.map((u) => u.id);
   return (await prisma.user.findMany({ where: { status: "active", role: "administrator" } })).filter(ok).map((u) => u.id);
 }
 
@@ -106,9 +104,9 @@ export async function pickRemediationOwner(projectId: string, exclude: string[] 
   return (await projectLeads(projectId, exclude))[0] ?? null;
 }
 
-/** For a project created automatically: the active lead with the fewest open projects. */
+/** For a project created automatically: the active administrator with the fewest open projects. */
 export async function pickLeadForNewProject(): Promise<string | null> {
-  const leads = await prisma.user.findMany({ where: { status: "active", role: "lead" } });
+  const leads = await prisma.user.findMany({ where: { status: "active", role: "administrator" } });
   if (!leads.length) return null;
   const load = await prisma.project.groupBy({ by: ["leadId"], where: { leadId: { in: leads.map((l) => l.id) }, status: { notIn: ["completed", "archived"] } }, _count: true });
   const count = (id: string) => load.find((l) => l.leadId === id)?._count ?? 0;

@@ -47,7 +47,7 @@ const noteOptions = (a: Action | null): string[] => {
     case "in_progress": return a.title === "Send back" ? ["Retest still fails; please fix again.", "Fix incomplete; see retest notes."] : ["Started work on the fix."];
     case "accepted_risk": return ["Owner accepts the risk; low impact.", "Compensating control in place.", "Fix planned in a later release."];
     case "awaiting_retest": return ["Fix deployed to the test environment; ready for retest.", "Code changed and merged; please retest."];
-    case "pending_approval": return ["Fix deployed and checked by the developer.", "Configuration changed; please approve."];
+    case "pending_approval": return ["Fix deployed and checked by the website owner.", "Configuration changed; please approve."];
     case "open": return ["Issue came back after the fix."];
     default: return [];
   }
@@ -121,7 +121,7 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
             {canWork && task.status === "open" && <Button size="sm" onClick={() => open({ kind: "status", to: "in_progress", title: "Start work", description: "Mark the fix as in progress.", requireNote: false })}><Play /> Start work</Button>}
             {canWork && task.status === "in_progress" && (task.retestRequired
               ? <Button size="sm" onClick={() => open({ kind: "status", to: "awaiting_retest", title: "Ready for retest", description: "Say what you changed and where it is deployed. The assessor who confirmed the finding is asked to retest it.", requireNote: true })}><ClipboardCheck /> Ready for retest</Button>
-              : <Button size="sm" onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. A Security Lead approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
+              : <Button size="sm" onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. An administrator approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
             {task.status === "awaiting_retest" && (canRetest ? (
               <>
                 <Button size="sm" variant="success-outline" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Retest passed</Button>
@@ -133,7 +133,7 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
                 <Button size="sm" variant="success" onClick={() => open({ kind: "status", to: "resolved", title: "Approve and close", description: "You are approving that this fix is complete and checked. An AI recommendation alone is never enough.", requireNote: true })}><ShieldCheck /> Approve and close</Button>
                 <Button size="sm" variant="warning-outline" onClick={() => open({ kind: "status", to: "in_progress", title: "Send back", description: "Return the fix to its owner with what still needs doing.", requireNote: true })}><RotateCcw /> Send back</Button>
               </>
-            ) : <p className="text-xs text-muted-foreground">Waiting for a Security Lead to approve closing it.</p>)}
+            ) : <p className="text-xs text-muted-foreground">Waiting for an administrator to approve closing it.</p>)}
             {canApprove && !isClosed(task.status) && <Button size="sm" variant="warning-outline" onClick={() => open({ kind: "status", to: "accepted_risk", title: "Accept risk", description: "Record that the system owner accepts this risk without a fix. A justification is required.", requireNote: true })}><ShieldOff /> Accept risk</Button>}
             {canApprove && isClosed(task.status) && <Button size="sm" variant="outline" onClick={() => open({ kind: "status", to: "open", title: "Reopen task", description: "Reopen this task (for example, the issue came back).", requireNote: true })}><RotateCcw /> Reopen</Button>}
           </div>
@@ -291,9 +291,10 @@ export default function RemediationPage() {
                     <span className="text-xs font-semibold tabular-nums text-muted-foreground">{col.length}</span>
                   </div>
                   <div className="flex-1 space-y-2 p-2">
-                    {col.length === 0 && <p className="py-6 text-center text-[11px] text-muted-foreground">No tasks</p>}
+                    {col.length === 0 && <p className="rounded-lg border border-dashed border-border py-6 text-center text-[11px] text-muted-foreground">Nothing here</p>}
                     {col.map((t) => (
-                      <button key={t.id} type="button" onClick={() => openTask(t.id)} className="w-full rounded-lg border border-border bg-card p-2.5 text-left transition-colors hover:border-primary/35 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+                      <button key={t.id} type="button" onClick={() => openTask(t.id)} className="relative w-full overflow-hidden rounded-xl border border-border bg-card p-2.5 pl-3.5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+                        <span className="absolute inset-y-0 left-0 w-1" style={{ background: SEVERITY_META[t.priority].color }} aria-hidden />
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-mono text-[10.5px] text-muted-foreground">{t.code}</span>
                           <SeverityBadge severity={t.priority} />

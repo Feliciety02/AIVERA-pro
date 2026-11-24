@@ -53,7 +53,8 @@ export default function TargetDetailPage() {
       </ContentContainer>
     );
 
-  const findings = all.findings.filter((f) => f.targetId === target.id);
+  // Website owners only see what the testers confirmed, never unverified scanner output.
+  const findings = all.findings.filter((f) => f.targetId === target.id && (can(user?.role, "verify_findings") || f.verificationStatus === "confirmed"));
   const scans = all.scans.filter((s) => s.targetId === target.id);
   const outCats = CATEGORIES.filter((c) => !target.scope.allowedCategories.includes(c.id));
   const assessable = !!target.projectId && target.authorizationStatus === "authorized" && target.authorizationConfirmed;
@@ -90,7 +91,6 @@ export default function TargetDetailPage() {
           </>
         }
         title={target.name}
-        description={target.description}
         meta={
           <>
             <StatusBadge status={target.authorizationStatus} map={AUTHORIZATION_STATUS} />
@@ -179,7 +179,7 @@ export default function TargetDetailPage() {
           <>
             {!target.projectId && <AddToProject targetId={target.id} canManage={canManage} />}
 
-            <QuickScanCard target={target} onEditScope={canManage ? editScope : undefined} />
+            {can(user?.role, "run_demo_scans") && <QuickScanCard target={target} onEditScope={canManage ? editScope : undefined} />}
 
             <ContentCard
               title="Findings"
@@ -256,7 +256,7 @@ export default function TargetDetailPage() {
               </div>
             </ContentCard>
 
-            {IS_API && assessable && <ScanAutomationCard target={target} />}
+            {IS_API && assessable && can(user?.role, "run_demo_scans") && <ScanAutomationCard target={target} />}
           </>
         }
       />

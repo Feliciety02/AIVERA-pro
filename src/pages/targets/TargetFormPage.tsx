@@ -14,7 +14,7 @@ export default function TargetFormPage() {
   const { targetId } = useParams();
   const [params] = useSearchParams();
   const editing = !!targetId;
-  useDocumentTitle(editing ? "Edit target" : "Register target");
+  useDocumentTitle(editing ? "Edit website" : "Add website");
   const navigate = useNavigate();
   const user = useCurrentUser();
   const projects = useDataStore((s) => s.projects);
@@ -52,7 +52,7 @@ export default function TargetFormPage() {
           {deniedReason(user?.role)}
         </Callout>
       ) : (
-        <TargetForm initial={target} projects={projects} existingReferences={references} defaultProjectId={params.get("project") ?? undefined} onSubmit={submit} onCancel={() => navigate(-1)} submitLabel={editing ? "Save target" : "Register target"} />
+        <TargetForm initial={target} projects={projects} existingReferences={references} defaultProjectId={params.get("project") ?? undefined} onSubmit={submit} onCancel={() => navigate(-1)} submitLabel={editing ? "Save website" : "Add website"} />
       )}
     </ContentContainer>
   );

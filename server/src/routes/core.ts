@@ -59,7 +59,7 @@ router.post("/auth/register", async (req, res) => {
   if (await prisma.user.findUnique({ where: { email: b.email } })) fail(409, "An account with this email already exists. Try signing in.");
   const now = new Date();
   const user = await prisma.user.create({
-    data: { id: newId("usr"), name: b.name, email: b.email, passwordHash: await hashPassword(b.password), role: "viewer", title: "New member", status: "invited", assignedProjectIds: [], createdAt: now, lastActiveAt: now },
+    data: { id: newId("usr"), name: b.name, email: b.email, passwordHash: await hashPassword(b.password), role: "remediation_owner", title: "New member", status: "invited", assignedProjectIds: [], createdAt: now, lastActiveAt: now },
   });
   await log(user.id, "user_signup", "user", user.id, user.name, "Created an account (pending administrator approval)");
   await notify({ title: "New account waiting for approval", message: `${user.name} (${user.email}) signed up. Activate it on the Users page.`, tone: "info", link: "/users" });
@@ -175,7 +175,7 @@ router.post("/projects", requirePermission("manage_projects"), async (req, res) 
   if (b.dueDate < b.startDate) fail(400, "Completion date must be on or after the start date.");
   const { memberIds, ...rest } = b;
   // A lead who creates a project leads it unless they named someone else.
-  if (rest.leadId === undefined) rest.leadId = me(req).role === "lead" ? me(req).id : await pickLeadForNewProject();
+  if (rest.leadId === undefined) rest.leadId = can(me(req).role, "signoff_findings") ? me(req).id : await pickLeadForNewProject();
   await checkTeamRoles(rest.leadId, rest.remediationOwnerId);
   const p = await inTransactionWithCodeRetry(async (tx) => tx.project.create({
     data: { ...rest, id: newId("prj"), code: await nextProjectCode(tx), startDate: new Date(b.startDate), dueDate: new Date(b.dueDate), dataOrigin: "user_created", members: { create: [...new Set([...memberIds, b.ownerId, ...(rest.leadId ? [rest.leadId] : []), ...(rest.remediationOwnerId ? [rest.remediationOwnerId] : [])])].map((userId) => ({ userId })) } },
@@ -298,7 +298,7 @@ async function checkProject(user: { id: string; role: string }, projectId: strin
 async function checkTeamRoles(leadId?: string | null, remediationOwnerId?: string | null) {
   if (leadId) {
     const u = await prisma.user.findUnique({ where: { id: leadId } });
-    if (!u || !can(u.role, "signoff_findings")) fail(400, "The project lead must be a Security Lead or an administrator.");
+    if (!u || !can(u.role, "signoff_findings")) fail(400, "The project lead must be an administrator.");
   }
   if (remediationOwnerId) {
     const u = await prisma.user.findUnique({ where: { id: remediationOwnerId } });
@@ -348,7 +348,7 @@ router.patch("/targets/:id", requirePermission("manage_targets"), async (req, re
   await assertProjectAccess(me(req), cur.projectId);
   await checkProject(me(req), b.projectId);
   if (b.authorizationStatus === "authorized" && cur.authorizationStatus !== "authorized" && !can(me(req).role, "authorize_targets"))
-    fail(403, "Only a Security Lead can mark a website as authorized.");
+    fail(403, "Only an administrator can mark a website as authorized.");
   if (b.authorizationReference === "") b.authorizationReference = cur.authorizationReference || (await nextAuthReference());
   const { scope, ...rest } = b;
   const confirmedNow = b.authorizationConfirmed && !cur.authorizationConfirmed;

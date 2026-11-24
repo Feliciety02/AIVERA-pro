@@ -28,7 +28,7 @@ export function ScanAutomationCard({ target }: { target: Target }) {
 
   if (!canScan) return null;
   return (
-    <SectionCard title="Signed-in scans" description="Scan pages that need a login, using a test account.">
+    <SectionCard title="Signed-in scans">
       {!loaded ? <p className="text-sm text-muted-foreground">Loading…</p> : <CredentialForm target={target} credential={credential} canManage={canManage} onSaved={reload} />}
     </SectionCard>
   );

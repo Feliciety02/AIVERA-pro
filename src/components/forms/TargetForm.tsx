@@ -175,7 +175,7 @@ export function TargetForm({
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          <FormSection title="Website" description="Paste the address. AIVERA fills in the rest.">
+          <FormSection title="Website">
             <Field id="url" label="Website address" required error={errors.url?.message} hint="For example http://127.0.0.1:8000">
               <Input id="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://" className="h-11 font-mono text-sm" {...register("url")} {...aria("url")} />
             </Field>

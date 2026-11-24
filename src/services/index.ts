@@ -37,7 +37,7 @@ async function mutate<T>(path: string, body?: unknown, method?: string): Promise
 }
 
 export const authService = {
-  /** Creates a pending viewer account; an administrator must activate it before sign-in works. */
+  /** Creates a pending website-owner account; an administrator must activate it before sign-in works. */
   async signUp(input: { name: string; email: string; password: string }) {
     if (!IS_API) throw new Error("Creating an account needs the AIVERA server. Run the full app (npm run dev:full).");
     await api("/auth/register", { body: input, silent: true });

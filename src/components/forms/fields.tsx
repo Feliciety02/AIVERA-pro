@@ -42,12 +42,11 @@ export function Field({
   );
 }
 
-export function FormSection({ title, description, children, aside }: { title: string; description?: string; children: React.ReactNode; aside?: React.ReactNode }) {
+export function FormSection({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <section className="grid gap-5 border-b border-border py-6 first:pt-0 last:border-0 lg:grid-cols-[260px_1fr]">
       <div className="space-y-1">
         <h2 className="text-sm font-semibold">{title}</h2>
-        {description && <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>}
         {aside}
       </div>
       <div className="grid gap-4">{children}</div>

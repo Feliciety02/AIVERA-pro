@@ -97,7 +97,7 @@ export default function UsersPage() {
   const lookups = useLookups();
   const { users, activity } = useDataStore(useShallow((s) => ({ users: s.users, activity: s.activity })));
   const [editing, setEditing] = React.useState<User | null>(null);
-  const [previewRole, setPreviewRole] = React.useState<UserRole>("viewer");
+  const [previewRole, setPreviewRole] = React.useState<UserRole>("remediation_owner");
 
   if (!can(me?.role, "manage_users"))
     return (
@@ -157,7 +157,7 @@ export default function UsersPage() {
             {ROLES.map((r) => <li key={r}><span className="font-medium text-foreground">{ROLE_META[r].label}:</span> {ROLE_META[r].description}</li>)}
           </ul>
         </SectionCard>
-        <SectionCard title="Role-based navigation demo" icon={UserCog} description="Preview the sidebar each role sees" actions={
+        <SectionCard title="Role-based navigation demo" icon={UserCog} actions={
           <Select value={previewRole} onValueChange={(v) => setPreviewRole(v as UserRole)}>
             <SelectTrigger className="h-8 w-40 text-xs" aria-label="Preview role"><SelectValue /></SelectTrigger>
             <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_META[r].label}</SelectItem>)}</SelectContent>

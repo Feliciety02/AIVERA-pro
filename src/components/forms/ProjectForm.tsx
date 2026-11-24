@@ -137,7 +137,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <Card>
         <CardContent className="pt-6">
-          <FormSection title="Project details" description="A clear name and description help reviewers understand the engagement at a glance.">
+          <FormSection title="Project details">
             <Field id="name" label="Project name" required error={err("name")}>
               <Input id="name" placeholder="e.g. UMERCH3.0 Checkout Retest" {...register("name")} {...aria("name")} />
             </Field>
@@ -188,7 +188,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
             </div>
           </FormSection>
 
-          <FormSection title="Ownership & team" description="The lead approves the project's critical findings, fixes and reports. New findings go to the assessor on the team with the fewest open reviews, and fixes go to the remediation owner.">
+          <FormSection title="Ownership & team">
             <Field id="ownerId" label="Project owner" required error={err("ownerId")}>
               <Controller
                 control={control}
@@ -210,25 +210,25 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="leadId" label="Security lead" hint="Signs off critical and high findings and approves fixes and reports.">
+              <Field id="leadId" label="Project lead" hint="An administrator who signs off critical and high findings and approves fixes and reports.">
                 <Controller
                   control={control}
                   name="leadId"
                   render={({ field }) => (
                     <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger id="leadId"><SelectValue placeholder={leads.length ? "Pick a lead" : "No leads yet"} /></SelectTrigger>
+                      <SelectTrigger id="leadId"><SelectValue placeholder={leads.length ? "Pick a lead" : "No administrators yet"} /></SelectTrigger>
                       <SelectContent>{leads.map((u) => <SelectItem key={u.id} value={u.id}>{u.name} · {u.title}</SelectItem>)}</SelectContent>
                     </Select>
                   )}
                 />
               </Field>
-              <Field id="remediationOwnerId" label="Remediation owner" hint="The developer who gets fix tasks automatically.">
+              <Field id="remediationOwnerId" label="Website owner" hint="Gets fix tasks automatically.">
                 <Controller
                   control={control}
                   name="remediationOwnerId"
                   render={({ field }) => (
                     <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger id="remediationOwnerId"><SelectValue placeholder={fixers.length ? "Pick a developer" : "No developers yet"} /></SelectTrigger>
+                      <SelectTrigger id="remediationOwnerId"><SelectValue placeholder={fixers.length ? "Pick a website owner" : "No website owners yet"} /></SelectTrigger>
                       <SelectContent>{fixers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name} · {u.title}</SelectItem>)}</SelectContent>
                     </Select>
                   )}
@@ -254,7 +254,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
             </div>
           </FormSection>
 
-          <FormSection title="Schedule" description="Planned testing window. Targets must also be within their own authorization period.">
+          <FormSection title="Schedule">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="startDate" label="Start date" required error={err("startDate")}>
                 <Input id="startDate" type="date" className="[color-scheme:light] dark:[color-scheme:dark]" {...register("startDate")} {...aria("startDate")} />
@@ -265,7 +265,7 @@ export function ProjectForm({ initial, users, onSubmit, onCancel, submitLabel }:
             </div>
           </FormSection>
 
-          <FormSection title="Objectives & notes" description="What the assessment must establish, plus any rules of engagement worth recording.">
+          <FormSection title="Objectives & notes">
             <Field id="objectives" label="Assessment objectives" required error={err("objectives")}>
               <Textarea id="objectives" rows={4} placeholder="e.g. Verify authorization between customer and admin roles; review session handling…" {...register("objectives")} {...aria("objectives")} />
             </Field>

@@ -12,10 +12,8 @@ const edgePath = process.env.AIVERA_EDGE_PATH ?? "C:\\Program Files (x86)\\Micro
 const output = resolve("docs/screenshots/role-tour-2026-11-16");
 const roles = [
   ["administrator", "Administrator", "admin@aivera.local"],
-  ["lead", "Security Lead", "lead@aivera.local"],
-  ["assessor", "Security Assessor", "assessor@aivera.local"],
-  ["remediation-owner", "Remediation Owner", "developer@aivera.local"],
-  ["viewer", "Viewer", "viewer@aivera.local"],
+  ["assessor", "Security Tester", "assessor@aivera.local"],
+  ["website-owner", "Website Owner", "developer@aivera.local"],
 ];
 const publicPages = [
   ["Landing page", "/", "public-01-landing-page.png"],

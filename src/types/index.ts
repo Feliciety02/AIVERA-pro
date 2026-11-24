@@ -13,7 +13,7 @@ export type ISODate = string;
 export type DataOrigin = "synthetic" | "simulated" | "imported" | "user_created" | "real";
 
 /* --------------------------------- Users --------------------------------- */
-export type UserRole = "administrator" | "lead" | "assessor" | "remediation_owner" | "viewer";
+export type UserRole = "administrator" | "assessor" | "remediation_owner";
 export type AccountStatus = "active" | "suspended" | "invited";
 
 export interface User {
@@ -40,7 +40,7 @@ export interface Project {
   assessmentType: AssessmentType;
   ownerId: ID;
   memberIds: ID[];
-  /** Security Lead who signs off findings, approves fixes and approves reports. */
+  /** The administrator who leads this project: signs off findings, approves fixes and approves reports. */
   leadId?: ID;
   /** Default owner for fix tasks created automatically from confirmed findings. */
   remediationOwnerId?: ID;
@@ -309,7 +309,7 @@ export interface VulnerabilityFinding {
   parameter?: string;
   sourceTool: FindingSource;
   verificationStatus: VerificationStatus;
-  /** Second sign-off by a Security Lead, required for confirmed critical and high findings. */
+  /** Second sign-off by the project lead (an administrator), required for confirmed critical and high findings. */
   signoffStatus: SignoffStatus;
   signoffBy?: ID;
   signoffAt?: ISODate;
