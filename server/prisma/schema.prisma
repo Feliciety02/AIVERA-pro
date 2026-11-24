@@ -259,6 +259,8 @@ model Finding {
   owasp              String?
   templateKey        String
   dataOrigin         String
+  possiblyFixedAt    DateTime?
+  possiblyFixedScanId String?
 
   @@index([projectId])
   @@index([targetId])
@@ -352,6 +354,11 @@ model RemediationTask {
   dueDate         DateTime
   retestRequired  Boolean
   retestResult    String
+  autoRetestStatus String @default("not_started")
+  autoRetestSuggestion String?
+  autoRetestEvidenceId String?
+  autoRetestNote String?
+  autoRetestCheckedAt DateTime?
   approvedBy      String?
   approvedAt      DateTime?
   createdAt       DateTime

@@ -4,7 +4,7 @@ import type { AIMode, AssessmentCategoryId, ScanConfig, Severity, VerificationSt
 import { CATEGORIES, SEVERITIES } from "@/lib/constants";
 import { defaultRiskInputs } from "@/lib/risk";
 import { generateSimulation } from "@/features/simulation/generator";
-import { parseZapJson, MAX_IMPORT_BYTES } from "@/features/imports/parsers";
+import { parseZapJson, MAX_IMPORT_BYTES, urlScopeVerdict } from "@/features/imports/parsers";
 import { buildImport } from "@/features/imports/buildImport";
 import { demoAIAdapter } from "@/services/ai/aiService";
 import { newId, nextCode, prisma } from "../db.ts";
@@ -18,7 +18,7 @@ import { approvedScanHosts, egressIsolated } from "../egress.ts";
 import { runToolInWorker } from "../workerClient.ts";
 import { open as openSecret } from "../secretBox.ts";
 import { ACTIVE_SCAN_ACTIVITY, AUTH_SCAN_ACTIVITY, TOOL_ACTIVITY, hasActivity, isLoopbackUrl, toolPermitted, toolsNeedingIsolation, urlHostInScope, type LiveTool } from "@/features/scanPermissions";
-import { uniqueFindings } from "@/features/scanLifecycle";
+import { findingKey, uniqueFindings } from "@/features/scanLifecycle";
 import { assertProjectAccess, assignNewFindings, createFixTask, projectLeads, promptReportWhenReviewed } from "../workflowRules.ts";
 import { can } from "@/lib/permissions";
 
@@ -225,7 +225,26 @@ async function executeAutomatedScan(id: string) {
       return { bundle, saved };
       });
       findings += saved.newFindings;
+      const seen = new Set(bundle.findings.map(findingKey));
+      const prior = await prisma.finding.findMany({ where: { targetId: target.id, sourceTool: tool, verificationStatus: "confirmed", category: { in: config.categories } } });
+      const priorScans = await prisma.scan.findMany({ where: { id: { in: prior.map((f) => f.scanId).filter((scanId): scanId is string => !!scanId) } }, select: { id: true, config: true, dataOrigin: true } });
+      const comparable = new Map(priorScans.map((scan) => [scan.id, scan]));
+      let possiblyFixed = 0;
+      for (const old of prior) {
+        const origin = old.scanId ? comparable.get(old.scanId) : null;
+        const oldConfig = origin?.config as unknown as ScanConfig | undefined;
+        if (origin?.dataOrigin !== "real" || !oldConfig || oldConfig.authenticated !== config.authenticated || (tool === "owasp_zap" && oldConfig.profile !== config.profile)) continue;
+        // A change in approved scope is not evidence that an issue disappeared.
+        if (old.affectedAsset.includes("://") && !urlScopeVerdict(old.affectedAsset, target).ok) continue;
+        const observed = seen.has(findingKey(old));
+        if (observed && old.possiblyFixedAt) await prisma.finding.update({ where: { id: old.id }, data: { possiblyFixedAt: null, possiblyFixedScanId: null, updatedAt: new Date() } });
+        else if (!observed && old.possiblyFixedScanId !== id) {
+          await prisma.finding.update({ where: { id: old.id }, data: { possiblyFixedAt: new Date(), possiblyFixedScanId: id, updatedAt: new Date() } });
+          possiblyFixed++;
+        }
+      }
       await assignNewFindings(row.projectId, saved.newIds, row.code);
+      if (possiblyFixed) await notify({ title: "Previously found issues not seen", message: `${possiblyFixed} confirmed issue${possiblyFixed === 1 ? " was" : "s were"} not seen by ${tool} in ${row.code}. They may be fixed; retest before closing.`, tone: "info", link: `/findings?project=${row.projectId}` }, "findingUpdates");
       await log(row.createdBy, "tool_output_captured", "scan", id, row.code, `${tool} produced ${saved.newFindings} new finding(s), ${saved.repeatedFindings} previously recorded; ${bundle.skipped.length} out-of-scope item(s) discarded`);
     }
     let aiMissed = 0;

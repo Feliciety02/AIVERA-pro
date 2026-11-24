@@ -98,6 +98,7 @@ export default function FindingsPage() {
               <span className="font-mono">{row.original.code}</span> · {lookups.targets[row.original.targetId]?.name ?? "Unknown website"}
               {row.original.dataOrigin === "simulated" && " · practice"}
             </p>
+            {row.original.possiblyFixedAt && <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">Possibly fixed: not seen in latest scan</p>}
             {/* On a phone the other columns are off screen, so the two that matter sit here too. */}
             <div className="mt-1 flex flex-wrap gap-1.5 sm:hidden">
               <SeverityBadge severity={row.original.severity} />

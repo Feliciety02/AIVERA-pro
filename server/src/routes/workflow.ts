@@ -10,6 +10,7 @@ import * as M from "../mappers.ts";
 import { can } from "@/lib/permissions";
 import { assertProjectAccess, pickAssessor, projectLeads } from "../workflowRules.ts";
 import type { User } from "../../prisma/generated/prisma/client.ts";
+import { runAutoRetest } from "../autoRetest.ts";
 
 export const router = Router();
 router.use(requireAuth);
@@ -114,7 +115,8 @@ router.post("/remediation/:id/status", requirePermission("work_remediation"), as
     where: { id: cur.id },
     data: {
       status: to, updatedAt: now, ...(closing ? { approvedBy: user.id, approvedAt: now } : {}),
-      ...(to === "awaiting_retest" ? { retestResult: "pending", retestAssigneeId: retester ?? null } : {}),
+      ...(to === "awaiting_retest" ? { retestResult: "pending", retestAssigneeId: retester ?? null,
+        autoRetestStatus: "queued", autoRetestSuggestion: null, autoRetestEvidenceId: null, autoRetestNote: null, autoRetestCheckedAt: null } : {}),
       history: { create: { at: now, by: user.id, from: cur.status, to, note: note.trim() } },
     },
     include: { history: true },
@@ -128,6 +130,7 @@ router.post("/remediation/:id/status", requirePermission("work_remediation"), as
   if (closing && !isOwner) await notify({ title: asked === "resolved" ? "Fix approved and closed" : "Risk accepted", message: `${t.code} ${t.title}${note ? `: ${note.trim()}` : ""}`, tone: "success", link }, "remediationDue", [t.ownerId]);
   if (reopening) await notify({ title: "Fix reopened", message: `${t.code} ${t.title}: ${note.trim()}`, tone: "warning", link }, "remediationDue", [t.ownerId]);
   res.json(M.toTask(t));
+  if (to === "awaiting_retest") void runAutoRetest(t.id).catch((e) => console.error("[retest] automatic check failed", e));
 });
 
 router.post("/remediation/:id/retest", requirePermission("manage_remediation"), async (req, res) => {
@@ -137,6 +140,7 @@ router.post("/remediation/:id/retest", requirePermission("manage_remediation"), 
   await assertProjectAccess(me(req), f.projectId);
   if (cur.ownerId === me(req).id) fail(403, "You own this fix, so someone else has to retest it.");
   if (CLOSED.includes(cur.status)) fail(409, "This fix is already closed.");
+  if (cur.status !== "awaiting_retest") fail(409, "Mark this fix ready for a retest first.");
   const now = new Date();
   // Passed: a lead approves closing it. Failed: back to the developer.
   const status = result === "failed" ? "in_progress" : "pending_approval";

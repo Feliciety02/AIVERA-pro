@@ -324,6 +324,8 @@ export interface VulnerabilityFinding {
   /** Links to the deterministic sample AI library in demo mode. */
   templateKey: string;
   dataOrigin: DataOrigin;
+  possiblyFixedAt?: ISODate;
+  possiblyFixedScanId?: ID;
 }
 
 export interface Verification {
@@ -423,6 +425,11 @@ export interface RemediationTask {
   dueDate: ISODate;
   retestRequired: boolean;
   retestResult: RetestResult;
+  autoRetestStatus?: "not_started" | "queued" | "running" | "completed" | "unavailable" | "failed";
+  autoRetestSuggestion?: "passed" | "failed";
+  autoRetestEvidenceId?: ID;
+  autoRetestNote?: string;
+  autoRetestCheckedAt?: ISODate;
   /** Assessor who should run the retest (set automatically when the fix is ready). */
   retestAssigneeId?: ID;
   approvedBy?: ID;

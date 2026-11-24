@@ -275,6 +275,7 @@ export default function FindingDetailPage() {
           <>
             <SeverityBadge severity={finding.severity} />
             <StatusBadge status={current} map={VERIFICATION_STATUS} />
+            {finding.possiblyFixedAt && <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium">Possibly fixed: not seen in latest scan</span>}
             <span className="text-xs text-muted-foreground">
               on <Link to={`/targets/${finding.targetId}`} className="font-medium text-foreground hover:text-primary">{target?.name}</Link>
             </span>
@@ -407,7 +408,10 @@ export default function FindingDetailPage() {
         }
       />
 
-      <VerificationDialog finding={finding} status={decision} open={!!decision} onOpenChange={(o) => !o && setDecision(null)} onSaved={setJustSaved} />
+      <VerificationDialog finding={finding} status={decision} open={!!decision} onOpenChange={(o) => !o && setDecision(null)} onSaved={(status) => {
+        if ((status === "confirmed" || status === "rejected") && nextToReview) goTo(nextToReview.id);
+        else setJustSaved(status);
+      }} />
       <RemediationForm finding={finding} open={remOpen} onOpenChange={setRemOpen} />
     </ContentContainer>
   );

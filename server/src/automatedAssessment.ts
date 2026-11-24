@@ -10,12 +10,14 @@ import type { ParseResult } from "@/features/imports/parsers";
 import { parseZapJson, MAX_IMPORT_BYTES } from "@/features/imports/parsers";
 import { parseNmapXmlServer } from "./nmap.ts";
 import { isLoopbackUrl, nmapPortsInScope } from "@/features/scanPermissions";
+import { urlHostInScope } from "@/features/scanPermissions";
+import { urlScopeVerdict } from "@/features/imports/parsers";
 import { runInspector, type InspectorAuth } from "./inspector.ts";
 
 export type AutomatedTool = "nmap" | "owasp_zap" | "http_inspector";
 export interface ToolOutput { tool: AutomatedTool; raw: string; parsed: ParseResult; }
 /** Extra run options. The session value only lives in memory and in the short-lived plan file. */
-export interface RunOptions { auth?: InspectorAuth }
+export interface RunOptions { auth?: InspectorAuth; retestPort?: number; singlePage?: string }
 
 /** "standard" is the active profile: attack payloads, allowed only against a loopback copy. */
 export const isActiveProfile = (config: ScanConfig) => config.profile === "standard";
@@ -24,7 +26,7 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const json = (s: string) => JSON.stringify(s);
 
 /** A ZAP context limits crawling to the approved origin and paths. */
-export function zapPlan(target: Target, minutes: number, concurrency = 1, reportDir = "/zap/wrk", opts: { auth?: InspectorAuth; active?: boolean; requestsPerSecond?: number } = {}): string {
+export function zapPlan(target: Target, minutes: number, concurrency = 1, reportDir = "/zap/wrk", opts: { auth?: InspectorAuth; active?: boolean; requestsPerSecond?: number; singlePage?: string } = {}): string {
   const u = new URL(target.url);
   const origin = u.origin;
   const pathPattern = (p: string) => {
@@ -38,6 +40,9 @@ export function zapPlan(target: Target, minutes: number, concurrency = 1, report
   const excluded = [...target.scope.excludedPaths.map(pathPattern), ...(opts.auth ? [`^${escapeRegex(origin)}/.*(?:log-?out|sign-?out).*$`] : [])];
   const exclude = excluded.map((p) => `      - ${json(p)}`).join("\n");
   if (opts.active && !isLoopbackUrl(target.url)) throw new Error("Active scanning is only allowed against a copy running on this machine.");
+  if (opts.singlePage && opts.active) throw new Error("A one-page retest cannot run active scanning.");
+  if (opts.singlePage && (new URL(opts.singlePage).origin !== origin || !urlHostInScope(opts.singlePage, target.scope.inScopeHosts) || !urlScopeVerdict(opts.singlePage, target).ok))
+    throw new Error("The retest page is outside the approved target scope.");
   const replacer = opts.auth
     ? `  - type: replacer\n    parameters:\n      deleteAllRules: true\n    rules:\n      - description: aivera-test-session\n        url: ${json(`^${escapeRegex(origin)}/.*$`)}\n        matchType: req_header\n        matchString: ${json(opts.auth.headerName)}\n        matchRegex: false\n        replacementString: ${json(opts.auth.value)}\n`
     : "";
@@ -45,7 +50,10 @@ export function zapPlan(target: Target, minutes: number, concurrency = 1, report
   const active = opts.active
     ? `  - type: activeScan\n    parameters:\n      context: authorized-target\n      maxRuleDurationInMins: 2\n      maxScanDurationInMins: ${Math.max(1, Math.min(30, minutes - 2))}\n      threadPerHost: 1\n      delayInMs: ${delay}\n  - type: passiveScan-wait\n`
     : "";
-  return `env:\n  contexts:\n    - name: authorized-target\n      urls:\n        - ${json(target.url)}\n      includePaths:\n${include}\n      excludePaths:${exclude ? `\n${exclude}` : " []"}\n  parameters:\n    failOnError: true\n    failOnWarning: false\n    maxDuration: ${Math.max(60, minutes * 60)}\njobs:\n${replacer}  - type: spider\n    parameters:\n      context: authorized-target\n      maxDuration: 1\n      maxDepth: 5\n      maxChildren: 20\n      threadCount: ${Math.min(2, Math.max(1, concurrency))}\n      postForm: false\n  - type: passiveScan-wait\n${active}  - type: report\n    parameters:\n      template: traditional-json\n      reportDir: ${json(reportDir)}\n      reportFile: report.json\n      displayReport: false\n`;
+  const visit = opts.singlePage
+    ? `  - type: requestor\n    requests:\n      - url: ${json(opts.singlePage)}\n        method: GET\n    tests:\n      - name: Retest page answered\n        type: url\n        url: ${json(opts.singlePage)}\n        operator: or\n        onFail: error\n  - type: passiveScan-wait\n`
+    : `  - type: spider\n    parameters:\n      context: authorized-target\n      maxDuration: 1\n      maxDepth: 5\n      maxChildren: 20\n      threadCount: ${Math.min(2, Math.max(1, concurrency))}\n      postForm: false\n  - type: passiveScan-wait\n`;
+  return `env:\n  contexts:\n    - name: authorized-target\n      urls:\n        - ${json(target.url)}\n      includePaths:\n${include}\n      excludePaths:${exclude ? `\n${exclude}` : " []"}\n  parameters:\n    failOnError: true\n    failOnWarning: false\n    maxDuration: ${Math.max(60, minutes * 60)}\njobs:\n${replacer}${visit}${active}  - type: report\n    parameters:\n      template: traditional-json\n      reportDir: ${json(reportDir)}\n      reportFile: report.json\n      displayReport: false\n`;
 }
 
 /** Temp folders are removed best-effort: a helper ZAP left behind (geckodriver on Windows) can keep a file
@@ -83,11 +91,13 @@ function run(command: string, args: string[], timeoutMs: number, limit = MAX_IMP
   });
 }
 
-export async function runNmap(target: Target, config: ScanConfig): Promise<ToolOutput> {
+export async function runNmap(target: Target, config: ScanConfig, opts: RunOptions = {}): Promise<ToolOutput> {
   const u = new URL(target.url);
   const host = u.hostname.replace(/^\[|\]$/g, "");
   // Fixed, bounded TCP connect and service discovery. No shell or user supplied flags.
-  const ports = nmapPortsInScope(target.url, target.scope.inScopeHosts);
+  const approvedPorts = nmapPortsInScope(target.url, target.scope.inScopeHosts);
+  if (opts.retestPort && !approvedPorts.includes(opts.retestPort)) throw new Error("The original port is no longer approved for testing.");
+  const ports = opts.retestPort ? [opts.retestPort] : approvedPorts;
   if (!ports.length) throw new Error("No approved ports for Nmap on this target.");
   // AIVERA_NMAP_PATH lets Windows installs work without Nmap on PATH.
   const raw = await run(process.env.AIVERA_NMAP_PATH || "nmap", ["-sT", "-sV", "--version-light", "-Pn", "--max-retries", "1", "--host-timeout", `${config.timeLimitMinutes}m`, "-p", ports.join(","), "-oX", "-", "--", host], config.timeLimitMinutes * 60_000 + 10_000);
@@ -120,7 +130,7 @@ async function runZapLocal(zapDir: string, target: Target, config: ScanConfig, o
   }
 }
 
-const planOptions = (config: ScanConfig, opts: RunOptions) => ({ auth: config.authenticated ? opts.auth : undefined, active: isActiveProfile(config), requestsPerSecond: config.requestsPerSecond });
+const planOptions = (config: ScanConfig, opts: RunOptions) => ({ auth: config.authenticated ? opts.auth : undefined, active: isActiveProfile(config), requestsPerSecond: config.requestsPerSecond, singlePage: opts.singlePage });
 
 export async function runZap(target: Target, config: ScanConfig, opts: RunOptions = {}): Promise<ToolOutput> {
   if (config.authenticated && !opts.auth) throw new Error("This run is signed in, but no test-account session was provided.");

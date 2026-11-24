@@ -89,10 +89,12 @@ export const toFinding = (f: P.Finding): T.VulnerabilityFinding => ({
   signoffStatus: f.signoffStatus as T.SignoffStatus, signoffBy: f.signoffBy ?? undefined, signoffAt: iso(f.signoffAt), signoffNote: f.signoffNote ?? undefined,
   discoveredAt: req(f.discoveredAt), updatedAt: req(f.updatedAt), impact: f.impact, remediation: f.remediation, cwe: f.cwe ?? undefined,
   owasp: f.owasp ?? undefined, templateKey: f.templateKey, dataOrigin: f.dataOrigin as T.DataOrigin,
+  possiblyFixedAt: iso(f.possiblyFixedAt), possiblyFixedScanId: f.possiblyFixedScanId ?? undefined,
 });
 
 export const findingColumns = (f: T.VulnerabilityFinding) => ({
   ...f, discoveredAt: new Date(f.discoveredAt), updatedAt: new Date(f.updatedAt), scanId: f.scanId ?? null, parameter: f.parameter ?? null, cwe: f.cwe ?? null, owasp: f.owasp ?? null,
+  possiblyFixedAt: f.possiblyFixedAt ? new Date(f.possiblyFixedAt) : null, possiblyFixedScanId: f.possiblyFixedScanId ?? null,
   signoffStatus: f.signoffStatus ?? "not_required", signoffBy: f.signoffBy ?? null, signoffAt: f.signoffAt ? new Date(f.signoffAt) : null, signoffNote: f.signoffNote ?? null,
 });
 
@@ -131,6 +133,8 @@ export const toTask = (t: P.RemediationTask & { history: P.RemediationHistory[] 
   id: t.id, code: t.code, findingId: t.findingId, title: t.title, description: t.description, recommendation: t.recommendation, ownerId: t.ownerId,
   priority: t.priority as T.Severity, status: t.status as T.RemediationStatus, dueDate: req(t.dueDate), retestRequired: t.retestRequired,
   retestResult: t.retestResult as T.RetestResult, retestAssigneeId: t.retestAssigneeId ?? undefined, approvedBy: t.approvedBy ?? undefined, approvedAt: iso(t.approvedAt), createdAt: req(t.createdAt), updatedAt: req(t.updatedAt),
+  autoRetestStatus: t.autoRetestStatus as T.RemediationTask["autoRetestStatus"], autoRetestSuggestion: (t.autoRetestSuggestion ?? undefined) as T.RemediationTask["autoRetestSuggestion"],
+  autoRetestEvidenceId: t.autoRetestEvidenceId ?? undefined, autoRetestNote: t.autoRetestNote ?? undefined, autoRetestCheckedAt: iso(t.autoRetestCheckedAt),
   history: [...t.history].sort((a, b) => a.id - b.id).map((h) => ({ at: req(h.at), by: h.by, from: (h.from ?? undefined) as T.RemediationStatus | undefined, to: h.to as T.RemediationStatus, note: h.note })),
 });
 

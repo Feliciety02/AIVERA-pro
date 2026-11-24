@@ -37,6 +37,17 @@ test("path-limited context does not include the rest of the site", () => {
   assert.equal(included[0]!.test("https://lab.test/admin"), false);
 });
 
+test("one-page ZAP retest requests only the approved page and waits for passive checks", () => {
+  const target = { url: "https://lab.test/api/items", scope: { inScopeHosts: ["lab.test"], allowedPaths: ["/api/*"], excludedPaths: ["/api/private/*"] } } as unknown as Target;
+  const plan = zapPlan(target, 5, 1, "/zap/wrk", { singlePage: "https://lab.test/api/items" });
+  assert.match(plan, /type: requestor/);
+  assert.match(plan, /url: "https:\/\/lab\.test\/api\/items"/);
+  assert.match(plan, /type: passiveScan-wait/);
+  assert.doesNotMatch(plan, /type: spider|type: activeScan/);
+  assert.throws(() => zapPlan(target, 5, 1, "/zap/wrk", { singlePage: "https://lab.test/api/private/keys" }), /outside/);
+  assert.throws(() => zapPlan(target, 5, 1, "/zap/wrk", { singlePage: "https://other.test/api/items" }), /outside/);
+});
+
 import { nmapPortsInScope, toolPermitted, urlHostInScope } from "@/features/scanPermissions";
 
 test("scope host check accepts host:port entries and rejects other ports and hosts", () => {

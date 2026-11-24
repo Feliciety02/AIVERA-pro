@@ -16,7 +16,7 @@ const IDLE_POLL_MS = 60_000;
  */
 export function LiveUpdates() {
   const navigate = useNavigate();
-  const scanActive = useDataStore((s) => s.scans.some((x) => x.dataOrigin === "real" && (x.status === "queued" || x.status === "running")));
+  const scanActive = useDataStore((s) => s.scans.some((x) => x.dataOrigin === "real" && (x.status === "queued" || x.status === "running")) || s.remediation.some((x) => x.autoRetestStatus === "queued" || x.autoRetestStatus === "running"));
   const notifications = useDataStore((s) => s.notifications);
   const seen = React.useRef<Set<string> | null>(null);
 

@@ -142,6 +142,7 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <StatusBadge status={task.status} map={REMEDIATION_STATUS} />
               <DueBadge task={task} />
+              {finding?.possiblyFixedAt && <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Possibly fixed: not seen in latest scan</span>}
             </div>
           </div>
         </div>
@@ -176,6 +177,21 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
           )}
           {task.approvedBy && <Tile icon={ShieldCheck} label="Approved">{lookups.users[task.approvedBy]?.name ?? "Unknown"} · {formatDate(task.approvedAt)}</Tile>}
         </div>
+
+        {task.status === "awaiting_retest" && task.autoRetestStatus && task.autoRetestStatus !== "not_started" && (
+          <section className="rounded-xl border border-primary/30 bg-primary/5 p-4" aria-live="polite">
+            <h3 className="text-sm font-semibold">Automatic recheck</h3>
+            <p className="mt-1 text-sm text-foreground/80">
+              {task.autoRetestStatus === "queued" || task.autoRetestStatus === "running"
+                ? "Checking the original issue on the same approved page…"
+                : task.autoRetestStatus === "completed"
+                  ? `Suggested: ${task.autoRetestSuggestion === "passed" ? "Issue is gone" : "Still there"}. ${task.autoRetestNote ?? ""}`
+                  : task.autoRetestNote ?? "This check needs a person to retest it."}
+            </p>
+            {task.autoRetestEvidenceId && finding && <Link className="mt-2 inline-block text-sm font-medium text-primary underline" to={`/findings/${finding.id}#${task.autoRetestEvidenceId}`}>Review new evidence</Link>}
+            {task.autoRetestStatus === "completed" && <p className="mt-2 text-xs text-muted-foreground">A tester makes the final decision below.</p>}
+          </section>
+        )}
 
         <details className="group rounded-xl border border-border" data-guide="rem-timeline">
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
@@ -219,8 +235,8 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
                 : <Button onClick={() => open({ kind: "status", to: "pending_approval", title: "Send for approval", description: "Say what you changed. An administrator approves closing the fix.", requireNote: true })}><ClipboardCheck /> Send for approval</Button>)}
               {task.status === "awaiting_retest" && canRetest && (
                 <>
-                  <Button variant="destructive-outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Still there</Button>
-                  <Button variant="success" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Issue is gone</Button>
+                  <Button variant="destructive-outline" onClick={() => open({ kind: "retest", result: "failed" })}><XCircle /> Still there{task.autoRetestSuggestion === "failed" ? " (suggested)" : ""}</Button>
+                  <Button variant="success" onClick={() => open({ kind: "retest", result: "passed" })}><CircleCheck /> Issue is gone{task.autoRetestSuggestion === "passed" ? " (suggested)" : ""}</Button>
                 </>
               )}
               {task.status === "pending_approval" && canApprove && (
