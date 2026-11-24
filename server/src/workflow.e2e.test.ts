@@ -137,12 +137,55 @@ test("authorized lab scan, review, remediation and report approval", { timeout: 
     const task = (state.remediation as Array<Record<string, any>>).find((t) => t.findingId === finding.id);
     assert.ok(task, "Confirmation should create a fix task");
     assert.equal((await call(`/remediation/${task.id}/status`, "POST", { to: "in_progress", note: "Working on cookie flags" }, developer)).status, 200);
-    assert.equal((await call(`/remediation/${task.id}/status`, "POST", { to: "awaiting_retest", note: "Cookie flag added in lab copy" }, developer)).status, 200);
     cookieHardened = true;
+    assert.equal((await call(`/remediation/${task.id}/status`, "POST", { to: "awaiting_retest", note: "Cookie flag added in lab copy" }, developer)).status, 200);
     const retestCookie = (await fetch(targetUrl)).headers.get("set-cookie") ?? "";
     assert.match(retestCookie, /; HttpOnly; SameSite=Lax/);
+    let suggestion: Record<string, any> | undefined;
+    for (let i = 0; i < 100; i++) {
+      state = (await call("/bootstrap", "GET", undefined, assessor)).data;
+      suggestion = (state.remediation as Array<Record<string, any>>).find((t) => t.id === task.id);
+      if (suggestion?.autoRetestStatus === "completed" || suggestion?.autoRetestStatus === "failed") break;
+      await wait(200);
+    }
+    assert.equal(suggestion?.autoRetestStatus, "completed", JSON.stringify(suggestion));
+    assert.equal(suggestion?.autoRetestSuggestion, "passed");
+    assert.equal(suggestion?.status, "awaiting_retest", "An automatic suggestion must not make the final decision");
+    assert.ok((state.evidence as Array<Record<string, any>>).some((e) => e.id === suggestion?.autoRetestEvidenceId));
     assert.equal((await call(`/remediation/${task.id}/retest`, "POST", { result: "passed", note: "Observed the corrected test cookie" }, assessor)).status, 200);
     assert.equal((await call(`/remediation/${task.id}/status`, "POST", { to: "resolved", note: "Reviewed the passed retest" }, lead)).status, 200);
+
+    // Completing the human review creates a populated report draft, and a later scan flags
+    // the original confirmed issue as possibly fixed without changing the human decision.
+    state = (await call("/bootstrap", "GET", undefined, assessor)).data;
+    for (const other of (state.findings as Array<Record<string, any>>).filter((f) => f.targetId === targetId && f.id !== finding.id && (f.verificationStatus === "pending" || f.verificationStatus === "needs_review"))) {
+      const review = await call(`/findings/${other.id}/verifications`, "POST", {
+        toStatus: "rejected", notes: "Checked the loopback lab response and did not confirm this observation.",
+        decisionReason: "Not a finding for this fixture", evidenceReviewed: true,
+      }, assessor);
+      assert.equal(review.status, 200, JSON.stringify(review.data));
+    }
+    state = (await call("/bootstrap", "GET", undefined, assessor)).data;
+    const automaticReport = (state.reports as Array<Record<string, any>>).find((r) => r.projectId === projectId && r.status === "draft");
+    assert.ok(automaticReport, "Review completion should prepare a report draft");
+    assert.deepEqual(automaticReport.findingIds, [finding.id]);
+    assert.match(automaticReport.executiveSummary, /fix is closed/);
+    const rescan = await call("/scans/automated", "POST", { name: "Check fixed issue", projectId, targetId,
+      config: { tools: ["http_inspector"], categories: ["session", "config_https", "info_disclosure"],
+        profile: "passive", timeLimitMinutes: 5, requestsPerSecond: 1, maxConcurrency: 1,
+        outputFormat: "json", respectExclusions: true, scopeConfirmed: true, authenticated: false },
+    }, assessor);
+    assert.equal(rescan.status, 202, JSON.stringify(rescan.data));
+    let oldFinding: Record<string, any> | undefined;
+    for (let i = 0; i < 120; i++) {
+      state = (await call("/bootstrap", "GET", undefined, assessor)).data;
+      const completed = (state.scans as Array<Record<string, any>>).find((s) => s.id === rescan.data.id);
+      oldFinding = (state.findings as Array<Record<string, any>>).find((f) => f.id === finding.id);
+      if (completed?.status === "completed" || completed?.status === "failed") break;
+      await wait(250);
+    }
+    assert.equal(oldFinding?.verificationStatus, "confirmed");
+    assert.equal(oldFinding?.possiblyFixedScanId, rescan.data.id);
 
     const reportRes = await call("/reports", "POST", { title: "Local lab assessment report", projectId,
       targetIds: [targetId], templateId: "technical", periodStart: now.toISOString(), periodEnd: new Date().toISOString(),
