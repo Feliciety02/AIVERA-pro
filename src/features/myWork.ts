@@ -5,7 +5,6 @@ import { useCurrentUser } from "@/hooks";
 import { can } from "@/lib/permissions";
 import type { RemediationTask, Report, Target, VulnerabilityFinding } from "@/types";
 
-const CLOSED = ["resolved", "accepted_risk"];
 
 /** Everything waiting on the signed-in person, grouped by kind of work. */
 export interface MyWork {
@@ -40,5 +39,3 @@ export function useMyWork(): MyWork {
     return { reviews, signoffs, fixes, retests, fixApprovals, returnedReports, reportApprovals, websites, total: lists.reduce((n, l) => n + l.length, 0) };
   }, [user?.id, user?.role, s]);
 }
-
-export const isOpenTask = (t: RemediationTask) => !CLOSED.includes(t.status);

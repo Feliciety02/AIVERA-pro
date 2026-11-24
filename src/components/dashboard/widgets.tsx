@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Hint } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
-import { SeverityBadge, StatusBadge, OriginBadge } from "@/components/security/badges";
+import { SeverityBadge, StatusBadge } from "@/components/security/badges";
 import { VERIFICATION_STATUS } from "@/lib/constants";
 import type { ActivityLog, User, VulnerabilityFinding } from "@/types";
 import { EmptyState } from "@/components/shared/states";
@@ -105,27 +105,5 @@ export function FindingRow({ finding, target, right }: { finding: VulnerabilityF
       {right ?? <StatusBadge status={finding.verificationStatus} map={VERIFICATION_STATUS} className="hidden sm:inline-flex" />}
       <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50" />
     </Link>
-  );
-}
-
-export function VerificationQueue({ findings, targets, aiSent }: { findings: VulnerabilityFinding[]; targets: Record<string, { name: string }>; aiSent: Set<string> }) {
-  if (!findings.length) return <EmptyState compact title="Verification queue is empty" description="Every finding has a human decision." />;
-  return (
-    <div className="-mx-2 space-y-0.5">
-      {findings.map((f) => (
-        <FindingRow
-          key={f.id}
-          finding={f}
-          target={targets[f.targetId]?.name}
-          right={
-            <span className="hidden items-center gap-1.5 sm:flex">
-              {aiSent.has(f.id) && <span className="rounded border border-primary/30 bg-primary/10 px-1 text-[10px] text-primary">AI notes</span>}
-              {f.dataOrigin === "simulated" && <OriginBadge origin="simulated" />}
-              <span className="text-[10.5px] text-muted-foreground">{formatRelative(f.discoveredAt)}</span>
-            </span>
-          }
-        />
-      ))}
-    </div>
   );
 }

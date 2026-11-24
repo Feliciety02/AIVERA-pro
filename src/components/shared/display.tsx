@@ -66,7 +66,7 @@ export function UserChip({ user, className, showTitle }: { user?: User; classNam
 }
 
 export function Callout({ tone = "info", title, children, icon, className }: { tone?: "info" | "success" | "warning" | "danger" | "demo"; title?: string; children: React.ReactNode; icon?: LucideIcon; className?: string }) {
-  // General demo reminders can be hidden in Settings → Appearance. Per-record labels
+  // General demo reminders can be hidden in Settings → Help. Per-record labels
   // (Simulated / Imported badges) are separate and always shown.
   const showDemo = useUIStore((s) => s.showDemoNotices);
   if (tone === "demo" && !showDemo) return null;

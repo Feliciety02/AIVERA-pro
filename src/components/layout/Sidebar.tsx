@@ -1,7 +1,7 @@
-import { NavLink } from "react-router";
-import { FlaskConical, LayoutGrid, ListChecks } from "lucide-react";
+import { NavLink, useNavigate } from "react-router";
+import { FlaskConical, LayoutGrid, ListChecks, LogOut } from "lucide-react";
 import { useUIStore } from "@/stores/sessionStore";
-import { IS_API } from "@/services";
+import { authService, IS_API } from "@/services";
 import { useCurrentUser } from "@/hooks";
 import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -75,30 +75,44 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   );
 }
 
-/** Switch between the short workflow menu and every tool. */
-function MenuModeSwitch({ collapsed }: { collapsed: boolean }) {
-  const simple = useUIStore((s) => s.simpleMode);
-  const setSimple = useUIStore((s) => s.setSimpleMode);
-  const label = simple ? "Show all tools" : "Simple menu";
+/** One footer row: icon + label, a tooltip on the collapsed rail. */
+function FooterButton({ collapsed, label, icon: Icon, onClick, tour }: { collapsed: boolean; label: string; icon: typeof LogOut; onClick: () => void; tour?: string }) {
   const button = (
     <button
       type="button"
-      onClick={() => setSimple(!simple)}
-      data-tour="menu-mode"
+      onClick={onClick}
+      data-tour={tour}
       className={cn(
         "mx-3 flex h-10 w-[calc(100%-1.5rem)] items-center gap-4 rounded-full px-4 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
         collapsed && "mx-2 w-[calc(100%-1rem)] justify-center px-0",
       )}
     >
-      {simple ? <LayoutGrid className="size-[18px] shrink-0" aria-hidden /> : <ListChecks className="size-[18px] shrink-0" aria-hidden />}
+      <Icon className="size-[18px] shrink-0" aria-hidden />
       {collapsed ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
     </button>
   );
-  // Same divider as between nav groups: short and centred on the rail, inset when expanded.
+  return collapsed ? <Hint label={label} side="right">{button}</Hint> : button;
+}
+
+/** Menu-mode switch and sign out, under a divider like the one between nav groups. */
+function SidebarFooter({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+  const simple = useUIStore((s) => s.simpleMode);
+  const setSimple = useUIStore((s) => s.setSimpleMode);
+  const navigate = useNavigate();
   return (
     <div className="pb-2">
       <div className={cn("mb-2 h-px bg-border", collapsed ? "mx-auto w-8" : "mx-4")} aria-hidden />
-      {collapsed ? <Hint label={label} side="right">{button}</Hint> : button}
+      <FooterButton collapsed={collapsed} tour="menu-mode" label={simple ? "Show all tools" : "Simple menu"} icon={simple ? LayoutGrid : ListChecks} onClick={() => setSimple(!simple)} />
+      <FooterButton
+        collapsed={collapsed}
+        label="Sign out"
+        icon={LogOut}
+        onClick={async () => {
+          onNavigate?.();
+          await authService.signOut();
+          navigate("/login");
+        }}
+      />
     </div>
   );
 }
@@ -117,10 +131,9 @@ function DemoFooter({ collapsed }: { collapsed: boolean }) {
     );
   return (
     <div className="mx-4 mb-3 border-t border-border pt-3 text-xs text-muted-foreground">
-      <p className="flex items-center gap-1.5 font-medium text-foreground">
-        <FlaskConical className="size-3.5" /> Demo mode
+      <p className="flex items-center gap-1.5">
+        <FlaskConical className="size-3.5" /> Demo mode · sample data only
       </p>
-      <p className="mt-1 leading-snug">Synthetic data only. No targets are contacted, no scanners run, and no AI model is called.</p>
     </div>
   );
 }
@@ -138,7 +151,7 @@ export function Sidebar() {
         <BrandWordmark collapsed={collapsed} />
       </div>
       <NavContent collapsed={collapsed} />
-      <MenuModeSwitch collapsed={collapsed} />
+      <SidebarFooter collapsed={collapsed} />
       <DemoFooter collapsed={collapsed} />
     </aside>
   );
@@ -156,7 +169,7 @@ export function MobileSidebar() {
           <BrandWordmark />
         </div>
         <NavContent collapsed={false} onNavigate={() => setOpen(false)} />
-        <MenuModeSwitch collapsed={false} />
+        <SidebarFooter collapsed={false} onNavigate={() => setOpen(false)} />
         <DemoFooter collapsed={false} />
       </SheetContent>
     </Sheet>

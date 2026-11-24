@@ -708,7 +708,8 @@ export const useDataStore = create<DataStore>()(
         set((s) => ({
           remediation: s.remediation.map((r) =>
             r.id === id
-              ? { ...r, retestResult: result, status: result === "failed" ? "in_progress" : r.status, updatedAt: now, history: [...r.history, { at: now, by: currentUser(), from: r.status, to: result === "failed" ? "in_progress" : r.status, note: `Manual retest ${result}. ${note}` }] }
+              ? // Same rule as the server: a pass goes to the lead for approval, a fail goes back to the owner.
+                { ...r, retestResult: result, status: result === "failed" ? "in_progress" : "pending_approval", updatedAt: now, history: [...r.history, { at: now, by: currentUser(), from: r.status, to: result === "failed" ? "in_progress" : "pending_approval", note: `Manual retest ${result}. ${note}` }] }
               : r,
           ),
         }));
@@ -763,6 +764,3 @@ export const useDataStore = create<DataStore>()(
     },
   ),
 );
-
-/* ------------------------------- Selectors ------------------------------- */
-export const selectUserById = (id: ID | undefined) => (s: DataState) => s.users.find((u) => u.id === id);

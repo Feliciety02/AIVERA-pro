@@ -39,7 +39,6 @@ export default function AssessmentsPage() {
     <ContentContainer wide>
       <PageHeader
         title="Checklists"
-        description="Guided, category-based assessment with checklists that separate automated checks from manual testing."
         actions={
           <Select value={projectId} onValueChange={(v) => setParams({ project: v }, { replace: true })}>
             <SelectTrigger className="h-9 w-72" aria-label="Project">

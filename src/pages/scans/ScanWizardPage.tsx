@@ -25,8 +25,8 @@ export default function ScanWizardPage() {
   React.useEffect(checkLive, [checkLive]);
 
   return (
-    <ContentContainer className="max-w-6xl">
-      <PageHeader title="New security assessment" description="Six guided steps: project, authorized target, scope confirmation, tools, configuration and review." />
+    <ContentContainer className="max-w-3xl">
+      <PageHeader title="New scan" />
       {!can(user?.role, "run_demo_scans") ? (
         <Callout tone="warning" title="Not permitted for this demo role">
           {deniedReason(user?.role)}
@@ -50,7 +50,7 @@ export default function ScanWizardPage() {
             const scan = await scanService.runDemoSimulation(r, (count) => {
               toast.success(`Simulation ${scan.code} finished`, { description: `${count} SIMULATED finding(s) await human verification.`, action: { label: "View findings", onClick: () => navigate(`/findings?scan=${scan.id}`) } });
             });
-            toast.info(`Demo simulation ${scan.code} started`, { description: "Runs in your browser only. No requests are sent to the target." });
+            toast.info(`Practice scan ${scan.code} started`, { description: "Runs in your browser. Nothing is sent to the website." });
             navigate(`/scans/${scan.id}`);
           }}
         />

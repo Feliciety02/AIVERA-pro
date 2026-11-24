@@ -122,7 +122,7 @@ export default function UsersPage() {
 
   return (
     <ContentContainer wide>
-      <PageHeader title="Users" description="Manage accounts, roles and project assignments." />
+      <PageHeader title="Users" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <MiniStat label="Users" value={users.length} />
         {ROLES.map((r) => <MiniStat key={r} label={ROLE_META[r].label} value={users.filter((u) => u.role === r).length} />)}
@@ -132,7 +132,7 @@ export default function UsersPage() {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <SectionCard title="Roles & permissions" description="What each role can do">
+        <SectionCard title="Roles & permissions">
           <Table>
             <TableHeader>
               <TableRow>

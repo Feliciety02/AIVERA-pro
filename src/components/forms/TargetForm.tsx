@@ -164,34 +164,24 @@ export function TargetForm({
     allowedCategories: errors.scope?.allowedCategories?.message,
   };
   const scopeError = scopeErrors.inScopeHosts ?? scopeErrors.allowedPaths ?? scopeErrors.allowedCategories;
+  const detailsRef = React.useRef<HTMLDetailsElement>(null);
+  const hiddenError = !!(errors.name || errors.owner || errors.scope);
+  React.useEffect(() => {
+    if (hiddenError && detailsRef.current) detailsRef.current.open = true;
+  }, [hiddenError]);
   const aria = (k: keyof TargetFormValues) => ({ "aria-invalid": !!errors[k], "aria-describedby": errors[k] ? `${k}-error` : undefined });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          {/* 1, Website */}
-          <FormSection title="1. Website" description="Paste the address of the website you were given permission to test. AIVERA fills in the rest from it.">
-            <Field id="url" label="Website address" required error={errors.url?.message} hint="For example http://127.0.0.1:8000 for UMERCH3.0 running locally">
+          <FormSection title="Website" description="Paste the address. AIVERA fills in the rest.">
+            <Field id="url" label="Website address" required error={errors.url?.message} hint="For example http://127.0.0.1:8000">
               <Input id="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://" className="h-11 font-mono text-sm" {...register("url")} {...aria("url")} />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="name" label="Name" required error={errors.name?.message} hint="Filled in from the address, change it if you like.">
-                <Input id="name" {...register("name")} {...aria("name")} />
-              </Field>
-              <Field id="environment" label="Environment" required hint="Guessed from words like “staging” or “dev” in the address.">
-                <Controller control={control} name="environment" render={({ field }) => (
-                  <Select value={field.value} onValueChange={(v) => setValue("environment", v as TargetEnvironment, { shouldDirty: true })}>
-                    <SelectTrigger id="environment"><SelectValue /></SelectTrigger>
-                    <SelectContent>{envs.map((t) => <SelectItem key={t} value={t}>{ENVIRONMENTS[t]}</SelectItem>)}</SelectContent>
-                  </Select>
-                )} />
-              </Field>
-            </div>
           </FormSection>
 
-          {/* 2, Permission */}
-          <FormSection title="2. Permission" description="Only test websites whose owner gave you written permission. AIVERA records who confirmed it and when.">
+          <FormSection title="Permission">
             <Controller
               control={control}
               name="authorizationConfirmed"
@@ -228,11 +218,29 @@ export function TargetForm({
             )}
           </FormSection>
 
-          {/* 3, Scope */}
-          <FormSection
-            title="3. What can be tested"
-            description="AIVERA fills this in from real sources: the address itself, and, when the AIVERA server is running, a DNS check plus the site's own robots.txt and sitemap.xml."
-          >
+          <details ref={detailsRef} className="group mt-6 rounded-xl border border-border">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              <span>Details <span className="font-normal text-muted-foreground">(filled in automatically)</span></span>
+              <span className="flex min-w-0 items-center gap-2 text-xs font-normal text-muted-foreground">
+                <span className="truncate">{[watch("name"), ENVIRONMENTS[watch("environment")], scope.inScopeHosts[0]].filter(Boolean).join(" · ") || "Type the address first"}</span>
+                <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+              </span>
+            </summary>
+            <div className="space-y-4 border-t border-border p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="name" label="Name" required error={errors.name?.message}>
+                <Input id="name" {...register("name")} {...aria("name")} />
+              </Field>
+              <Field id="environment" label="Environment" required>
+                <Controller control={control} name="environment" render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => setValue("environment", v as TargetEnvironment, { shouldDirty: true })}>
+                    <SelectTrigger id="environment"><SelectValue /></SelectTrigger>
+                    <SelectContent>{envs.map((t) => <SelectItem key={t} value={t}>{ENVIRONMENTS[t]}</SelectItem>)}</SelectContent>
+                  </Select>
+                )} />
+              </Field>
+              </div>
+
             <div id="scope-detect" className="space-y-3 rounded-xl border border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -246,7 +254,7 @@ export function TargetForm({
                   {detection ? "Check again" : "Detect scope"}
                 </Button>
               </div>
-              {IS_API && !confirmed && parsed && <p className="text-xs text-muted-foreground">Tick the permission box in step 2 first, detection contacts the website.</p>}
+              {IS_API && !confirmed && parsed && <p className="text-xs text-muted-foreground">Tick the permission box first; detection contacts the website.</p>}
               {detectError && <p role="alert" className="text-xs text-destructive">{detectError}</p>}
               {detection && <DetectionResult d={detection} />}
             </div>
@@ -263,18 +271,14 @@ export function TargetForm({
                 <ScopeEditor value={scope} onChange={(v) => setValue("scope", v, { shouldValidate: !!errors.scope, shouldDirty: true })} errors={scopeErrors} />
               </div>
             </details>
-          </FormSection>
 
-          {/* 4, Details */}
-          <FormSection title="4. Details" description="Who owns the website, and which assessment it belongs to.">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="owner" label="Website owner" required error={errors.owner?.message} hint="Filled in from the address, change it if someone else is responsible.">
+              <Field id="owner" label="Website owner" required error={errors.owner?.message}>
                 <Input id="owner" placeholder="e.g. UMERCH3.0 developer" {...register("owner")} {...aria("owner")} />
               </Field>
               <Field
                 id="projectId"
                 label="Project"
-                hint={autoProject ? "Leave it as is and AIVERA makes a project just for this website. Pick one only if this site belongs to an existing assessment." : "You can add it to a project later, before testing."}
               >
                 <Controller
                   control={control}
@@ -327,7 +331,8 @@ export function TargetForm({
                 </Field>
               </div>
             </details>
-          </FormSection>
+            </div>
+          </details>
         </CardContent>
       </Card>
       <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-2 border-t border-border bg-background/90 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">

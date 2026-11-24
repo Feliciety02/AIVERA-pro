@@ -127,7 +127,7 @@ export function AIAnalysisPanel({ analysis, finding, compact, canSend = true }: 
             <h4 className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Evidence references</h4>
             <div className="flex flex-wrap gap-1.5">
               {analysis.evidenceRefs.map((id) => (
-                <Link key={id} to={analysis.findingId ? `/findings/${analysis.findingId}?tab=evidence#${id}` : "#"} className="rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-cyan hover:border-cyan/40">
+                <Link key={id} to={analysis.findingId ? `/findings/${analysis.findingId}#${id}` : "#"} className="rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-cyan hover:border-cyan/40">
                   {id}
                 </Link>
               ))}

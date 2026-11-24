@@ -67,7 +67,6 @@ export function DiscoveryView() {
     return [...map.values()].map((s) => ({ name: s.service, value: s.count, versions: [...s.versions], hosts: [...s.hosts] }));
   }, [ports]);
 
-  const authorizedTargets = Object.values(lookups.targets).filter((t) => t.authorizationStatus === "authorized" && t.authorizationConfirmed);
   const selectedTarget = target !== ALL ? lookups.targets[target] : undefined;
   const canImport = can(user?.role, "run_demo_scans") && !!selectedTarget && selectedTarget.authorizationStatus === "authorized" && selectedTarget.authorizationConfirmed;
 
@@ -190,16 +189,16 @@ export function DiscoveryView() {
             </details>
           ))}
           </div>
-          <ChartCard title="Open services" description="Count of open ports per identified service" summary={services.map((s) => `${s.name}: ${s.value}`).join(", ")} height={220}>
+          <ChartCard title="Open services" summary={services.map((s) => `${s.name}: ${s.value}`).join(", ")} height={220}>
             <StackedBars data={services} xKey="name" series={[{ key: "value", name: "Open ports", color: "var(--cyan)" }]} legend={false} />
           </ChartCard>
-          <SectionCard title="Import history" description="Every reconnaissance import, newest first" actions={<Button variant="ghost" size="sm" asChild><Link to="/integrations">Tool setup</Link></Button>}>
+          <SectionCard title="Import history" actions={<Button variant="ghost" size="sm" asChild><Link to="/integrations">Tool setup</Link></Button>}>
             <DataTable data={runs} columns={runCols} getRowId={(r) => r.id} initialSorting={[{ id: "ranAt", desc: true }]} caption="Reconnaissance history" />
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="network" className="space-y-4">
-          <SectionCard title="Hosts" description="Click a host for details" flush>
+          <SectionCard title="Hosts" flush>
             <DataTable data={hosts} columns={hostCols} getRowId={(h) => h.id} loading={loading} onRowClick={setSelectedHost} caption="Discovered hosts" empty={<EmptyState icon={Radar} title="No hosts" description="Import a report or demo sample for an authorized target." />} />
           </SectionCard>
           <SectionCard title="Ports" flush>
@@ -208,7 +207,7 @@ export function DiscoveryView() {
         </TabsContent>
 
         <TabsContent value="web" className="space-y-4">
-          <SectionCard title="Endpoints" description="Pages and API routes found" flush>
+          <SectionCard title="Endpoints" flush>
             <DataTable data={endpoints} columns={epCols} getRowId={(e) => e.id} loading={loading} caption="Endpoint inventory" />
           </SectionCard>
           <SectionCard title="DNS records" flush>
@@ -216,8 +215,6 @@ export function DiscoveryView() {
           </SectionCard>
         </TabsContent>
       </Tabs>
-
-      <p className="text-[11px] text-muted-foreground">{authorizedTargets.length} target(s) are currently authorized for reconnaissance.</p>
 
       <Sheet open={!!selectedHost} onOpenChange={(o) => !o && setSelectedHost(null)}>
         <SheetContent>

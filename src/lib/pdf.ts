@@ -10,29 +10,48 @@ import { format } from "date-fns";
 
 const fmt = (d?: string) => (d ? format(new Date(d), "MMM d, yyyy") : "N/A");
 
+/** The AIVERA logo as a PNG data URL (jsPDF cannot embed webp). Null if it cannot be loaded. */
+async function logoPng(): Promise<string | null> {
+  try {
+    const img = new Image();
+    img.src = "/aivera-logo.webp";
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    c.getContext("2d")?.drawImage(img, 0, 0, 256, 256);
+    return c.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
 export async function generateReportPdf(m: ReportModel): Promise<Blob> {
-  const [{ jsPDF, GState }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+  const [{ jsPDF, GState }, { default: autoTable }, logo] = await Promise.all([import("jspdf"), import("jspdf-autotable"), logoPng()]);
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
-  const M = 48;
+  const M = 54;
+  const TOP = 78; // body pages start below the running header
   let y = M;
   const has = (k: string) => m.report.sections.includes(k as never);
-  const emerald: [number, number, number] = [16, 185, 129];
+  const brand: [number, number, number] = [11, 87, 208];
   const ink: [number, number, number] = [15, 23, 42];
   const muted: [number, number, number] = [100, 116, 139];
 
   const ensure = (h: number) => {
-    if (y + h > H - M) {
+    if (y + h > H - M - 10) {
       doc.addPage();
-      y = M;
+      y = TOP;
     }
   };
+  let sectionNo = 0;
   const heading = (t: string) => {
-    ensure(40);
-    y += 8;
-    doc.setFont("helvetica", "bold").setFontSize(13).setTextColor(...ink).text(t, M, y);
-    doc.setDrawColor(...emerald).setLineWidth(1.2).line(M, y + 5, M + 36, y + 5);
+    ensure(48);
+    y += 12;
+    sectionNo++;
+    doc.setFillColor(...brand).roundedRect(M, y - 13, 18, 18, 3, 3, "F");
+    doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(255, 255, 255).text(String(sectionNo), M + 9, y - 1, { align: "center" });
+    doc.setFontSize(13.5).setTextColor(...ink).text(t, M + 28, y);
     y += 20;
   };
   const para = (t: string, size = 10, color = ink) => {
@@ -52,39 +71,66 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
       head: [head],
       body,
       margin: { left: M, right: M },
-      styles: { fontSize: 8.5, cellPadding: 4, textColor: ink, lineColor: [226, 232, 240], lineWidth: 0.5 },
-      headStyles: { fillColor: [15, 23, 36], textColor: [241, 245, 249], fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "plain",
+      styles: { fontSize: 8.5, cellPadding: { top: 5, bottom: 5, left: 6, right: 6 }, textColor: [51, 65, 85], lineColor: [226, 232, 240], lineWidth: { bottom: 0.5 } },
+      headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: "bold", fontSize: 7.5, lineWidth: { top: 0.75, bottom: 0.75 }, lineColor: [203, 213, 225] },
       columnStyles: opts.colWidths ? Object.fromEntries(opts.colWidths.map((w, i) => [i, { cellWidth: w }])) : undefined,
     });
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
   };
 
   /* Cover */
-  doc.setFillColor(11, 17, 27).rect(0, 0, W, 250, "F");
-  doc.setFillColor(...emerald).rect(0, 250, W, 4, "F");
-  doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(16, 185, 129).text("AIVERA", M, 70);
-  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(148, 163, 184).text("Intelligent Security. Verified Decisions.", M, 86);
-  doc.setFont("helvetica", "bold").setFontSize(22).setTextColor(241, 245, 249);
-  (doc.splitTextToSize(m.report.title, W - M * 2) as string[]).forEach((l, i) => doc.text(l, M, 140 + i * 26));
-  doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(203, 213, 225).text(`${m.project.code} · ${m.project.name}`, M, 215);
-  y = 290;
-  doc.setFillColor(254, 243, 199).setDrawColor(234, 179, 8).roundedRect(M, y, W - M * 2, 46, 4, 4, "FD");
-  doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(120, 53, 15);
-  (doc.splitTextToSize(m.sourceNotice, W - M * 2 - 20) as string[]).forEach((l, i) => doc.text(l, M + 10, y + 18 + i * 12));
-  y += 70;
-  table(["Field", "Value"], [
-    ["Report ID", m.report.code],
-    ["Status", REPORT_STATUS[m.report.status].label],
-    ["Assessment period", `${fmt(m.report.periodStart)}, ${fmt(m.report.periodEnd)}`],
-    ["Prepared by", m.preparedBy],
-    ["Generated", format(new Date(), "MMM d, yyyy HH:mm")],
-    ["Data source", `${m.scanOrigins.real} live, ${m.scanOrigins.imported} imported, ${m.scanOrigins.simulated} simulated scan(s)`],
-  ], { colWidths: [140] });
+  const gradSteps = 40;
+  for (let i = 0; i < gradSteps; i++) {
+    const t = i / (gradSteps - 1);
+    doc.setFillColor(Math.round(11 + (34 - 11) * t), Math.round(87 + (211 - 87) * t), Math.round(208 + (238 - 208) * t));
+    doc.rect(M + ((W - M * 2) * i) / gradSteps, M, (W - M * 2) / gradSteps + 0.5, 4, "F");
+  }
+  if (logo) doc.addImage(logo, "PNG", M, M + 24, 34, 34);
+  const lx = logo ? M + 44 : M;
+  doc.setFont("helvetica", "bold").setFontSize(13).setTextColor(...ink).text("AIVERA", lx, M + 40, { charSpace: 2 });
+  doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(...muted).text("Intelligent Security. Verified Decisions.", lx, M + 53);
+  doc.setDrawColor(220, 38, 38).setLineWidth(0.75).roundedRect(W - M - 82, M + 30, 82, 18, 2, 2, "S");
+  doc.setFont("helvetica", "bold").setFontSize(7.5).setTextColor(185, 28, 28).text("CONFIDENTIAL", W - M - 41, M + 42, { align: "center", charSpace: 1 });
+
+  y = 330;
+  doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...brand).text("SECURITY ASSESSMENT REPORT", M, y, { charSpace: 1.5 });
+  y += 30;
+  doc.setFont("helvetica", "bold").setFontSize(26).setTextColor(...ink);
+  (doc.splitTextToSize(m.report.title, W - M * 2) as string[]).forEach((l) => {
+    doc.text(l, M, y);
+    y += 31;
+  });
+  doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(...muted).text(`${m.project.name}  ·  ${m.project.code}`, M, y);
+  y += 22;
+  doc.setDrawColor(...brand).setLineWidth(1.5).line(M, y, M + 70, y);
+
+  const meta: [string, string][] = [
+    ["PREPARED FOR", m.organization],
+    ["PREPARED BY", m.preparedBy],
+    ["ASSESSMENT PERIOD", `${fmt(m.report.periodStart)} to ${fmt(m.report.periodEnd)}`],
+    ["REPORT ID", m.report.code],
+    ["STATUS", REPORT_STATUS[m.report.status].label],
+    ["ISSUED", format(new Date(), "MMM d, yyyy")],
+  ];
+  const colW = (W - M * 2) / 3;
+  meta.forEach(([k, v], i) => {
+    const x = M + (i % 3) * colW;
+    const yy = H - 210 + Math.floor(i / 3) * 44;
+    doc.setFont("helvetica", "bold").setFontSize(7).setTextColor(...muted).text(k, x, yy, { charSpace: 0.8 });
+    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(...ink).text(doc.splitTextToSize(v, colW - 12) as string[], x, yy + 14);
+  });
+  doc.setFillColor(255, 251, 235).setDrawColor(251, 191, 36).setLineWidth(0.5);
+  const notice = doc.splitTextToSize(m.sourceNotice, W - M * 2 - 24) as string[];
+  const nh = 14 + notice.length * 11;
+  doc.rect(M, H - 110, W - M * 2, nh, "F");
+  doc.setFillColor(251, 191, 36).rect(M, H - 110, 3, nh, "F");
+  doc.setFont("helvetica", "normal").setFontSize(8.5).setTextColor(120, 53, 15);
+  notice.forEach((l, i) => doc.text(l, M + 14, H - 110 + 15 + i * 11));
 
   /* Body */
   doc.addPage();
-  y = M;
+  y = TOP;
   if (has("assessment_info")) {
     heading("Assessment Information");
     table(["Item", "Detail"], [
@@ -184,19 +230,28 @@ export async function generateReportPdf(m: ReportModel): Promise<Blob> {
     table(["Name", "Role", "Contact"], m.assessors.map((u) => [u.name, u.title, u.email]));
   }
 
-  /* Footer + watermark on every page */
+  /* Running header, footer and watermark */
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     if (m.watermark) {
       doc.saveGraphicsState();
-      doc.setGState(new GState({ opacity: 0.08 }));
+      doc.setGState(new GState({ opacity: 0.06 }));
       doc.setTextColor(15, 23, 42).setFont("helvetica", "bold").setFontSize(56);
       doc.text("DEMO DATA", W / 2, H / 2, { align: "center", angle: 35 });
       doc.restoreGraphicsState();
     }
+    if (i > 1) {
+      if (logo) doc.addImage(logo, "PNG", M, 30, 13, 13);
+      doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...ink).text("AIVERA", M + (logo ? 18 : 0), 40, { charSpace: 1 });
+      doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(...muted);
+      doc.text(doc.splitTextToSize(m.report.title, W / 2) as string[], M + (logo ? 64 : 46), 40);
+      doc.text(m.report.code, W - M, 40, { align: "right" });
+      doc.setDrawColor(226, 232, 240).setLineWidth(0.5).line(M, 52, W - M, 52);
+    }
+    doc.setDrawColor(226, 232, 240).setLineWidth(0.5).line(M, H - 34, W - M, H - 34);
     doc.setFont("helvetica", "normal").setFontSize(7.5).setTextColor(...muted);
-    doc.text(`${m.report.code} · AIVERA security assessment${m.hasSimulated ? " · includes demo data" : ""}`, M, H - 22);
+    doc.text(`Confidential  ·  AIVERA security assessment${m.hasSimulated ? "  ·  includes demo data" : ""}`, M, H - 22);
     doc.text(`Page ${i} of ${pages}`, W - M, H - 22, { align: "right" });
   }
   return doc.output("blob");

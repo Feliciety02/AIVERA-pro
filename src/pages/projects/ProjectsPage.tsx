@@ -13,7 +13,7 @@ import { ALL, FilterBar, FilterSelect, SearchInput } from "@/components/shared/f
 import { EmptyState } from "@/components/shared/states";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { UserChip } from "@/components/shared/display";
-import { StatusBadge, OriginBadge } from "@/components/security/badges";
+import { StatusBadge } from "@/components/security/badges";
 import { useDataStore } from "@/stores/dataStore";
 import { useCurrentUser, useDocumentTitle, useInitialLoading, useLookups } from "@/hooks";
 import { ASSESSMENT_TYPES, PROJECT_STATUS } from "@/lib/constants";
@@ -129,7 +129,6 @@ export default function ProjectsPage() {
     <ContentContainer>
       <PageHeader
         title="Projects"
-        description="Plan and track security assessment engagements. Each project groups authorized targets, scans, findings and reports."
         actions={
           canManage && (
             <Button size="sm" asChild>
@@ -179,9 +178,6 @@ export default function ProjectsPage() {
           }
         />
       </Card>
-      <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        Records labelled <OriginBadge origin="synthetic" /> are part of the fictional demo dataset; <OriginBadge origin="user_created" /> records were created in this browser.
-      </p>
       <ConfirmDialog
         open={!!archiveTarget}
         onOpenChange={(o) => !o && setArchiveTarget(null)}

@@ -21,7 +21,7 @@ const schema = z.object({
   title: z.string().trim().min(5, "Title must be at least 5 characters").max(160),
   category: z.enum(CATEGORIES.map((c) => c.id) as [AssessmentCategoryId, ...AssessmentCategoryId[]]),
   severity: z.enum(SEVERITIES as [Severity, ...Severity[]]),
-  affectedAsset: z.string().trim().min(1, "Describe the affected URL, endpoint or service"),
+  affectedAsset: z.string().trim().max(500),
   parameter: z.string().max(100),
   cwe: z.string().trim().regex(/^(CWE-\d+)?$/, "Use the format CWE-79 or leave empty"),
   description: z.string().trim().min(10, "Say what you saw (min. 10 characters)"),
@@ -45,13 +45,18 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
   const navigate = useNavigate();
   const allTargets = useDataStore((s) => s.targets);
   const targets = allTargets.filter((t) => !!t.projectId && t.authorizationStatus === "authorized" && t.authorizationConfirmed && (!defaults?.projectId || t.projectId === defaults.projectId));
-  const firstTarget = defaults?.targetId ?? (targets.length === 1 ? targets[0]!.id : "");
+  // Preselect: the website passed in, else the one scanned most recently, else the first.
+  const scans = useDataStore((s) => s.scans);
+  const lastScanned = [...scans].sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? "")).find((sc) => targets.some((t) => t.id === sc.targetId))?.targetId;
+  const firstTarget = defaults?.targetId ?? lastScanned ?? targets[0]?.id ?? "";
   const {
     register,
     control,
     handleSubmit,
     watch,
     reset,
+    setValue,
+    getFieldState,
     formState: { errors, isSubmitting },
   } = useForm<Values>({ resolver: zodResolver(schema) });
 
@@ -76,13 +81,17 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
   const targetId = watch("targetId");
   const target = allTargets.find((t) => t.id === targetId);
   const allowed = target?.scope.allowedCategories ?? [];
+  // The address follows the chosen website unless the person typed their own.
+  React.useEffect(() => {
+    if (target && !getFieldState("affectedAsset").isDirty) setValue("affectedAsset", target.url);
+  }, [target?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async (v: Values) => {
     if (!allowed.includes(v.category)) {
       toast.error("That category is not permitted by the target's approved scope.");
       return;
     }
-    const f = await findingService.createManual({ ...v, impact: v.impact || "Not assessed yet.", remediation: v.remediation || "To be decided after verification.", checklistRef: defaults?.checklistRef });
+    const f = await findingService.createManual({ ...v, affectedAsset: v.affectedAsset || target?.url || "", impact: v.impact || "Not assessed yet.", remediation: v.remediation || "To be decided after verification.", checklistRef: defaults?.checklistRef });
     toast.success(`Recorded ${f.code}`, { description: "Added as Pending Verification. A separate verification decision is still required." });
     onOpenChange(false);
     navigate(`/findings/${f.id}`);
@@ -133,7 +142,7 @@ export function ManualFindingDialog({ open, onOpenChange, defaults }: { open: bo
               More details <span className="font-normal text-muted-foreground">Optional: address, parameter, CWE, impact, fix</span>
             </summary>
             <div className="grid gap-3 border-t border-border p-3.5 sm:grid-cols-2">
-              <Field id="mf-asset" label="Address" required error={errors.affectedAsset?.message} className="sm:col-span-2">
+              <Field id="mf-asset" label="Address" hint="Defaults to the website address." className="sm:col-span-2">
                 <Input id="mf-asset" className="font-mono text-xs" {...register("affectedAsset")} />
               </Field>
               <Field id="mf-param" label="Parameter"><Input id="mf-param" className="font-mono text-xs" {...register("parameter")} /></Field>

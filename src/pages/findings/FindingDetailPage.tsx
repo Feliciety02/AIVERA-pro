@@ -28,6 +28,9 @@ import { awaitsReview } from "@/features/scanLifecycle";
 /** Findings the AI was already asked about in this browser session, so it runs once per finding. */
 const aiRequested = new Set<string>();
 
+/** Uses the same words as the buttons. */
+const SAVED_TEXT: Record<VerificationStatus, string> = { confirmed: "Saved: real problem.", rejected: "Saved: false alarm.", needs_review: "Saved: not sure.", pending: "Decision undone." };
+
 /** First sentence only: the page shows a verdict, not an essay. */
 const firstSentence = (t: string) => (t.match(/^.*?[.!?](\s|$)/)?.[0] ?? t).trim();
 
@@ -66,6 +69,15 @@ export default function FindingDetailPage() {
       else setAliasCheckedId(findingId);
     });
   }, [finding, findingId, navigate]);
+
+  // Links to one evidence item (/findings/:id#ev-…) scroll straight to it.
+  const hasFinding = !!finding;
+  React.useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!hasFinding || !id) return;
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+    return () => clearTimeout(t);
+  }, [findingId, hasFinding]);
 
   // A new finding starts without the "decision saved" banner.
   React.useEffect(() => {
@@ -147,7 +159,7 @@ export default function FindingDetailPage() {
     >
       {justSaved && (
         <div role="status" className="rounded-xl bg-success/10 px-3.5 py-2.5 text-sm">
-          <p className="font-medium">Saved as {VERIFICATION_STATUS[justSaved].label}.</p>
+          <p className="font-medium">{SAVED_TEXT[justSaved]}</p>
           {nextToReview ? (
             <Button size="sm" className="mt-2 w-full" onClick={() => goTo(nextToReview.id)}>
               Next to review <ArrowRight />

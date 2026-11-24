@@ -24,7 +24,7 @@ export default function IntegrationsPage() {
   const integrations = useDataStore((s) => s.integrations);
   return (
     <ContentContainer wide>
-      <PageHeader title="Integrations" description="Security tools and services AIVERA will orchestrate through its backend. Statuses below reflect the real state of this build." />
+      <PageHeader title="Integrations" />
       <Callout tone="warning" icon={ShieldAlert} title="Check assessment prerequisites">
         The browser does not launch security tools. API mode can run an opt-in passive Nmap and ZAP assessment when Nmap, Docker, the ZAP image, and the live scan gate are configured on the lab server. These cards do not verify installed executables. “Last used” shows when tool data was recorded.
       </Callout>

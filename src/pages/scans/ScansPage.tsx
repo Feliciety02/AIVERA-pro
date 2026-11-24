@@ -65,7 +65,6 @@ export default function ScansPage() {
     <ContentContainer wide>
       <PageHeader
         title="Scans"
-        description="Run Nmap and OWASP ZAP against authorized targets, import their reports, or practise with clearly labelled simulations."
         actions={
           can(user?.role, "run_demo_scans") && (
             <>

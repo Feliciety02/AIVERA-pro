@@ -161,7 +161,7 @@ export default function ProjectDetailPage() {
               ))}
             </ul>
           </SectionCard>
-          <SectionCard title="Assessment progress" description="Checklist coverage per category" className="lg:col-span-2" actions={<Button variant="ghost" size="sm" asChild><Link to={`/assessments?project=${project.id}`}>Open checklists</Link></Button>}>
+          <SectionCard title="Assessment progress" className="lg:col-span-2" actions={<Button variant="ghost" size="sm" asChild><Link to={`/assessments?project=${project.id}`}>Open checklists</Link></Button>}>
             {d.assessments.length === 0 ? (
               <EmptyState compact title="No category assessments started" description="Open Checklists to begin a guided checklist for this project." />
             ) : (
@@ -303,7 +303,7 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-4">
-          <SectionCard title="Reports" actions={can(user?.role, "generate_reports") && <Button size="sm" variant="outline" asChild><Link to={`/reports/new?project=${project.id}`}><FileText /> New report</Link></Button>}>
+          <SectionCard title="Reports" actions={can(user?.role, "generate_reports") && <Button size="sm" variant="outline" asChild><Link to={`/reports?new=1&project=${project.id}`}><FileText /> New report</Link></Button>}>
             {d.reports.length === 0 ? (
               <EmptyState compact icon={FileText} title="No reports generated" description="Generate a demonstration report once findings are verified." />
             ) : (
@@ -325,7 +325,7 @@ export default function ProjectDetailPage() {
               </ul>
             )}
           </SectionCard>
-          <SectionCard title="Activity timeline" description="Demonstration log entries related to this project">
+          <SectionCard title="Activity timeline">
             <RecentActivity items={d.activity} users={lookups.users} limit={30} />
           </SectionCard>
         </TabsContent>

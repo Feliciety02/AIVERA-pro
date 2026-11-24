@@ -76,7 +76,6 @@ export default function TargetsPage() {
     <ContentContainer wide={view === "discovery"}>
       <PageHeader
         title="Websites"
-        description="Register web applications that are approved for assessment and define exactly what may be tested."
         actions={
           can(user?.role, "manage_targets") && (
             <Button size="sm" asChild>

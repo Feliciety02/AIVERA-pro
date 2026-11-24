@@ -55,9 +55,6 @@ export function permissionsFor(role: UserRole): Permission[] {
   return MATRIX[role] ?? [];
 }
 
-/** Higher number = more senior. Used to pick who a task escalates to. */
-export const roleRank = (role: UserRole | string) => ROLE_ORDER.length - Math.max(0, ROLE_ORDER.indexOf(role as UserRole));
-
 export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_users: "Manage users and roles",
   manage_settings: "Manage application settings",

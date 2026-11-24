@@ -62,7 +62,6 @@ export default function DashboardPage() {
     <ContentContainer>
       <PageHeader
         title="Home"
-        description="Your next step, what's waiting on you, and where the assessment stands. Only findings a person confirmed count as vulnerabilities."
         actions={
           <>
             <Button variant="ghost" size="sm" asChild>

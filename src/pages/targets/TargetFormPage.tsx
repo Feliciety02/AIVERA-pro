@@ -46,7 +46,6 @@ export default function TargetFormPage() {
     <ContentContainer className="max-w-5xl">
       <PageHeader
         title={editing ? `Edit ${target?.name}` : "Register a website to test"}
-        description="Four quick steps: the address, your permission, what may be tested, and who owns it."
       />
       {!can(user?.role, "manage_targets") ? (
         <Callout tone="warning" title="Not permitted for this demo role">

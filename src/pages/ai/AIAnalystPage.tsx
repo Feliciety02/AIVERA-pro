@@ -125,7 +125,6 @@ export default function AIAnalystPage() {
     <ContentContainer wide>
       <PageHeader
         title="AI analyst"
-        description="An analysis workspace where AI assists interpretation and remediation planning. The assessor always makes the final call."
         meta={<span className="text-xs text-muted-foreground">Adapter: {aiIntegration?.status === "connected" ? aiIntegration.integrationType : analysisService.adapterLabel}</span>}
       />
 

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
-import { CircleAlert, Loader2, ScanLine, Settings2 } from "lucide-react";
+import { CircleAlert, FlaskConical, Loader2, ScanLine, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDataStore } from "@/stores/dataStore";
@@ -45,7 +45,7 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
   else if (!target.projectId) blocker = { text: "Add this website to a project first (see the box above)." };
   else if (activeCount) blocker = { text: "A scan is already in progress for this website." };
   else if (pendingCount) blocker = { text: `Review ${pendingCount} pending finding${pendingCount === 1 ? "" : "s"} before scanning again.`, fix: <Button size="sm" variant="outline" asChild><Link to={`/findings?target=${target.id}&status=unverified`}>Open review queue</Link></Button> };
-  else if (!IS_API) blocker = { text: "Real scans need the full app with the AIVERA server (npm run dev:full). Demo mode can only run a practice simulation." };
+  else if (!IS_API) blocker = null; // demo: a practice scan is one click away below
   else if (!liveAvailable) blocker = { text: "Live scanning is turned off on the AIVERA server. An administrator can turn it on in server/.env." };
   else if (!tools.length)
     blocker = {
@@ -60,6 +60,20 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
         </Button>
       ),
     };
+
+  // Demo mode: a practice run generated in the browser. Nothing is sent to the website.
+  const practice = async () => {
+    setStarting(true);
+    try {
+      const scan = await scanService.runDemoSimulation(
+        { name: `${target.name} practice scan`, projectId: target.projectId!, targetId: target.id, config: { tools: ["owasp_zap", "http_inspector"], categories: target.scope.allowedCategories, profile: "baseline", timeLimitMinutes: 10, requestsPerSecond: 2, maxConcurrency: 1, outputFormat: "json", respectExclusions: true, scopeConfirmed: true } },
+        (count) => toast.success(`Practice scan ${scan.code} finished`, { description: `${count} practice finding(s) to review.`, action: { label: "Review", onClick: () => navigate(`/findings?scan=${scan.id}`) } }),
+      );
+      navigate(`/scans/${scan.id}`);
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const start = async () => {
     setStarting(true);
@@ -90,8 +104,9 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
             {eyebrow && <p className="text-xs font-medium text-primary">{eyebrow}</p>}
             <h2 className="text-lg font-semibold tracking-tight">{showTargetName ? `Scan ${target.name}` : "Scan this website"}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Runs {tools.length ? tools.map((t) => TOOL_NAME[t]).join(", ").replace(/, ([^,]*)$/, " and $1") : "the security tools"} only inside the approved scope, with gentle settings. It takes about two minutes. Then AI explains
-              what was found, and every result waits for your review.
+              {IS_API
+                ? `Runs ${tools.length ? tools.map((t) => TOOL_NAME[t]).join(", ").replace(/, ([^,]*)$/, " and $1") : "the security tools"} inside the approved scope with gentle settings. About two minutes; every result waits for your review.`
+                : "Demo mode: makes practice results in your browser. Nothing is sent to the website."}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               {lastScan ? (
@@ -110,12 +125,18 @@ export function QuickScanCard({ target, onEditScope, showTargetName, embedded, e
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
             <Link to={`/scans/new?project=${target.projectId ?? ""}&target=${target.id}`}>
-              <Settings2 /> Advanced options
+              <Settings2 /> More options
             </Link>
           </Button>
-          <Button className="rounded-full" disabled={!!blocker || starting} onClick={() => setConfirmOpen(true)}>
-            {starting ? <Loader2 className="animate-spin" /> : <ScanLine />} {lastScan ? "Scan again" : "Scan this website"}
-          </Button>
+          {IS_API ? (
+            <Button className="rounded-full" disabled={!!blocker || starting} onClick={() => setConfirmOpen(true)}>
+              {starting ? <Loader2 className="animate-spin" /> : <ScanLine />} {lastScan ? "Scan again" : "Scan this website"}
+            </Button>
+          ) : (
+            <Button className="rounded-full" disabled={!!blocker || starting} onClick={practice}>
+              {starting ? <Loader2 className="animate-spin" /> : <FlaskConical />} Run practice scan
+            </Button>
+          )}
         </div>
       </div>
       {blocker && (

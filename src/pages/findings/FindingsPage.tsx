@@ -154,7 +154,6 @@ export default function FindingsPage() {
     <ContentContainer wide>
       <PageHeader
         title="Findings"
-        description="Central register of potential vulnerabilities. Every finding requires a human verification decision; only Confirmed findings count as vulnerabilities."
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => exportRows(rows, "aivera-findings.csv")} disabled={!rows.length}>

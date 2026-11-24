@@ -4,8 +4,8 @@
  */
 import { eachWeekOfInterval, endOfWeek, format, isWithinInterval, parseISO, startOfWeek, subWeeks } from "date-fns";
 import type { DataState } from "@/stores/dataStore";
-import type { AssessmentCategoryId, RemediationStatus, Severity, VerificationStatus, VulnerabilityFinding } from "@/types";
-import { CATEGORIES, REMEDIATION_STATUS, SEVERITIES, SEVERITY_META, VERIFICATION_STATUS } from "@/lib/constants";
+import type { AssessmentCategoryId, Severity, VerificationStatus, VulnerabilityFinding } from "@/types";
+import { CATEGORIES, SEVERITIES, SEVERITY_META, VERIFICATION_STATUS } from "@/lib/constants";
 import { percent } from "@/lib/utils";
 
 export interface DashboardMetrics {
@@ -57,12 +57,6 @@ export function verificationDistribution(findings: VulnerabilityFinding[]) {
   const order: VerificationStatus[] = ["pending", "needs_review", "confirmed", "rejected"];
   const colors: Record<VerificationStatus, string> = { pending: "var(--sev-medium)", needs_review: "var(--sev-low)", confirmed: "var(--primary)", rejected: "var(--sev-info)" };
   return order.map((st) => ({ key: st, name: VERIFICATION_STATUS[st].label, value: findings.filter((f) => f.verificationStatus === st).length, fill: colors[st] }));
-}
-
-export function remediationDistribution(tasks: DataState["remediation"]) {
-  const order: RemediationStatus[] = ["open", "in_progress", "awaiting_retest", "pending_approval", "resolved", "accepted_risk"];
-  const colors: Record<RemediationStatus, string> = { open: "var(--sev-medium)", in_progress: "var(--cyan)", awaiting_retest: "var(--sev-low)", pending_approval: "var(--sev-info)", resolved: "var(--primary)", accepted_risk: "var(--sev-info)" };
-  return order.map((st) => ({ key: st, name: REMEDIATION_STATUS[st].label, value: tasks.filter((t) => t.status === st).length, fill: colors[st] }));
 }
 
 export function categoryBreakdown(findings: VulnerabilityFinding[]) {

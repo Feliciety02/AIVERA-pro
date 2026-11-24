@@ -46,6 +46,8 @@ const noteOptions = (a: Action | null): string[] => {
     case "resolved": return ["Fix checked and retest passed.", "Fix confirmed by code review and retest."];
     case "in_progress": return a.title === "Send back" ? ["Retest still fails; please fix again.", "Fix incomplete; see retest notes."] : ["Started work on the fix."];
     case "accepted_risk": return ["Owner accepts the risk; low impact.", "Compensating control in place.", "Fix planned in a later release."];
+    case "awaiting_retest": return ["Fix deployed to the test environment; ready for retest.", "Code changed and merged; please retest."];
+    case "pending_approval": return ["Fix deployed and checked by the developer.", "Configuration changed; please approve."];
     case "open": return ["Issue came back after the fix."];
     default: return [];
   }
@@ -192,7 +194,7 @@ function TaskDetail({ task, finding }: { task: RemediationTask; finding?: Vulner
           <DialogFooter>
             <Button variant="outline" onClick={() => setAction(null)} disabled={busy}>Cancel</Button>
             <Button
-              variant={action?.kind === "retest" ? (action.result === "passed" ? "success" : "destructive") : action?.to === "resolved" ? "success" : action?.to === "in_progress" || action?.to === "accepted_risk" ? "warning" : "default"}
+              variant={action?.kind === "retest" ? (action.result === "passed" ? "success" : "destructive") : action?.to === "resolved" ? "success" : (action?.to === "in_progress" && action.title === "Send back") || action?.to === "accepted_risk" ? "warning" : "default"}
               onClick={run}
               disabled={busy}
             >
@@ -255,7 +257,6 @@ export default function RemediationPage() {
     <ContentContainer wide>
       <PageHeader
         title="Fixes"
-        description="Turn confirmed vulnerabilities into owned, dated fixes, resolved only through manual approval and, where required, a passed retest."
         actions={canEdit && <Button size="sm" onClick={() => setPickOpen(true)}><Plus /> New task</Button>}
       />
       {/* One line instead of six counters. */}

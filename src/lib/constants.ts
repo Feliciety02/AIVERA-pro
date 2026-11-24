@@ -23,7 +23,6 @@ import type {
 } from "@/types";
 
 export const APP_NAME = "AIVERA";
-export const APP_TAGLINE = "Intelligent Security. Verified Decisions.";
 
 /* -------------------------------- Severity ------------------------------- */
 export const SEVERITIES: Severity[] = ["critical", "high", "medium", "low", "info"];

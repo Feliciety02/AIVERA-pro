@@ -163,31 +163,3 @@ export function ChoiceCard({ checked, onToggle, title, description, icon, disabl
   );
 }
 
-export function Steps({ steps, current, onSelect }: { steps: string[]; current: number; onSelect?: (i: number) => void }) {
-  return (
-    <ol className="flex gap-1 overflow-x-auto pb-1" aria-label="Progress">
-      {steps.map((s, i) => {
-        const state = i < current ? "done" : i === current ? "current" : "todo";
-        return (
-          <li key={s} className="min-w-28 flex-1">
-            <button
-              type="button"
-              disabled={!onSelect || i > current}
-              onClick={() => onSelect?.(i)}
-              aria-current={state === "current" ? "step" : undefined}
-              className="group w-full text-left disabled:cursor-default"
-            >
-              <span className={cn("block h-1 rounded-full", state === "todo" ? "bg-muted" : "bg-primary", state === "current" && "bg-primary/70")} />
-              <span className={cn("mt-2 flex items-center gap-1.5 text-[11px]", state === "todo" ? "text-muted-foreground" : "text-foreground")}>
-                <span className={cn("flex size-4 items-center justify-center rounded-full border text-[9px] font-bold", state === "done" ? "border-primary bg-primary text-primary-foreground" : state === "current" ? "border-primary text-primary" : "border-border")}>
-                  {i + 1}
-                </span>
-                <span className="truncate font-medium">{s}</span>
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}

@@ -84,7 +84,7 @@ export function NextStepCard({ scanTarget }: { scanTarget?: Target }) {
       done: reports.length > 0,
       title: "Create the report",
       body: "Turn the confirmed findings, evidence and fixes into a PDF you can hand in or share with the owner.",
-      action: { label: "Create the report", to: "/reports/new" },
+      action: { label: "Create the report", to: "/reports?new=1" },
     },
   ];
 

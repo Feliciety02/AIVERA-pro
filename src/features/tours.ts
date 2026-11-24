@@ -121,13 +121,9 @@ export const PAGE_TOURS: PageTour[] = [
     key: "target-form",
     match: /^\/targets\/(new|[^/]+\/edit)$/,
     steps: [
-      { title: "Register a website in 4 steps", body: "Paste the address, confirm you have permission, let AIVERA detect what may be tested, and say who owns it. Most fields fill themselves in." },
-      { target: "#url", title: "1. Website address", body: "Paste the full address, e.g. http://127.0.0.1:8000 for UMERCH3.0. AIVERA fills in the name, the environment (from words like “staging” or “dev”) and the host to test." },
-      { target: "#authorizationConfirmed", title: "2. Permission", body: "Tick this only if the owner gave you written permission. Your name and the time are saved. A permission record number (AUTH-year-number) is created automatically; you can use your own document number instead." },
-      { target: "#scope-detect", title: "3. Detect scope", body: "Click “Detect scope”. With the AIVERA server running it checks that the host exists (DNS) and reads the site's own robots.txt and sitemap.xml, nothing else. Paths the owner asks crawlers to avoid become “Never tested”. In demo mode only the address is used." },
-      { target: "#scope-summary", title: "Check the result", body: "This is exactly what will be saved. Each item shows where it came from (Web address, robots.txt…), so nothing is made up." },
-      { target: "#scope-advanced", title: "Change it by hand", body: "Open this to add hosts or paths, exclude pages, or choose which test categories are allowed." },
-      { target: "#owner", title: "4. Owner and project", body: "Who is responsible for the website. Adding it to a project is optional now, but scans and findings need one, so you can add it later from the target's page." },
+      { target: "#url", title: "Website address", body: "Paste the full address, e.g. http://127.0.0.1:8000. AIVERA fills in the name, environment, host to test and owner from it." },
+      { target: "#authorizationConfirmed", title: "Permission", body: "Tick this only if the owner gave you written permission. Your name and the time are saved, with an automatic record number." },
+      { target: "main details", title: "Details", body: "Everything AIVERA filled in: name, environment, scope, owner and project. Open it to check or change anything, or to detect scope from robots.txt and sitemap.xml." },
       { target: 'main button[type="submit"]', title: "Save", body: "Anything missing is highlighted in red with a short explanation." },
     ],
   },
@@ -147,7 +143,7 @@ export const PAGE_TOURS: PageTour[] = [
     match: /^\/scans$/,
     steps: [
       { target: btn("Import tool output"), title: "Use real tool results", body: "Run Nmap (e.g. nmap -sV -oX report.xml <host>) or OWASP ZAP yourself on your authorized target, export the report, and import it here. Findings arrive as Pending Verification." },
-      { target: btn("New scan"), title: "Plan a scan", body: "A 6-step wizard. Since the scanners aren't connected yet, it runs a clearly labelled simulation instead of a real scan." },
+      { target: btn("New scan"), title: "Start a scan", body: "One screen: pick the website, tick that you'll stay in scope, and start. In demo mode it runs a clearly labelled practice scan." },
       { target: TABLE, title: "Scan history", body: "Every scan with its target, tools, status, result type and number of findings. Click a row to see its output and findings." },
     ],
   },
@@ -155,9 +151,8 @@ export const PAGE_TOURS: PageTour[] = [
     key: "scan-wizard",
     match: /^\/scans\/new$/,
     steps: [
-      { target: 'main ol[aria-label="Progress"]', title: "Six steps", body: "Project → authorized target → confirm scope → choose tools → configure → review. You can click back to any finished step." },
-      { target: "main [data-slot=card]", title: "Fill in each step", body: "Only authorized targets can be picked. You must tick that you reviewed the scope. Categories not allowed by the scope are greyed out, and request-rate and time limits keep testing gentle." },
-      { target: btn("Continue"), title: "Checks before moving on", body: "Continue stays disabled until the step is valid. On the last step, \"Start Assessment\" is disabled until scan workers exist; \"Run Demo Simulation\" creates a labelled practice scan." },
+      { target: "#scan-target", title: "Pick the website", body: "Only websites with confirmed permission can be picked. Its project comes with it." },
+      { target: "main details", title: "More settings", body: "Request rate, time limit and test categories. The defaults are gentle; most scans never need changing." },
     ],
   },
   {
@@ -241,18 +236,8 @@ export const PAGE_TOURS: PageTour[] = [
     key: "reports",
     match: /^\/reports$/,
     steps: [
-      { target: card("Report templates"), title: "Templates", body: "Technical (full detail with evidence), Executive (short, risk-focused for managers), or Remediation (focused on fixes). You can still change the sections later." },
-      { target: btn("Create report"), title: "Make a report", body: "Seven steps: project, targets, period, verified findings, sections, preview, and export to PDF." },
-      { target: TABLE, title: "Report history", body: "Every report with its status (Draft or Final) and period. Click a row to preview or print it, or use PDF to download." },
-    ],
-  },
-  {
-    key: "report-wizard",
-    match: /^\/reports\/new$/,
-    steps: [
-      { target: 'main ol[aria-label="Progress"]', title: "Seven steps", body: "Project → targets → date range → verified findings → sections → preview → generate and export." },
-      { target: "main [data-slot=card]", title: "What goes in", body: "Only confirmed findings can be listed as vulnerabilities. Unverified ones can go in a separate, clearly labelled appendix. You can also draft the executive summary with AI, then edit it." },
-      { target: btn("Continue"), title: "Move on", body: "Check the preview before generating, the PDF uses exactly the same content." },
+      { target: btn("Create report"), title: "Make a report", body: "Pick the project and the type of report (technical, executive or fix progress), then create. Websites, dates and the summary are filled in for you." },
+      { target: TABLE, title: "Your reports", body: "Each report with its status. Click a row to read or print it, or use PDF to download." },
     ],
   },
   {
@@ -295,7 +280,7 @@ export const PAGE_TOURS: PageTour[] = [
     key: "settings",
     match: /^\/settings$/,
     steps: [
-      { target: { text: "Appearance", selector: "h3", closest: "[data-slot=card]" }, title: "Your preferences", body: "Light or dark theme, table density, and the switches for the simple menu, tutorials and demo reminders. Notifications are just below." },
+      { target: { text: "Display", selector: "h3", closest: "[data-slot=card]" }, title: "Your preferences", body: "Theme, table rows, the simple menu, tutorials and demo reminders. Notifications are just below." },
       { target: tab("Workspace"), title: "Workspace defaults", body: "Administrators: scan defaults, report options and verification safeguards for everyone." },
       { target: tab("Advanced"), title: "Advanced", body: "Administrators: integration settings and resetting the demo data." },
     ],

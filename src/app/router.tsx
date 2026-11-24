@@ -1,5 +1,12 @@
 import * as React from "react";
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate, useSearchParams } from "react-router";
+
+/** Old links to the report wizard now open the create dialog on the Reports page. */
+function ReportNewRedirect() {
+  const [params] = useSearchParams();
+  const project = params.get("project");
+  return <Navigate to={`/reports?new=1${project ? `&project=${encodeURIComponent(project)}` : ""}`} replace />;
+}
 import { AppShell, ContentContainer } from "@/components/layout/AppShell";
 import { CardsSkeleton, TableSkeleton } from "@/components/shared/states";
 
@@ -25,7 +32,6 @@ const Findings = React.lazy(() => import("@/pages/findings/FindingsPage"));
 const FindingDetail = React.lazy(() => import("@/pages/findings/FindingDetailPage"));
 const Remediation = React.lazy(() => import("@/pages/remediation/RemediationPage"));
 const Reports = React.lazy(() => import("@/pages/reports/ReportsPage"));
-const ReportNew = React.lazy(() => import("@/pages/reports/ReportWizardPage"));
 const ReportDetail = React.lazy(() => import("@/pages/reports/ReportDetailPage"));
 const MyWork = React.lazy(() => import("@/pages/work/MyWorkPage"));
 const Activity = React.lazy(() => import("@/pages/activity/ActivityPage"));
@@ -78,7 +84,7 @@ export const router = createBrowserRouter([
       { path: "/risks", element: <Navigate to="/findings?view=risks" replace /> },
       { path: "/remediation", element: s(<Remediation />) },
       { path: "/reports", element: s(<Reports />) },
-      { path: "/reports/new", element: s(<ReportNew />) },
+      { path: "/reports/new", element: <ReportNewRedirect /> },
       { path: "/reports/:reportId", element: s(<ReportDetail />) },
       { path: "/activity", element: s(<Activity />) },
       { path: "/users", element: s(<Users />) },

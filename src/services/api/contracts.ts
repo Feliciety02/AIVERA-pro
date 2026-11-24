@@ -31,8 +31,3 @@ export const API_ROUTES = {
 export type DataMode = "demo" | "api";
 
 export const DATA_MODE: DataMode = (import.meta.env.VITE_DATA_MODE as DataMode | undefined) === "api" ? "api" : "demo";
-
-/** Placeholder HTTP client for the future API adapter. Throws until implemented. */
-export async function apiRequest<T>(route: string): Promise<T> {
-  throw new Error(`Backend not available in this phase (attempted ${route}). Running in demo mode.`);
-}

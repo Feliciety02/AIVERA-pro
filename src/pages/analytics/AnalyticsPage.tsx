@@ -63,7 +63,6 @@ export default function AnalyticsPage() {
     <ContentContainer wide>
       <PageHeader
         title="Analytics"
-        description="Trends and comparisons computed live from the demo dataset. Filters apply to every chart."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect label="Projects" value={projectId} onChange={setProjectId} options={s.projects.map((p) => ({ value: p.id, label: p.code }))} />
@@ -93,7 +92,7 @@ export default function AnalyticsPage() {
         <ChartCard title="Findings by target" summary={byTarget.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.unverified} unverified`).join("; ")}>
           <StackedBars data={byTarget} xKey="name" layout="vertical" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)", stack: "a" }]} />
         </ChartCard>
-        <ChartCard title="Findings by tool" description="Including rejected (false positive) counts" summary={byTool.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.rejected} rejected, ${r.unverified} unverified`).join("; ")}>
+        <ChartCard title="Findings by tool" summary={byTool.map((r) => `${r.name}: ${r.confirmed} confirmed, ${r.rejected} rejected, ${r.unverified} unverified`).join("; ")}>
           <StackedBars data={byTool} xKey="name" series={[{ key: "confirmed", name: "Confirmed", color: "var(--sev-high)", stack: "a" }, { key: "unverified", name: "Unverified", color: "var(--sev-medium)", stack: "a" }, { key: "rejected", name: "Rejected", color: "var(--sev-info)", stack: "a" }]} />
         </ChartCard>
         <ChartCard title="Findings by category" summary={byCategory.map((c) => `${c.name}: ${c.total}`).join("; ")}>

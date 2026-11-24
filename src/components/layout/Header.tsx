@@ -110,7 +110,7 @@ function UserMenu() {
           {!IS_API && <p className="mt-1 text-[10px] text-sev-medium">Demo account, not real authentication</p>}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate("/settings?tab=account")}>
+        <DropdownMenuItem onSelect={() => navigate("/settings")}>
           <UserRoundCog /> Account preferences
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate("/settings")}>

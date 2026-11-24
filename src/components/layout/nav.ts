@@ -98,25 +98,3 @@ export const SIMPLE_NAV: NavGroup[] = [
     ],
   },
 ];
-
-export const ROUTE_LABELS: Record<string, string> = {
-  dashboard: "Home",
-  "my-work": "My work",
-  analytics: "Analytics",
-  projects: "Projects",
-  targets: "Websites",
-  reconnaissance: "Reconnaissance",
-  scans: "Scans",
-  assessments: "Checklists",
-  "ai-analyst": "AI analyst",
-  findings: "Findings",
-  risks: "Risks",
-  remediation: "Fixes",
-  reports: "Reports",
-  activity: "Activity log",
-  users: "Users",
-  integrations: "Integrations",
-  settings: "Settings",
-  new: "New",
-  edit: "Edit",
-};

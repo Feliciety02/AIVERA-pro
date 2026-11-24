@@ -1,4 +1,4 @@
-import { Bot, FlaskConical, Globe, Network, Radar, ScanSearch, ShieldCheck, ShieldOff, ShieldQuestion, UserRound, type LucideIcon } from "lucide-react";
+import { Bot, FlaskConical, Globe, Network, Radar, ScanSearch, UserRound, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DATA_ORIGIN, SEVERITY_META, SOURCE_LABEL, TONE_CLASS, type StatusMeta, type Tone } from "@/lib/constants";
 import { Hint } from "@/components/ui/misc";
@@ -63,31 +63,11 @@ export function OriginBadge({ origin, className }: { origin: DataOrigin; classNa
   );
 }
 
-export function ScopeBadge({ inScope, className }: { inScope: boolean; className?: string }) {
-  return inScope ? (
-    <ToneBadge tone="primary" className={className}>
-      <ShieldCheck className="size-3" /> In scope
-    </ToneBadge>
-  ) : (
-    <ToneBadge tone="danger" className={className}>
-      <ShieldOff className="size-3" /> Out of scope
-    </ToneBadge>
-  );
-}
-
 export function AIBadge({ className, label = "Sample analysis · demo" }: { className?: string; label?: string }) {
   return (
     <span className={cn(base, "border-transparent bg-secondary text-secondary-foreground", className)}>
       <Bot className="size-3" aria-hidden />
       {label}
     </span>
-  );
-}
-
-export function UnverifiedBadge() {
-  return (
-    <ToneBadge tone="warning">
-      <ShieldQuestion className="size-3" /> Not verified
-    </ToneBadge>
   );
 }

@@ -18,10 +18,6 @@ export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
 export function percent(part: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((part / total) * 100);
@@ -34,17 +30,6 @@ export function initials(name: string): string {
     .slice(0, 2)
     .map((p) => p[0]!.toUpperCase())
     .join("");
-}
-
-export function groupCount<T, K extends string>(items: T[], key: (item: T) => K): Record<K, number> {
-  return items.reduce(
-    (acc, item) => {
-      const k = key(item);
-      acc[k] = (acc[k] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<K, number>,
-  );
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
